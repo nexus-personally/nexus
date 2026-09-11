@@ -13,9 +13,17 @@ import { RESUME_THEMES } from '@nexus/shared';
         class="sheet"
         [class]="resume.templateId"
         [class.is-editable]="editable"
+        [class.has-photo]="showPhoto"
         [style.--accent]="accent"
       >
         <header class="identity">
+          @if (showPhoto) {
+            <img
+              class="profile-photo"
+              [src]="resume.content.profile.photoDataUrl"
+              [alt]="resume.content.profile.fullName + ' profile photo'"
+            />
+          }
           <div class="identity-main">
             <h1
               [attr.contenteditable]="editable ? 'true' : null"
@@ -287,6 +295,18 @@ import { RESUME_THEMES } from '@nexus/shared';
         padding-bottom: 0.85rem;
         border-bottom: 2px solid var(--accent);
       }
+      .identity.has-photo,
+      .has-photo .identity {
+        grid-template-columns: 25mm 1.4fr 1fr;
+        align-items: center;
+      }
+      .profile-photo {
+        width: 22mm;
+        height: 22mm;
+        border: 2px solid color-mix(in srgb, var(--accent), white 60%);
+        border-radius: 50%;
+        object-fit: cover;
+      }
       h1,
       h2,
       h3,
@@ -414,6 +434,12 @@ import { RESUME_THEMES } from '@nexus/shared';
         background: #17262b;
         color: #f4f8f7;
       }
+      .tech-modern .profile-photo {
+        width: 30mm;
+        height: 30mm;
+        margin-bottom: 0.6rem;
+        border-color: #8ed8df;
+      }
       .tech-modern .identity h1 {
         font-size: 1.65rem;
       }
@@ -475,6 +501,10 @@ import { RESUME_THEMES } from '@nexus/shared';
         border: 0;
         background: #172126;
         color: #ffffff;
+      }
+      .tech-creative .identity.has-photo,
+      .tech-creative.has-photo .identity {
+        grid-template-columns: 24mm 1.4fr 1fr;
       }
       .tech-creative .identity-main > p {
         color: #a6e4e8;
@@ -538,6 +568,13 @@ export class ResumeRendererComponent {
 
   get accent() {
     return RESUME_THEMES.find((theme) => theme.id === this.resume?.themeId)?.accent ?? '#0f9fb8';
+  }
+
+  get showPhoto() {
+    if (!this.resume?.content.profile.photoDataUrl || !this.resume.content.profile.photoVisible) {
+      return false;
+    }
+    return this.resume.templateId === 'tech-modern' || this.resume.templateId === 'tech-creative';
   }
 
   get orderedSections(): ResumeSection[] {

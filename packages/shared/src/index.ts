@@ -1,9 +1,5 @@
 export type ResumeTemplateId =
-  | 'tech-core'
-  | 'tech-modern'
-  | 'tech-minimal'
-  | 'tech-executive'
-  | 'tech-creative';
+  'tech-core' | 'tech-modern' | 'tech-minimal' | 'tech-executive' | 'tech-creative';
 
 export type ResumeSectionType =
   | 'summary'
@@ -39,6 +35,8 @@ export interface ResumeProfile {
   email: string;
   phone: string;
   location: string;
+  photoDataUrl?: string;
+  photoVisible?: boolean;
   website?: string;
   linkedin?: string;
   github?: string;
@@ -156,36 +154,36 @@ export interface ResumePublication {
 export const RESUME_TEMPLATES: ResumeTemplateMeta[] = [
   {
     id: 'tech-core',
-    name: 'Tech Core',
-    description: 'Dense ATS-first single-column resume for software and platform roles.',
+    name: 'ATS Classic',
+    description: 'Clean, ATS-friendly single-column layout for any profession.',
     photoDefault: 'hidden',
     atsFriendly: true,
   },
   {
     id: 'tech-modern',
-    name: 'Tech Modern',
-    description: 'Modern tech layout with a narrow sidebar and grouped expertise.',
-    photoDefault: 'square',
+    name: 'Modern Profile',
+    description: 'Two-column layout with an optional profile photo and clear hierarchy.',
+    photoDefault: 'circle',
     atsFriendly: true,
   },
   {
     id: 'tech-minimal',
-    name: 'Tech Minimal',
-    description: 'Clean single-column layout with whitespace and light dividers.',
+    name: 'Minimal',
+    description: 'Spacious monochrome layout with quiet typography and light dividers.',
     photoDefault: 'hidden',
     atsFriendly: true,
   },
   {
     id: 'tech-executive',
-    name: 'Tech Executive',
-    description: 'Senior leadership resume emphasizing impact, progression, and scope.',
+    name: 'Executive',
+    description: 'Classic serif CV emphasizing leadership, progression, and impact.',
     photoDefault: 'hidden',
     atsFriendly: true,
   },
   {
     id: 'tech-creative',
-    name: 'Tech Creative',
-    description: 'Portfolio-facing technology layout with stronger visual identity.',
+    name: 'Creative',
+    description: 'Editorial portfolio resume with stronger color and visual identity.',
     photoDefault: 'circle',
     atsFriendly: false,
   },
@@ -291,6 +289,7 @@ export function createStarterResume(
         email: 'you@example.com',
         phone: '+1 555 0100',
         location: 'United States',
+        photoVisible: templateId === 'tech-modern' || templateId === 'tech-creative',
         website: 'https://example.com',
         linkedin: 'https://linkedin.com/in/your-name',
         github: 'https://github.com/your-name',
@@ -313,7 +312,9 @@ export function normalizeSlug(input: string): string {
     .replace(/^-|-$/g, '');
 }
 
-export function validateSlug(input: string): { ok: true; slug: string } | { ok: false; message: string } {
+export function validateSlug(
+  input: string,
+): { ok: true; slug: string } | { ok: false; message: string } {
   const slug = normalizeSlug(input);
 
   if (slug.length < 3 || slug.length > 64) {

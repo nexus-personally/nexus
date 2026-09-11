@@ -2,172 +2,319 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import type { ResumeRecord, ResumeTemplateId } from '@nexus/shared';
-import { RESUME_TEMPLATES } from '@nexus/shared';
+import {
+  LucideArrowRight,
+  LucideCopy,
+  LucideExternalLink,
+  LucideFileText,
+  LucidePlus,
+  LucideSearch,
+  LucideTrash2,
+  LucideUpload,
+  LucideUserRound,
+  LucideX,
+} from '@lucide/angular';
+import type { ResumeRecord, ResumeTemplateId, ResumeTemplateMeta } from '@nexus/shared';
+import { RESUME_TEMPLATES, createStarterResume } from '@nexus/shared';
 import { ApiService } from '../../core/api.service';
+import { prepareProfilePhoto } from '../profile-photo';
 import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
+
+type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
 
 @Component({
   selector: 'nexus-resume-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, ResumeRendererComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    ResumeRendererComponent,
+    LucideArrowRight,
+    LucideCopy,
+    LucideExternalLink,
+    LucideFileText,
+    LucidePlus,
+    LucideSearch,
+    LucideTrash2,
+    LucideUpload,
+    LucideUserRound,
+    LucideX,
+  ],
   template: `
-    <main class="dashboard-shell">
+    <main class="dashboard-shell" [class.panel-closed]="!createOpen">
       <aside class="rail" aria-label="NEXUS navigation">
         <a routerLink="/" class="nexus-mark" aria-label="Back to NEXUS">N</a>
         <nav>
-          <a
-            routerLink="/resume"
-            class="rail-item active"
-            title="Resume Studio"
-            aria-label="Resume Studio"
+          <a routerLink="/resume" class="rail-item" title="Resume Studio" aria-label="Resume Studio"
             >R</a
           >
         </nav>
         <span class="owner-dot" title="Owner workspace online"></span>
       </aside>
 
-      <section class="workspace">
-        <header class="topbar">
-          <div>
-            <strong>Resume Studio</strong>
-            <span>Owner workspace</span>
-          </div>
-          <button class="primary" type="button" (click)="openCreate()"><b>+</b> New resume</button>
-        </header>
+      <header class="topbar">
+        <div class="product-title">
+          <strong>Resume Studio</strong>
+          <span>Owner workspace</span>
+        </div>
+        <button class="primary topbar-action" type="button" (click)="openCreate()">
+          <svg lucidePlus size="16"></svg>
+          New resume
+        </button>
+      </header>
 
-        <div class="content">
-          <section class="library-heading">
+      <section class="workspace">
+        <section class="template-section" aria-labelledby="templates-title">
+          <header class="template-heading">
             <div>
-              <p>RESUME LIBRARY</p>
-              <h1>Your resumes</h1>
+              <span class="eyebrow">TEMPLATES</span>
+              <h1 id="templates-title">Choose a template</h1>
+              <p>Pick a professional layout to get started. You can customize it after creating.</p>
             </div>
-            <span>{{ resumes.length }} {{ resumes.length === 1 ? 'document' : 'documents' }}</span>
-          </section>
+
+            <div class="template-tools">
+              <label class="search-field">
+                <svg lucideSearch size="17"></svg>
+                <input
+                  [(ngModel)]="searchQuery"
+                  type="search"
+                  placeholder="Search templates..."
+                  aria-label="Search templates"
+                />
+              </label>
+              <div class="filter-tabs" role="tablist" aria-label="Template categories">
+                @for (filter of filters; track filter.id) {
+                  <button
+                    type="button"
+                    role="tab"
+                    [class.active]="activeFilter === filter.id"
+                    [attr.aria-selected]="activeFilter === filter.id"
+                    (click)="activeFilter = filter.id"
+                  >
+                    {{ filter.label }}
+                  </button>
+                }
+              </div>
+            </div>
+          </header>
 
           @if (errorMessage) {
             <div class="error-banner" role="alert">
               <div>
-                <strong>Unable to reach Resume Studio</strong><span>{{ errorMessage }}</span>
+                <strong>Resume Studio needs attention</strong>
+                <span>{{ errorMessage }}</span>
               </div>
               <button type="button" (click)="load()">Retry</button>
             </div>
           }
 
-          @if (!loading && !errorMessage && resumes.length === 0) {
-            <section class="empty-state">
-              <span>01</span>
-              <h2>Create your first technology resume</h2>
-              <p>Start with a name, choose a template, then edit directly on the A4 page.</p>
-              <button class="primary" type="button" (click)="openCreate()">Create resume</button>
-            </section>
-          }
-
-          <section class="resume-grid" aria-label="Resume documents">
-            @for (resume of resumes; track resume.id) {
-              <article class="resume-card">
-                <a
-                  class="preview"
-                  [routerLink]="['/resume', resume.id, 'edit']"
-                  [attr.aria-label]="'Edit ' + resume.name"
+          <div class="template-grid" aria-label="Resume templates">
+            @for (template of filteredTemplates; track template.id) {
+              <article class="template-card" [class.selected]="newTemplate === template.id">
+                <button
+                  type="button"
+                  class="template-preview"
+                  [attr.aria-label]="'Select ' + template.name + ' template'"
+                  [attr.aria-pressed]="newTemplate === template.id"
+                  (click)="selectTemplate(template.id)"
                 >
-                  <div class="preview-scale"><nexus-resume-renderer [resume]="resume" /></div>
-                  <span class="open-cue">Open editor <b>↗</b></span>
-                </a>
-                <div class="card-body">
-                  <div class="card-heading">
-                    <div>
-                      <p>{{ templateName(resume.templateId) }}</p>
-                      <h2>{{ resume.name }}</h2>
-                    </div>
-                    <span class="status"><i></i>{{ resume.status }}</span>
+                  <span class="preview-document">
+                    <span class="preview-scale">
+                      <nexus-resume-renderer [resume]="previewFor(template.id)" />
+                    </span>
+                  </span>
+                  <span class="preview-action">
+                    <svg lucideExternalLink size="15"></svg>
+                    {{ newTemplate === template.id ? 'Selected' : 'Use template' }}
+                  </span>
+                </button>
+
+                <div class="template-summary">
+                  <div class="template-line">
+                    <h2>{{ template.name }}</h2>
+                    <span [class]="'tag ' + template.id">{{ templateTag(template.id) }}</span>
                   </div>
-                  <span class="saved"
-                    >Updated {{ resume.lastSavedAt | date: 'MMM d, y, h:mm a' }}</span
-                  >
-                  <div class="actions">
-                    <a [routerLink]="['/resume', resume.id, 'edit']">Edit</a>
-                    <button type="button" (click)="duplicate(resume.id)">Duplicate</button>
-                    <button class="danger" type="button" (click)="delete(resume)">Delete</button>
-                  </div>
+                  <p>{{ template.description }}</p>
                 </div>
               </article>
             }
-          </section>
-        </div>
+          </div>
+
+          @if (filteredTemplates.length === 0) {
+            <div class="no-results">
+              <svg lucideFileText size="22"></svg>
+              <strong>No matching templates</strong>
+              <button type="button" (click)="clearFilters()">Clear filters</button>
+            </div>
+          }
+        </section>
+
+        <section class="resume-library" aria-labelledby="library-title">
+          <header>
+            <div>
+              <span class="eyebrow">MY RESUMES</span>
+              <h2 id="library-title">My resumes</h2>
+              <p>Your saved resumes and drafts.</p>
+            </div>
+            <span>{{ resumes.length }} {{ resumes.length === 1 ? 'document' : 'documents' }}</span>
+          </header>
+
+          @if (!loading && resumes.length === 0) {
+            <button class="empty-resume" type="button" (click)="openCreate()">
+              <svg lucidePlus size="18"></svg>
+              Create your first resume
+            </button>
+          } @else {
+            <div class="resume-row" aria-label="Resume documents">
+              @for (resume of resumes; track resume.id) {
+                <article class="resume-item">
+                  <a
+                    class="resume-thumbnail"
+                    [routerLink]="['/resume', resume.id, 'edit']"
+                    [attr.aria-label]="'Edit ' + resume.name"
+                  >
+                    <span><nexus-resume-renderer [resume]="resume" /></span>
+                  </a>
+                  <div class="resume-details">
+                    <span class="status"><i></i>{{ resume.status }}</span>
+                    <a [routerLink]="['/resume', resume.id, 'edit']">{{ resume.name }}</a>
+                    <small>Updated {{ resume.lastSavedAt | date: 'MMM d, y, h:mm a' }}</small>
+                  </div>
+                  <div class="resume-actions">
+                    <button
+                      type="button"
+                      title="Duplicate resume"
+                      [attr.aria-label]="'Duplicate ' + resume.name"
+                      (click)="duplicate(resume.id)"
+                    >
+                      <svg lucideCopy size="15"></svg>
+                    </button>
+                    <button
+                      class="danger"
+                      type="button"
+                      title="Delete resume"
+                      [attr.aria-label]="'Delete ' + resume.name"
+                      (click)="delete(resume)"
+                    >
+                      <svg lucideTrash2 size="15"></svg>
+                    </button>
+                  </div>
+                </article>
+              }
+            </div>
+          }
+        </section>
       </section>
 
       @if (createOpen) {
-        <div class="modal-backdrop" (click)="closeCreate()">
-          <section
-            class="create-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-title"
-            (click)="$event.stopPropagation()"
-          >
-            <header>
-              <div>
-                <span>NEW RESUME / {{ createStep }} OF 2</span>
-                <h2 id="create-title">
-                  {{ createStep === 1 ? 'Name your resume' : 'Choose a starting point' }}
-                </h2>
-              </div>
-              <button class="icon-button" type="button" (click)="closeCreate()" aria-label="Close">
-                ×
-              </button>
-            </header>
+        <aside class="create-panel" aria-labelledby="create-title">
+          <header>
+            <div>
+              <h2 id="create-title">Create resume</h2>
+              <p>Using {{ selectedTemplate.name }} template</p>
+            </div>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Close panel"
+              (click)="closeCreate()"
+            >
+              <svg lucideX size="20"></svg>
+            </button>
+          </header>
 
-            @if (createStep === 1) {
-              <div class="name-step">
-                <label for="resume-name">Resume name</label>
-                <input
-                  id="resume-name"
-                  [(ngModel)]="newName"
-                  (keyup.enter)="continueCreate()"
-                  autofocus
-                />
-                <p>This is the private workspace name. You can change it later.</p>
-              </div>
-            } @else {
-              <div class="template-list">
-                @for (template of templates; track template.id) {
+          <div class="selected-preview">
+            <span><nexus-resume-renderer [resume]="selectedPreview" /></span>
+          </div>
+
+          <div class="panel-form">
+            <label for="resume-name">Resume name</label>
+            <input id="resume-name" [(ngModel)]="newName" />
+
+            <fieldset>
+              <legend>Profile photo <span>(optional)</span></legend>
+              <div
+                class="photo-uploader"
+                [class.has-photo]="photoPreviewDataUrl"
+                (dragover)="allowPhotoDrop($event)"
+                (drop)="onPhotoDrop($event)"
+              >
+                @if (photoPreviewDataUrl) {
+                  <img [src]="photoPreviewDataUrl" alt="Uploaded profile preview" />
+                } @else {
+                  <span class="photo-placeholder"><svg lucideUserRound size="25"></svg></span>
+                }
+                <div>
+                  <input
+                    #photoInput
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    (change)="onPhotoSelected($event)"
+                  />
+                  <button type="button" class="upload-button" (click)="photoInput.click()">
+                    <svg lucideUpload size="17"></svg>
+                    {{ photoPreviewDataUrl ? 'Replace photo' : 'Upload photo' }}
+                  </button>
+                  <small>{{ photoFileName || 'Or drag and drop an image here' }}</small>
+                  <small>JPG, PNG or WebP. Max 5 MB.</small>
+                </div>
+                @if (photoPreviewDataUrl) {
                   <button
                     type="button"
-                    class="template-option"
-                    [class.selected]="newTemplate === template.id"
-                    (click)="newTemplate = template.id"
+                    class="remove-photo"
+                    aria-label="Remove profile photo"
+                    title="Remove profile photo"
+                    (click)="removePhoto()"
                   >
-                    <span class="template-swatch" [class]="template.id"
-                      ><i></i><i></i><i></i><i></i
-                    ></span>
-                    <span
-                      ><strong>{{ template.name }}</strong
-                      ><small>{{ template.description }}</small></span
-                    >
-                    <b>{{ newTemplate === template.id ? '✓' : '' }}</b>
+                    <svg lucideX size="15"></svg>
                   </button>
                 }
               </div>
-            }
+              @if (photoError) {
+                <p class="field-error" role="alert">{{ photoError }}</p>
+              }
+            </fieldset>
 
-            <footer>
-              <button type="button" (click)="createStep === 1 ? closeCreate() : (createStep = 1)">
-                {{ createStep === 1 ? 'Cancel' : 'Back' }}
-              </button>
-              <button
-                class="primary"
-                type="button"
-                [disabled]="!newName.trim() || creating"
-                (click)="createStep === 1 ? continueCreate() : create()"
-              >
-                {{
-                  createStep === 1 ? 'Choose template' : creating ? 'Creating...' : 'Create resume'
-                }}
-              </button>
-            </footer>
-          </section>
-        </div>
+            <label class="toggle-row">
+              <span>
+                <strong>Include photo in resume</strong>
+                <small>{{ photoSupportMessage }}</small>
+              </span>
+              <input
+                type="checkbox"
+                [(ngModel)]="includePhoto"
+                [disabled]="!selectedTemplateSupportsPhoto"
+              />
+              <i aria-hidden="true"></i>
+            </label>
+
+            @if (selectedTemplateSupportsPhoto) {
+              <p class="photo-note">
+                This template supports a profile photo, but it is completely optional.
+              </p>
+            } @else {
+              <p class="photo-note neutral">
+                {{ selectedTemplate.name }} is optimized without a photo. Choose Modern Profile or
+                Creative to include one.
+              </p>
+            }
+          </div>
+
+          <footer>
+            <button
+              type="button"
+              class="primary create-action"
+              [disabled]="!newName.trim() || creating"
+              (click)="create()"
+            >
+              {{ creating ? 'Creating...' : 'Create resume' }}
+              @if (!creating) {
+                <svg lucideArrowRight size="17"></svg>
+              }
+            </button>
+          </footer>
+        </aside>
       }
     </main>
   `,
@@ -175,18 +322,23 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
     `
       :host {
         display: block;
-        color: #171a1d;
-        background: #edf0ef;
+        color: #171b1d;
+        background: #f1f3f2;
       }
       .dashboard-shell {
         display: grid;
-        grid-template-columns: 4.5rem 1fr;
+        grid-template-columns: 4.5rem minmax(0, 1fr) 22rem;
+        grid-template-rows: 4.5rem minmax(calc(100svh - 4.5rem), auto);
         min-height: 100svh;
+      }
+      .dashboard-shell.panel-closed {
+        grid-template-columns: 4.5rem minmax(0, 1fr);
       }
       .rail {
         position: sticky;
         top: 0;
-        z-index: 4;
+        z-index: 5;
+        grid-row: 1 / 3;
         display: flex;
         height: 100svh;
         flex-direction: column;
@@ -213,15 +365,12 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
       }
       .rail-item {
         position: relative;
-        color: #6f7a80;
+        color: #78d8df;
+        background: #172126;
         font-size: 0.78rem;
         font-weight: 700;
       }
-      .rail-item.active {
-        color: #8de1e7;
-        background: #172126;
-      }
-      .rail-item.active::before {
+      .rail-item::before {
         content: '';
         position: absolute;
         left: -1rem;
@@ -237,391 +386,678 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
         background: #62c8a4;
         box-shadow: 0 0 12px rgba(98, 200, 164, 0.55);
       }
-      .workspace {
-        min-width: 0;
-      }
       .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        grid-column: 2 / -1;
         display: flex;
-        min-height: 4.5rem;
+        min-width: 0;
         align-items: center;
         justify-content: space-between;
-        padding: 0 clamp(1.25rem, 3vw, 2.75rem);
-        background: rgba(247, 249, 248, 0.94);
-        border-bottom: 1px solid #d4d9d7;
+        padding: 0 clamp(1rem, 2.6vw, 2.25rem);
+        background: rgba(250, 251, 250, 0.96);
+        border-bottom: 1px solid #d6dcda;
+        backdrop-filter: blur(12px);
       }
-      .topbar div {
+      .product-title {
         display: grid;
-        gap: 0.15rem;
+        gap: 0.12rem;
       }
-      .topbar strong {
+      .product-title strong {
         font-size: 0.92rem;
       }
-      .topbar span {
-        color: #7a8382;
-        font-size: 0.72rem;
+      .product-title span {
+        color: #7b8582;
+        font-size: 0.7rem;
       }
       button,
-      a {
+      input {
         font: inherit;
       }
       button {
-        border: 1px solid #c7cecb;
+        border: 1px solid #c9d0cd;
         border-radius: 6px;
-        padding: 0.62rem 0.8rem;
-        background: #f8faf9;
+        background: #ffffff;
         color: #202527;
         cursor: pointer;
       }
-      button:hover,
-      a:hover {
-        border-color: #929d99;
+      button:hover {
+        border-color: #8f9b97;
       }
       .primary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
         border-color: #15191b;
         background: #15191b;
         color: #ffffff;
-        font-weight: 650;
+        font-weight: 680;
       }
-      .primary b {
-        margin-right: 0.35rem;
-        color: #8de1e7;
+      .primary svg {
+        color: #78d8df;
       }
       .primary:disabled {
         cursor: not-allowed;
         opacity: 0.45;
       }
-      .content {
-        width: min(100%, 88rem);
-        margin: 0 auto;
-        padding: clamp(2rem, 5vw, 4.5rem) clamp(1.25rem, 3vw, 2.75rem);
+      .topbar-action {
+        min-height: 2.55rem;
+        padding: 0 0.95rem;
       }
-      .library-heading {
-        display: flex;
+      .workspace {
+        grid-column: 2;
+        min-width: 0;
+        padding: 2rem clamp(1rem, 2.6vw, 2.25rem) 4rem;
+      }
+      .template-heading {
+        display: grid;
+        grid-template-columns: minmax(18rem, 1fr) auto;
         align-items: end;
-        justify-content: space-between;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid #cfd5d2;
+        gap: 1.25rem;
+        margin-bottom: 1.4rem;
       }
-      .library-heading p,
-      .library-heading h1 {
+      .eyebrow {
+        color: #557f83;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.62rem;
+        letter-spacing: 0.08em;
+      }
+      h1,
+      h2,
+      p {
         margin: 0;
       }
-      .library-heading p {
-        margin-bottom: 0.45rem;
-        color: #527478;
-        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-        font-size: 0.67rem;
-        letter-spacing: 0.1em;
+      .template-heading h1 {
+        margin-top: 0.35rem;
+        font-size: clamp(1.75rem, 2.5vw, 2.35rem);
+        line-height: 1.08;
+        font-weight: 680;
       }
-      .library-heading h1 {
-        font-size: clamp(1.9rem, 3.5vw, 3rem);
-        font-weight: 620;
-      }
-      .library-heading > span {
-        color: #707a77;
+      .template-heading p,
+      .resume-library p {
+        margin-top: 0.4rem;
+        color: #6d7774;
         font-size: 0.78rem;
+        line-height: 1.5;
+      }
+      .template-tools {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+      }
+      .search-field {
+        display: flex;
+        width: clamp(12rem, 18vw, 16rem);
+        height: 2.5rem;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0 0.7rem;
+        border: 1px solid #cbd2cf;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #63706d;
+      }
+      .search-field:focus-within {
+        border-color: #4c8a91;
+        box-shadow: 0 0 0 3px rgba(76, 138, 145, 0.12);
+      }
+      .search-field input {
+        min-width: 0;
+        width: 100%;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: #22282a;
+        font-size: 0.76rem;
+      }
+      .filter-tabs {
+        display: flex;
+        gap: 0.3rem;
+      }
+      .filter-tabs button {
+        height: 2.5rem;
+        padding: 0 0.75rem;
+        border-color: transparent;
+        background: #e9edeb;
+        font-size: 0.72rem;
+      }
+      .filter-tabs button.active {
+        border-color: #161a1c;
+        background: #161a1c;
+        color: #ffffff;
       }
       .error-banner {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
-        margin-top: 1.5rem;
-        padding: 0.9rem 1rem;
+        margin-bottom: 1rem;
+        padding: 0.8rem 0.9rem;
         border: 1px solid #d8b6ad;
         background: #fff8f5;
       }
       .error-banner div {
         display: grid;
-        gap: 0.2rem;
+        gap: 0.18rem;
       }
       .error-banner span {
         color: #795b53;
-        font-size: 0.78rem;
-      }
-      .empty-state {
-        max-width: 34rem;
-        padding: 5rem 0;
-      }
-      .empty-state > span {
-        color: #7fbac0;
-        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
         font-size: 0.72rem;
       }
-      .empty-state h2 {
-        margin: 0.75rem 0 0.5rem;
-        font-size: 1.7rem;
+      .error-banner button {
+        padding: 0.45rem 0.65rem;
       }
-      .empty-state p {
-        margin: 0 0 1.25rem;
-        color: #697370;
-        line-height: 1.6;
-      }
-      .resume-grid {
+      .template-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
-        gap: 1.25rem;
-        margin-top: 1.75rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.15rem;
       }
-      .resume-card {
+      .template-card {
         min-width: 0;
-        overflow: hidden;
-        border: 1px solid #d0d6d3;
-        border-radius: 7px;
-        background: #f8faf9;
-        transition:
-          translate 220ms ease,
-          box-shadow 220ms ease,
-          border-color 220ms ease;
       }
-      .resume-card:hover {
-        translate: 0 -3px;
-        border-color: #a9b5b1;
-        box-shadow: 0 16px 36px rgba(28, 37, 37, 0.09);
-      }
-      .preview {
+      .template-preview {
         position: relative;
         display: block;
-        height: 19rem;
+        width: 100%;
+        height: clamp(17rem, 25vw, 21rem);
         overflow: hidden;
-        background: #dfe4e2;
-        border-bottom: 1px solid #d0d6d3;
-        color: inherit;
-        text-decoration: none;
+        padding: 0.75rem;
+        border: 1px solid #d0d7d4;
+        background: #e7ebea;
+        text-align: left;
+        transition:
+          border-color 180ms ease,
+          box-shadow 180ms ease,
+          translate 180ms ease;
+      }
+      .template-card.selected .template-preview {
+        border-color: #37b9c3;
+        box-shadow: 0 0 0 2px rgba(55, 185, 195, 0.24);
+      }
+      .template-preview:hover {
+        translate: 0 -2px;
+        border-color: #8d9a96;
+        box-shadow: 0 13px 28px rgba(28, 37, 37, 0.1);
+      }
+      .preview-document {
+        position: relative;
+        display: block;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 6px 18px rgba(31, 39, 39, 0.12);
       }
       .preview-scale {
         position: absolute;
         left: 50%;
-        top: 1.25rem;
+        top: 0;
         width: 210mm;
-        transform: translateX(-50%) scale(0.255);
+        transform: translateX(-50%) scale(0.31);
         transform-origin: top center;
         pointer-events: none;
       }
-      .open-cue {
+      .preview-action {
         position: absolute;
-        right: 0.75rem;
-        bottom: 0.75rem;
-        padding: 0.4rem 0.55rem;
-        border-radius: 4px;
-        background: rgba(12, 16, 18, 0.88);
+        right: 1.15rem;
+        bottom: 1.15rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.48rem 0.6rem;
+        border-radius: 5px;
+        background: rgba(14, 19, 21, 0.92);
         color: #ffffff;
-        font-size: 0.7rem;
-        opacity: 0;
-        transition: opacity 180ms ease;
-      }
-      .preview:hover .open-cue,
-      .preview:focus-visible .open-cue {
-        opacity: 1;
-      }
-      .card-body {
-        padding: 1rem;
-      }
-      .card-heading {
-        display: flex;
-        align-items: start;
-        justify-content: space-between;
-        gap: 0.75rem;
-      }
-      .card-heading p,
-      .card-heading h2 {
-        margin: 0;
-      }
-      .card-heading p {
-        margin-bottom: 0.3rem;
-        color: #538088;
         font-size: 0.68rem;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-      .card-heading h2 {
-        overflow: hidden;
-        font-size: 1rem;
         font-weight: 650;
+        opacity: 0;
+        transform: translateY(5px);
+        transition: 160ms ease;
+      }
+      .template-card.selected .preview-action,
+      .template-preview:hover .preview-action,
+      .template-preview:focus-visible .preview-action {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .template-summary {
+        padding: 0.75rem 0.1rem 0.15rem;
+      }
+      .template-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem;
+      }
+      .template-line h2 {
+        font-size: 0.98rem;
+        font-weight: 680;
+      }
+      .tag {
+        flex: 0 0 auto;
+        padding: 0.23rem 0.45rem;
+        border-radius: 999px;
+        background: #dcebed;
+        color: #275c63;
+        font-size: 0.6rem;
+        font-weight: 700;
+      }
+      .tag.tech-modern {
+        background: #ffe0f1;
+        color: #922765;
+      }
+      .tag.tech-creative {
+        background: #f7dff0;
+        color: #8c2c69;
+      }
+      .template-summary p {
+        margin-top: 0.35rem;
+        color: #6c7773;
+        font-size: 0.71rem;
+        line-height: 1.45;
+      }
+      .no-results {
+        display: grid;
+        min-height: 16rem;
+        place-items: center;
+        align-content: center;
+        gap: 0.6rem;
+        color: #68736f;
+        border: 1px dashed #bfc8c4;
+      }
+      .no-results button {
+        padding: 0.45rem 0.65rem;
+      }
+      .resume-library {
+        margin-top: 2rem;
+        padding-top: 1.65rem;
+        border-top: 1px solid #d1d7d4;
+      }
+      .resume-library > header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .resume-library h2 {
+        margin-top: 0.25rem;
+        font-size: 1.55rem;
+      }
+      .resume-library > header > span {
+        color: #747e7a;
+        font-size: 0.72rem;
+      }
+      .resume-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.8rem;
+        margin-top: 1rem;
+      }
+      .resume-item {
+        display: grid;
+        grid-template-columns: 3.4rem minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
+        padding: 0.7rem;
+        border: 1px solid #d2d8d5;
+        border-radius: 6px;
+        background: #fbfcfb;
+      }
+      .resume-thumbnail {
+        position: relative;
+        display: block;
+        width: 3.4rem;
+        height: 4.4rem;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 2px 8px rgba(30, 38, 38, 0.1);
+      }
+      .resume-thumbnail > span {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: 210mm;
+        transform: translateX(-50%) scale(0.066);
+        transform-origin: top center;
+        pointer-events: none;
+      }
+      .resume-details {
+        display: grid;
+        min-width: 0;
+        gap: 0.18rem;
+      }
+      .resume-details > a {
+        overflow: hidden;
+        color: #202628;
+        font-size: 0.78rem;
+        font-weight: 680;
+        text-decoration: none;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      .resume-details small,
+      .status {
+        color: #76807c;
+        font-size: 0.62rem;
       }
       .status {
         display: flex;
         align-items: center;
-        gap: 0.35rem;
-        color: #697470;
-        font-size: 0.65rem;
+        gap: 0.3rem;
         text-transform: capitalize;
       }
       .status i {
         width: 5px;
         height: 5px;
         border-radius: 50%;
-        background: #76b9a0;
+        background: #65ba94;
       }
-      .saved {
-        display: block;
-        margin-top: 0.75rem;
-        color: #7b8481;
-        font-size: 0.7rem;
-      }
-      .actions {
+      .resume-actions {
         display: flex;
-        gap: 0.4rem;
-        margin-top: 1rem;
-        padding-top: 0.8rem;
-        border-top: 1px solid #e0e4e2;
+        gap: 0.2rem;
       }
-      .actions a,
-      .actions button {
-        padding: 0.42rem 0.58rem;
-        border: 0;
-        background: transparent;
-        color: #4f5b58;
-        font-size: 0.72rem;
-        text-decoration: none;
-      }
-      .actions a {
-        color: #185f6a;
-        font-weight: 700;
-      }
-      .actions .danger {
-        margin-left: auto;
-        color: #8b4940;
-      }
-      .modal-backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 10;
+      .resume-actions button {
         display: grid;
+        width: 2rem;
+        height: 2rem;
         place-items: center;
-        padding: 1rem;
-        background: rgba(6, 9, 10, 0.66);
+        padding: 0;
+        border-color: transparent;
+        background: transparent;
+        color: #65706c;
       }
-      .create-dialog {
-        width: min(100%, 42rem);
-        max-height: calc(100svh - 2rem);
-        overflow: auto;
-        border: 1px solid #cbd2cf;
-        border-radius: 7px;
-        background: #f8faf9;
-        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.3);
+      .resume-actions .danger {
+        color: #a14d49;
       }
-      .create-dialog > header,
-      .create-dialog > footer {
+      .empty-resume {
         display: flex;
+        width: 100%;
+        min-height: 5.8rem;
         align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        margin-top: 1rem;
+        border-style: dashed;
+        background: transparent;
+        color: #53625e;
+      }
+      .create-panel {
+        position: sticky;
+        top: 4.5rem;
+        z-index: 3;
+        grid-column: 3;
+        align-self: start;
+        height: calc(100svh - 4.5rem);
+        overflow: auto;
+        background: #fbfcfb;
+        border-left: 1px solid #d4dad7;
+        box-shadow: -8px 0 24px rgba(24, 31, 31, 0.04);
+      }
+      .create-panel > header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        align-items: start;
         justify-content: space-between;
-        gap: 1rem;
-        padding: 1.2rem 1.35rem;
+        padding: 1.35rem 1.3rem 1rem;
+        background: rgba(251, 252, 251, 0.96);
+        border-bottom: 1px solid #dfe4e2;
+        backdrop-filter: blur(10px);
       }
-      .create-dialog > header {
-        border-bottom: 1px solid #d9dfdc;
+      .create-panel h2 {
+        font-size: 1.2rem;
       }
-      .create-dialog > footer {
-        justify-content: flex-end;
-        border-top: 1px solid #d9dfdc;
-      }
-      .create-dialog header span {
-        color: #568087;
-        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-        font-size: 0.62rem;
-        letter-spacing: 0.08em;
-      }
-      .create-dialog h2 {
-        margin: 0.25rem 0 0;
-        font-size: 1.35rem;
+      .create-panel header p {
+        margin-top: 0.25rem;
+        color: #6f7a76;
+        font-size: 0.72rem;
       }
       .icon-button {
         display: grid;
-        width: 2.25rem;
-        height: 2.25rem;
+        width: 2.1rem;
+        height: 2.1rem;
+        place-items: center;
+        padding: 0;
+        border-color: transparent;
+        background: transparent;
+      }
+      .selected-preview {
+        position: relative;
+        height: 17rem;
+        margin: 1rem 1.3rem 0;
+        overflow: hidden;
+        background: #eef1f0;
+        border: 1px solid #dbe0de;
+      }
+      .selected-preview > span {
+        position: absolute;
+        left: 50%;
+        top: 0.7rem;
+        width: 210mm;
+        transform: translateX(-50%) scale(0.245);
+        transform-origin: top center;
+        pointer-events: none;
+      }
+      .panel-form {
+        display: grid;
+        gap: 0.65rem;
+        padding: 1.15rem 1.3rem;
+      }
+      .panel-form > label:not(.toggle-row),
+      fieldset legend {
+        color: #303638;
+        font-size: 0.72rem;
+        font-weight: 680;
+      }
+      .panel-form > input {
+        width: 100%;
+        border: 1px solid #c8d0cc;
+        border-radius: 5px;
+        padding: 0.72rem 0.75rem;
+        background: #ffffff;
+        color: #202527;
+        outline: 0;
+        font-size: 0.8rem;
+      }
+      .panel-form > input:focus {
+        border-color: #4c8a91;
+        box-shadow: 0 0 0 3px rgba(76, 138, 145, 0.12);
+      }
+      fieldset {
+        min-width: 0;
+        margin: 0.7rem 0 0;
+        padding: 0;
+        border: 0;
+      }
+      fieldset legend span {
+        color: #7e8784;
+        font-weight: 500;
+      }
+      .photo-uploader {
+        position: relative;
+        display: grid;
+        grid-template-columns: 3.6rem minmax(0, 1fr);
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.55rem;
+        padding: 0.75rem;
+        border: 1px dashed #bdc7c3;
+        border-radius: 6px;
+        background: #f7f9f8;
+      }
+      .photo-uploader > img,
+      .photo-placeholder {
+        display: grid;
+        width: 3.6rem;
+        height: 3.6rem;
+        place-items: center;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+      .photo-uploader > img {
+        border: 2px solid #5cbec5;
+      }
+      .photo-placeholder {
+        background: #e3e9e7;
+        color: #66736f;
+      }
+      .photo-uploader > div {
+        display: grid;
+        min-width: 0;
+        gap: 0.2rem;
+      }
+      .photo-uploader input {
+        display: none;
+      }
+      .upload-button {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.42rem 0.55rem;
+        border-color: transparent;
+        background: transparent;
+        color: #214f56;
+        font-size: 0.72rem;
+        font-weight: 680;
+      }
+      .photo-uploader small {
+        overflow: hidden;
+        color: #7a8480;
+        font-size: 0.6rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .remove-photo {
+        position: absolute;
+        top: 0.45rem;
+        right: 0.45rem;
+        display: grid;
+        width: 1.8rem;
+        height: 1.8rem;
         place-items: center;
         padding: 0;
         border: 0;
-        background: transparent;
-        font-size: 1.45rem;
-      }
-      .name-step {
-        padding: 3rem 1.35rem;
-      }
-      .name-step label {
-        display: block;
-        margin-bottom: 0.45rem;
-        font-size: 0.75rem;
-        font-weight: 700;
-      }
-      .name-step input {
-        width: 100%;
-        border: 1px solid #aeb8b4;
-        border-radius: 5px;
-        padding: 0.85rem;
         background: #ffffff;
-        color: #171a1d;
-        font: inherit;
-        font-size: 1.05rem;
+        color: #9b4944;
+        box-shadow: 0 2px 8px rgba(30, 38, 38, 0.12);
       }
-      .name-step p {
-        margin: 0.55rem 0 0;
-        color: #747e7a;
-        font-size: 0.72rem;
+      .field-error {
+        margin-top: 0.35rem;
+        color: #a04740;
+        font-size: 0.66rem;
       }
-      .template-list {
-        display: grid;
-        gap: 0.55rem;
-        padding: 1rem 1.35rem;
-      }
-      .template-option {
-        display: grid;
-        grid-template-columns: 3rem 1fr 1rem;
+      .toggle-row {
+        position: relative;
+        display: flex;
         align-items: center;
-        gap: 0.9rem;
-        width: 100%;
-        padding: 0.75rem;
-        text-align: left;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 0.55rem;
+        cursor: pointer;
       }
-      .template-option.selected {
-        border-color: #397882;
-        background: #eef8f8;
-      }
-      .template-option > span:nth-child(2) {
+      .toggle-row > span {
         display: grid;
         gap: 0.2rem;
       }
-      .template-option small {
-        color: #6c7773;
-        line-height: 1.35;
+      .toggle-row strong {
+        font-size: 0.72rem;
       }
-      .template-option > b {
-        color: #266c75;
+      .toggle-row small {
+        color: #78827e;
+        font-size: 0.61rem;
       }
-      .template-swatch {
-        display: grid;
-        width: 2.6rem;
-        height: 3.4rem;
-        align-content: start;
-        gap: 0.3rem;
-        padding: 0.45rem;
+      .toggle-row input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+      }
+      .toggle-row i {
+        position: relative;
+        flex: 0 0 auto;
+        width: 2.45rem;
+        height: 1.4rem;
+        border-radius: 999px;
+        background: #c9d0cd;
+        transition: background 160ms ease;
+      }
+      .toggle-row i::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
         background: #ffffff;
-        border: 1px solid #cbd2cf;
+        box-shadow: 0 1px 4px rgba(22, 28, 28, 0.2);
+        transition: translate 160ms ease;
       }
-      .template-swatch i {
-        display: block;
-        height: 2px;
-        background: #b6bfbc;
+      .toggle-row input:checked + i {
+        background: #34b9c2;
       }
-      .template-swatch i:first-child {
-        height: 5px;
-        background: #397882;
+      .toggle-row input:checked + i::after {
+        translate: 1.05rem 0;
       }
-      .template-swatch.tech-modern {
-        border-left: 7px solid #8cbfc5;
+      .toggle-row input:disabled + i {
+        opacity: 0.48;
       }
-      .template-swatch.tech-executive i:first-child {
-        background: #25292b;
+      .photo-note {
+        padding: 0.75rem;
+        border: 1px solid #cde2e4;
+        border-radius: 6px;
+        background: #eff8f8;
+        color: #4c6b6f;
+        font-size: 0.66rem;
+        line-height: 1.5;
       }
-      .template-swatch.tech-creative {
-        border-top: 7px solid #c0954c;
+      .photo-note.neutral {
+        border-color: #d9dedc;
+        background: #f3f5f4;
+        color: #6c7773;
       }
-      @media (max-width: 680px) {
+      .create-panel > footer {
+        position: sticky;
+        bottom: 0;
+        padding: 0.8rem 1.3rem 1.2rem;
+        background: #fbfcfb;
+        border-top: 1px solid #e0e5e3;
+      }
+      .create-action {
+        width: 100%;
+        min-height: 2.75rem;
+      }
+      @media (max-width: 1220px) {
         .dashboard-shell {
+          grid-template-columns: 4.5rem minmax(0, 1fr);
+        }
+        .create-panel {
+          position: fixed;
+          top: 4.5rem;
+          right: 0;
+          width: min(23rem, calc(100vw - 4.5rem));
+          box-shadow: -18px 0 48px rgba(20, 27, 27, 0.18);
+        }
+        .template-heading {
           grid-template-columns: 1fr;
+          align-items: start;
+        }
+        .template-tools {
+          flex-wrap: wrap;
+        }
+        .resume-row {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 820px) {
+        .dashboard-shell,
+        .dashboard-shell.panel-closed {
+          display: block;
           padding-bottom: 4rem;
         }
         .rail {
@@ -637,23 +1073,61 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
         .rail nav {
           margin: 0;
         }
+        .rail-item::before {
+          display: none;
+        }
         .owner-dot {
           margin: 0;
-        }
-        .rail-item.active::before {
-          display: none;
         }
         .topbar {
           min-height: 4rem;
         }
-        .topbar div span {
+        .product-title span {
           display: none;
         }
-        .resume-grid {
+        .workspace {
+          padding: 1.35rem 1rem 3rem;
+        }
+        .template-tools,
+        .search-field {
+          width: 100%;
+        }
+        .filter-tabs {
+          width: 100%;
+          overflow-x: auto;
+        }
+        .filter-tabs button {
+          flex: 1 0 auto;
+        }
+        .template-grid,
+        .resume-row {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .template-preview {
+          height: 18rem;
+        }
+        .create-panel {
+          top: 0;
+          width: min(23rem, 100vw);
+          height: calc(100svh - 4rem);
+        }
+      }
+      @media (max-width: 560px) {
+        .template-grid,
+        .resume-row {
           grid-template-columns: 1fr;
         }
-        .preview {
-          height: 16rem;
+        .template-preview {
+          height: 23rem;
+        }
+        .template-heading h1 {
+          font-size: 1.8rem;
+        }
+        .resume-item {
+          grid-template-columns: 3.4rem minmax(0, 1fr);
+        }
+        .resume-actions {
+          grid-column: 2;
         }
       }
     `,
@@ -661,14 +1135,28 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
 })
 export class ResumeDashboardComponent implements OnInit {
   protected readonly templates = RESUME_TEMPLATES;
+  protected readonly filters: Array<{ id: TemplateFilter; label: string }> = [
+    { id: 'all', label: 'All' },
+    { id: 'ats', label: 'ATS' },
+    { id: 'modern', label: 'Modern' },
+    { id: 'creative', label: 'Creative' },
+  ];
+  protected readonly templatePreviews = new Map<ResumeTemplateId, ResumeRecord>(
+    RESUME_TEMPLATES.map((template) => [template.id, this.buildTemplatePreview(template.id)]),
+  );
   protected resumes: ResumeRecord[] = [];
-  protected newName = 'Primary Tech Resume';
-  protected newTemplate: ResumeTemplateId = 'tech-core';
-  protected createOpen = false;
-  protected createStep: 1 | 2 = 1;
+  protected newName = 'Product Manager Resume';
+  protected newTemplate: ResumeTemplateId = 'tech-modern';
+  protected createOpen = true;
   protected creating = false;
   protected loading = true;
   protected errorMessage = '';
+  protected photoError = '';
+  protected photoPreviewDataUrl = '';
+  protected photoFileName = '';
+  protected includePhoto = true;
+  protected activeFilter: TemplateFilter = 'all';
+  protected searchQuery = '';
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
 
@@ -676,29 +1164,139 @@ export class ResumeDashboardComponent implements OnInit {
     this.load();
   }
 
+  protected get filteredTemplates() {
+    const query = this.searchQuery.trim().toLowerCase();
+    return this.templates.filter((template) => {
+      const matchesSearch =
+        !query ||
+        template.name.toLowerCase().includes(query) ||
+        template.description.toLowerCase().includes(query);
+      const matchesFilter =
+        this.activeFilter === 'all' ||
+        (this.activeFilter === 'ats' && template.atsFriendly) ||
+        (this.activeFilter === 'modern' && template.id === 'tech-modern') ||
+        (this.activeFilter === 'creative' && template.id === 'tech-creative');
+      return matchesSearch && matchesFilter;
+    });
+  }
+
+  protected get selectedTemplate(): ResumeTemplateMeta {
+    return this.templates.find((template) => template.id === this.newTemplate) ?? this.templates[0];
+  }
+
+  protected get selectedPreview(): ResumeRecord {
+    return this.previewFor(this.newTemplate);
+  }
+
+  protected get selectedTemplateSupportsPhoto() {
+    return this.selectedTemplate.photoDefault !== 'hidden';
+  }
+
+  protected get photoSupportMessage() {
+    return this.selectedTemplateSupportsPhoto
+      ? 'You can change this later.'
+      : 'Not used by this template.';
+  }
+
+  protected load() {
+    this.loading = true;
+    this.errorMessage = '';
+    this.api.listResumes().subscribe({
+      next: (resumes) => {
+        this.resumes = resumes;
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+        this.errorMessage = 'The API could not load your saved resumes.';
+      },
+    });
+  }
+
   protected openCreate() {
-    this.createStep = 1;
     this.createOpen = true;
   }
+
   protected closeCreate() {
     if (!this.creating) this.createOpen = false;
   }
-  protected continueCreate() {
-    if (this.newName.trim()) this.createStep = 2;
+
+  protected selectTemplate(id: ResumeTemplateId) {
+    this.newTemplate = id;
+    this.createOpen = true;
+    this.includePhoto =
+      this.templates.find((template) => template.id === id)?.photoDefault !== 'hidden';
+  }
+
+  protected clearFilters() {
+    this.searchQuery = '';
+    this.activeFilter = 'all';
+  }
+
+  protected previewFor(id: ResumeTemplateId) {
+    return this.templatePreviews.get(id) ?? this.templatePreviews.values().next().value!;
+  }
+
+  protected templateTag(id: ResumeTemplateId) {
+    const labels: Record<ResumeTemplateId, string> = {
+      'tech-core': 'ATS',
+      'tech-modern': 'Photo',
+      'tech-minimal': 'One page',
+      'tech-executive': 'Popular',
+      'tech-creative': 'Creative',
+    };
+    return labels[id];
+  }
+
+  protected allowPhotoDrop(event: DragEvent) {
+    event.preventDefault();
+  }
+
+  protected onPhotoDrop(event: DragEvent) {
+    event.preventDefault();
+    const file = event.dataTransfer?.files?.[0];
+    if (file) this.readPhoto(file);
+  }
+
+  protected onPhotoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) this.readPhoto(file);
+    input.value = '';
+  }
+
+  protected removePhoto() {
+    this.photoPreviewDataUrl = '';
+    this.photoFileName = '';
+    this.photoError = '';
   }
 
   protected create() {
     if (!this.newName.trim() || this.creating) return;
     this.creating = true;
+    this.errorMessage = '';
     this.api.createResume(this.newName.trim(), this.newTemplate).subscribe({
       next: (resume) => {
-        this.createOpen = false;
-        void this.router.navigate(['/resume', resume.id, 'edit']);
+        resume.content.profile.photoDataUrl = this.photoPreviewDataUrl || undefined;
+        resume.content.profile.photoVisible =
+          this.includePhoto && this.selectedTemplateSupportsPhoto && !!this.photoPreviewDataUrl;
+
+        if (this.photoPreviewDataUrl) {
+          this.api.saveResume(resume).subscribe({
+            next: (saved) => this.finishCreate(saved),
+            error: () => {
+              this.creating = false;
+              this.errorMessage =
+                'The resume was created, but the profile photo could not be saved.';
+            },
+          });
+          return;
+        }
+        this.finishCreate(resume);
       },
       error: () => {
         this.creating = false;
-        this.errorMessage =
-          'The API did not accept the new resume. Your existing documents are unchanged.';
+        this.errorMessage = 'The API did not accept the new resume. Your documents are unchanged.';
       },
     });
   }
@@ -718,22 +1316,55 @@ export class ResumeDashboardComponent implements OnInit {
     });
   }
 
-  protected templateName(id: ResumeTemplateId) {
-    return this.templates.find((template) => template.id === id)?.name ?? id;
+  private readPhoto(file: File) {
+    this.photoError = '';
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      this.photoError = 'Choose a JPG, PNG, or WebP image.';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.photoError = 'The image must be 5 MB or smaller.';
+      return;
+    }
+
+    prepareProfilePhoto(file)
+      .then((dataUrl) => {
+        this.photoPreviewDataUrl = dataUrl;
+        this.photoFileName = file.name;
+        if (this.selectedTemplateSupportsPhoto) this.includePhoto = true;
+      })
+      .catch(() => {
+        this.photoError = 'The image could not be read. Please try another file.';
+      });
   }
 
-  protected load() {
-    this.loading = true;
-    this.errorMessage = '';
-    this.api.listResumes().subscribe({
-      next: (resumes) => {
-        this.resumes = resumes;
-        this.loading = false;
-      },
-      error: () => {
-        this.loading = false;
-        this.errorMessage = 'Check that the local API is running, then retry.';
-      },
-    });
+  private finishCreate(resume: ResumeRecord) {
+    this.createOpen = false;
+    void this.router.navigate(['/resume', resume.id, 'edit']);
+  }
+
+  private buildTemplatePreview(templateId: ResumeTemplateId): ResumeRecord {
+    const names: Record<ResumeTemplateId, { name: string; headline: string }> = {
+      'tech-core': { name: 'Alex Morgan', headline: 'Software Engineer' },
+      'tech-modern': { name: 'Taylor Kim', headline: 'Product Manager' },
+      'tech-minimal': { name: 'Jordan Ellis', headline: 'Data Analyst' },
+      'tech-executive': { name: 'Morgan White', headline: 'Senior Consultant' },
+      'tech-creative': { name: 'Casey Patel', headline: 'UX/UI Designer' },
+    };
+    const preview = createStarterResume(
+      'preview-' + templateId,
+      names[templateId].name,
+      templateId,
+    );
+    preview.content.profile.fullName = names[templateId].name;
+    preview.content.profile.headline = names[templateId].headline;
+    preview.content.profile.email =
+      names[templateId].name.toLowerCase().replace(' ', '.') + '@example.com';
+    preview.content.profile.location = 'San Francisco, CA';
+    if (templateId === 'tech-modern' || templateId === 'tech-creative') {
+      preview.content.profile.photoDataUrl = '/assets/resume/template-profile.png';
+      preview.content.profile.photoVisible = true;
+    }
+    return preview;
   }
 }

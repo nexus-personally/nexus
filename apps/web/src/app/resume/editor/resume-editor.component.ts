@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { LucideTrash2, LucideUpload, LucideUserRound } from '@lucide/angular';
 import type {
   ResumeRecord,
   ResumeSection,
@@ -10,12 +11,21 @@ import type {
 } from '@nexus/shared';
 import { RESUME_TEMPLATES, RESUME_THEMES } from '@nexus/shared';
 import { ApiService } from '../../core/api.service';
+import { prepareProfilePhoto } from '../profile-photo';
 import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
 
 @Component({
   selector: 'nexus-resume-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, ResumeRendererComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    ResumeRendererComponent,
+    LucideTrash2,
+    LucideUpload,
+    LucideUserRound,
+  ],
   template: `
     @if (resume) {
       <main class="editor-shell">
@@ -86,6 +96,60 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
               </div>
               <small>{{ visibleSectionCount }}/{{ orderedSections.length }}</small>
             </header>
+
+            <section class="profile-photo-control" aria-labelledby="profile-photo-title">
+              <div class="profile-photo-heading">
+                <span id="profile-photo-title">PROFILE PHOTO</span>
+                <small>Optional</small>
+              </div>
+              <div class="profile-photo-row">
+                @if (resume.content.profile.photoDataUrl) {
+                  <img
+                    [src]="resume.content.profile.photoDataUrl"
+                    [alt]="resume.content.profile.fullName + ' profile photo'"
+                  />
+                } @else {
+                  <span class="profile-photo-placeholder"
+                    ><svg lucideUserRound size="20"></svg
+                  ></span>
+                }
+                <div>
+                  <input
+                    #editorPhotoInput
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    (change)="onPhotoSelected($event)"
+                  />
+                  <button type="button" (click)="editorPhotoInput.click()">
+                    <svg lucideUpload size="14"></svg>
+                    {{ resume.content.profile.photoDataUrl ? 'Replace' : 'Upload' }}
+                  </button>
+                  @if (resume.content.profile.photoDataUrl) {
+                    <button
+                      class="photo-delete"
+                      type="button"
+                      title="Remove profile photo"
+                      aria-label="Remove profile photo"
+                      (click)="removePhoto()"
+                    >
+                      <svg lucideTrash2 size="14"></svg>
+                    </button>
+                  }
+                </div>
+              </div>
+              <label class="photo-visibility">
+                <span>Show in supported templates</span>
+                <input
+                  type="checkbox"
+                  [(ngModel)]="resume.content.profile.photoVisible"
+                  [disabled]="!resume.content.profile.photoDataUrl"
+                  (ngModelChange)="markDirty()"
+                />
+              </label>
+              @if (photoError) {
+                <p class="photo-error">{{ photoError }}</p>
+              }
+            </section>
 
             <div class="section-list">
               @for (section of orderedSections; track section.id) {
@@ -381,6 +445,81 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
         overflow: auto;
         padding: 0.65rem;
       }
+      .profile-photo-control {
+        display: grid;
+        gap: 0.6rem;
+        padding: 0.8rem 1rem;
+        border-bottom: 1px solid #d6dcda;
+        background: #eef2f0;
+      }
+      .profile-photo-heading,
+      .profile-photo-row,
+      .photo-visibility {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem;
+      }
+      .profile-photo-heading > span {
+        color: #6b898b;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.58rem;
+        letter-spacing: 0.08em;
+      }
+      .profile-photo-heading small,
+      .photo-visibility {
+        color: #7a8581;
+        font-size: 0.62rem;
+      }
+      .profile-photo-row {
+        justify-content: flex-start;
+      }
+      .profile-photo-row img,
+      .profile-photo-placeholder {
+        display: grid;
+        width: 2.8rem;
+        height: 2.8rem;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+      .profile-photo-row img {
+        border: 2px solid #75bcc2;
+      }
+      .profile-photo-placeholder {
+        background: #dce4e1;
+        color: #65736f;
+      }
+      .profile-photo-row > div {
+        display: flex;
+        gap: 0.3rem;
+      }
+      .profile-photo-row input {
+        display: none;
+      }
+      .profile-photo-row button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.42rem 0.55rem;
+        font-size: 0.66rem;
+      }
+      .profile-photo-row .photo-delete {
+        width: 2rem;
+        justify-content: center;
+        padding-inline: 0;
+        color: #9a5148;
+      }
+      .photo-visibility input {
+        accent-color: #278e97;
+      }
+      .photo-error {
+        margin: 0;
+        color: #a04740;
+        font-size: 0.62rem;
+        line-height: 1.4;
+      }
       .section-row {
         margin-bottom: 0.35rem;
         border: 1px solid transparent;
@@ -577,6 +716,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   protected saveState = 'Loading';
   protected selectedSectionId = '';
   protected newSectionType: ResumeSectionType = 'education';
+  protected photoError = '';
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
   private saveTimer?: number;
@@ -710,6 +850,38 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
       this.resume.themeId = themeId;
       this.markDirty();
     }
+  }
+
+  protected onPhotoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || !this.resume) return;
+    this.photoError = '';
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      this.photoError = 'Choose a JPG, PNG or WebP image.';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.photoError = 'The image must be smaller than 5 MB.';
+      return;
+    }
+    prepareProfilePhoto(file)
+      .then((dataUrl) => {
+        if (!this.resume) return;
+        this.resume.content.profile.photoDataUrl = dataUrl;
+        this.resume.content.profile.photoVisible = true;
+        this.markDirty();
+      })
+      .catch(() => (this.photoError = 'The image could not be read.'));
+  }
+
+  protected removePhoto() {
+    if (!this.resume) return;
+    this.resume.content.profile.photoDataUrl = undefined;
+    this.resume.content.profile.photoVisible = false;
+    this.photoError = '';
+    this.markDirty();
   }
   protected templateName(id: ResumeTemplateId) {
     return this.templates.find((template) => template.id === id)?.name ?? id;

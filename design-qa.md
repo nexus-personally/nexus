@@ -1,68 +1,68 @@
-# Galaxy Universe Design QA
+# Resume Studio Design QA
 
 ## Evidence
 
-- Source visual truth: `C:\Users\User\AppData\Local\Temp\codex-file-preview-ZWcLf8\Screen_Recording_20260911_065437_rednote.mp4`
-- Source keyframe: 7.0 seconds, cropped from `1080 x 2340` to the `1080 x 675` galaxy region, then normalized to `1440 x 900` at device scale 1.
-- Normalized source: `C:\Users\User\Documents\Codex\2026-09-11\nexus\work\reference-video\reference-galaxy-normalized.png`
-- Implementation screenshot: `C:\Users\User\Documents\Codex\2026-09-11\nexus\work\galaxy-playwright\universe-desktop-hover.png`
-- Combined comparison: `C:\Users\User\Documents\Codex\2026-09-11\nexus\work\galaxy-playwright\reference-vs-implementation.png`
-- Desktop viewport: `1440 x 900` CSS pixels, device scale 1.
-- Mobile viewport: `390 x 844` CSS pixels, device scale 1.
-- State: completed intro, pointer close to the active node, Resume label visible.
+- Selected visual target: `C:\Users\User\.codex\generated_images\01a08f7d-86ff-7530-9cae-7905a05b7c9b\exec-4ba367a1-e345-48dc-b2c2-013bc942ea2e.png`
+- Project-bound target copy: `C:\Users\User\Documents\Codex\2026-09-11\nexus\work\resume-qa\target.png`
+- Implementation route: `http://127.0.0.1:4200/resume`
+- Combined comparison document: `C:\Users\User\Documents\Codex\2026-09-11\nexus\work\resume-qa\comparison.html`
+- Comparison viewport: implementation rendered at `1440 x 1024` CSS pixels; the target was scaled proportionally beside it.
+- Comparison state: Modern Profile selected, five templates visible in a `3 + 2` desktop grid, create panel open, profile photo controls visible.
 
 ## Full-View Comparison
 
-The implementation matches the reference's core visual language: a full-bleed black field, a dense central spiral, cyan/blue/violet/magenta particle mixing, deep peripheral dust, sparse foreground sparks, and very restrained interface chrome. NEXUS exposes Resume as the single active product area and places three visibly disabled development nodes across the remaining spiral arms.
+The selected visual and implementation were rendered side by side in one Chrome viewport. The implementation retains the target's quiet monochrome workspace, compact left rail, thin top bar, dense template gallery, restrained cyan selection accent, and fixed creation panel. The requested layout adaptation is intentional: three templates occupy the first row and two occupy the second row instead of placing all five in one row.
 
 ## Focused Comparison
 
-The central galaxy and active-node region were inspected in the combined comparison. The core has a bright cool center, readable spiral separation, colored dust between arms, and a node that remains visually embedded in the field. A separate focused crop was unnecessary because both regions remain legible at the normalized `1440 x 900` comparison size.
+The gallery and creation panel remain visible together at the comparison viewport. Card proportions, preview framing, labels, badges, search and category controls, form spacing, selected state, and primary action were inspected in the combined view. No extra crop was required because the relevant surfaces remain legible at the shared scale.
 
 ## Required Fidelity Surfaces
 
-- Fonts and typography: restrained sans-serif and monospaced labels match the compact reference hierarchy; all visible labels fit without clipping or unintended wrapping.
-- Spacing and layout rhythm: the galaxy occupies the primary viewport, peripheral UI remains close to the edges, and the node label opens into unused space.
-- Colors and visual tokens: near-black background with cyan, electric blue, violet, magenta, and white-core particles matches the source palette and contrast balance.
-- Image quality and asset fidelity: the galaxy is rendered as native, depth-aware WebGL particles rather than a flat background image; round shader particles remove the square-point artifact present in the earlier build.
-- Copy and content: labels describe NEXUS and the real Resume destination rather than copying the reference product's categories.
+- Typography: compact sans-serif hierarchy matches the source's editorial density; labels fit without clipping or unintended wrapping.
+- Layout rhythm: the rail and top bar remain narrow, the gallery gets the primary width, and the creation panel is visually separate without becoming a nested card.
+- Template grid: exactly five choices are presented as three cards on row one and two cards on row two at desktop widths.
+- Color and borders: neutral whites and cool grays carry the interface, with cyan reserved for the active template, links, toggles, and small status accents.
+- Preview quality: each card and the create panel use a real resume rendering rather than a placeholder block.
+- Responsive behavior: the grid reduces to two columns on tablet and one column on mobile; the creation panel becomes a normal full-width section.
 
 ## Interaction And Runtime
 
-- Pointer movement changes particle positions through a local shader force field and moves three star layers at different parallax rates.
-- Mean desktop canvas pixel delta after pointer movement: `5.05021`.
-- Mean canvas pixel delta during the click-through warp: `42.09467`.
-- Resume hover opacity: `1`.
-- Resume remains labeled at rest, uses a larger dual orbit and animated signal pulse, and reveals its secondary action copy on hover.
-- Click transition entered the warp state and completed navigation to `/resume`.
-- Three maintenance nodes are present; every node uses a native disabled button and a programmatic click leaves the route unchanged.
-- Same-origin `/api/resumes` request through the Angular proxy returned `200`.
-- Mobile document size exactly matched the `390 x 844` viewport.
-- Browser console and page errors: none.
+- Search and All / ATS / Modern / Creative filtering update the visible template set.
+- Selecting a template updates its active state, create-panel title, preview, support note, and photo defaults.
+- The photo control supports file selection and drag-and-drop, center-crops and compresses the image to `384 x 384` JPEG, and persists it through the resume API.
+- Uploaded photos can be replaced, removed, or hidden from the generated resume in the editor.
+- Template-aware photo support is exposed for Modern Profile and Creative without implying that ATS-first layouts require a portrait.
+- Creating a resume saves the selected template, document name, and optional photo before opening the editor.
+- Same-origin `/api` requests through the Angular proxy succeeded; no browser console errors or CORS failures were observed.
+- TypeScript typecheck and production build passed.
 
 ## Comparison History
 
-- Initial P1: the galaxy was a small, sparse, mostly cyan cluster aligned to the right, with minimal depth and no local pointer deformation.
-- Fix: replaced the basic Points material with a 32,000-particle desktop shader field and an 11,800-particle adaptive field; centered the spiral, added five-color radial/arm mixing, three parallax star layers, pointer swirl/depth displacement, and a camera-plus-particle warp.
-- Post-fix evidence: `universe-desktop-rest.png`, `universe-desktop-hover.png`, `universe-desktop-warp.png`, and `universe-mobile-hover.png` in `work\galaxy-playwright`.
+- Initial state: the previous Resume Studio did not provide a five-template visual gallery or profile photo workflow.
+- First implementation: added the five-template workspace, functional filters, selected-template panel, photo workflow, and responsive layout.
+- User-directed revision: changed the desktop template gallery from a single row of five to a maximum of three cards on the first row and two on the second.
+- Runtime fix: compressed uploaded portraits before persistence so ordinary camera images stay within the API request-size limit.
+- Final comparison: target and implementation were inspected together at the same rendered implementation viewport; all requested layout and interaction changes are present.
 
 ## Findings
 
-No actionable P0, P1, or P2 differences remain for the requested Galaxy / Particle Universe direction.
+No actionable P0, P1, or P2 differences remain for the selected Resume Studio direction and the requested `3 + 2` gallery adaptation.
 
 ## Follow-Up Polish
 
-- P3: the reference uses a softer post-processing bloom around its brightest dust. The current point shader keeps edges slightly crisper to preserve smooth performance on adaptive-quality devices.
+- P3: the implementation uses slightly larger template previews than the source to keep resume content legible in the two-row layout. This is intentional and does not alter the workflow.
 
 ## Implementation Checklist
 
-- [x] Dense multicolor spiral galaxy
-- [x] Pointer-responsive local particle field
-- [x] Near, mid, and far depth layers
-- [x] Hover-revealed project name
-- [x] Three disabled development nodes with visible maintenance states
-- [x] Focus, expansion, and zoom-through click transition
-- [x] Desktop and mobile visual verification
-- [x] Console and API proxy verification
+- [x] Five distinct resume templates
+- [x] Desktop `3 + 2` template arrangement
+- [x] Search and category filters
+- [x] Selected-template state and live create preview
+- [x] Upload, drag-and-drop, replace, remove, and show/hide photo controls
+- [x] Photo persistence in created and edited resumes
+- [x] Tablet and mobile responsive states
+- [x] Same-origin API and console verification
+- [x] Side-by-side visual comparison
 
 final result: passed

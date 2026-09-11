@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import type { ResumePublication, ResumeRecord, ResumeTemplateId } from '@nexus/shared';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -33,7 +33,9 @@ export class ApiService {
   }
 
   publishResume(id: string, slug: string) {
-    return this.http.post<ResumePublication>(`${API_BASE}/resumes/${id}/publication/publish`, { slug });
+    return this.http.post<ResumePublication>(`${API_BASE}/resumes/${id}/publication/publish`, {
+      slug,
+    });
   }
 
   unpublishResume(id: string) {

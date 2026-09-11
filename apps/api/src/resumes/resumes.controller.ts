@@ -1,10 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post } from '@nestjs/common';
 import type { ResumeRecord, ResumeTemplateId } from '@nexus/shared';
 import { ResumesService } from './resumes.service.js';
 
 @Controller('resumes')
 export class ResumesController {
-  constructor(private readonly resumes: ResumesService) {}
+  constructor(@Inject(ResumesService) private readonly resumes: ResumesService) {}
 
   @Get()
   list() {

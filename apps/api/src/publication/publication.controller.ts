@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
 import { ResumesService } from '../resumes/resumes.service.js';
 
 @Controller()
 export class PublicationController {
-  constructor(private readonly resumes: ResumesService) {}
+  constructor(@Inject(ResumesService) private readonly resumes: ResumesService) {}
 
   @Get('resumes/:id/publication')
   getPublicationState(@Param('id') id: string) {

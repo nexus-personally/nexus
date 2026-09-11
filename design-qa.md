@@ -33,6 +33,7 @@ The central galaxy and active-node region were inspected in the combined compari
 - Mean desktop canvas pixel delta after pointer movement: `5.05021`.
 - Mean canvas pixel delta during the click-through warp: `42.09467`.
 - Resume hover opacity: `1`.
+- Resume remains labeled at rest, uses a larger dual orbit and animated signal pulse, and reveals its secondary action copy on hover.
 - Click transition entered the warp state and completed navigation to `/resume`.
 - Three maintenance nodes are present; every node uses a native disabled button and a programmatic click leaves the route unchanged.
 - Same-origin `/api/resumes` request through the Angular proxy returned `200`.

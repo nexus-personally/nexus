@@ -158,6 +158,7 @@ interface StarLayer {
       >
         <span class="signal-ring signal-ring-outer" aria-hidden="true"></span>
         <span class="signal-ring signal-ring-inner" aria-hidden="true"></span>
+        <span class="signal-pulse" aria-hidden="true"></span>
         <span class="node-core" aria-hidden="true"></span>
         <span class="node-line" aria-hidden="true"></span>
         <span class="node-copy">
@@ -177,7 +178,7 @@ interface StarLayer {
         <span class="maintenance-core" aria-hidden="true"></span>
         <span class="maintenance-copy">
           <small>SYSTEM 02</small>
-          <strong>Under maintenance</strong>
+          <strong>Work in progress</strong>
           <em>Development in progress</em>
         </span>
       </button>
@@ -192,7 +193,7 @@ interface StarLayer {
         <span class="maintenance-core" aria-hidden="true"></span>
         <span class="maintenance-copy">
           <small>SYSTEM 03</small>
-          <strong>In development</strong>
+          <strong>Work in progress</strong>
           <em>Not available yet</em>
         </span>
       </button>
@@ -355,6 +356,7 @@ interface StarLayer {
       }
 
       .signal-ring,
+      .signal-pulse,
       .node-core,
       .node-line {
         position: absolute;
@@ -364,9 +366,9 @@ interface StarLayer {
       }
 
       .signal-ring {
-        border: 1px solid rgba(112, 222, 242, 0.26);
+        border: 1px solid rgba(112, 222, 242, 0.48);
         border-radius: 50%;
-        opacity: 0.68;
+        opacity: 0.86;
         transition:
           border-color 280ms ease,
           opacity 280ms ease,
@@ -374,41 +376,50 @@ interface StarLayer {
       }
 
       .signal-ring-outer {
-        width: 5.5rem;
-        height: 5.5rem;
-        margin: -2.75rem;
+        width: 6.8rem;
+        height: 6.8rem;
+        margin: -3.4rem;
         border-style: dashed;
         animation: orbit 20s linear infinite;
       }
 
       .signal-ring-inner {
-        width: 2.3rem;
-        height: 2.3rem;
-        margin: -1.15rem;
+        width: 2.8rem;
+        height: 2.8rem;
+        margin: -1.4rem;
         animation: orbit-reverse 12s linear infinite;
       }
 
+      .signal-pulse {
+        width: 4.4rem;
+        height: 4.4rem;
+        margin: -2.2rem;
+        border: 1px solid rgba(113, 226, 246, 0.68);
+        border-radius: 50%;
+        animation: active-pulse 2.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+
       .node-core {
-        width: 7px;
-        height: 7px;
-        margin: -3.5px;
+        width: 9px;
+        height: 9px;
+        margin: -4.5px;
         border-radius: 50%;
         background: #e8fdff;
         box-shadow:
-          0 0 12px #9ef3ff,
-          0 0 34px rgba(42, 201, 255, 0.9),
-          0 0 68px rgba(126, 72, 255, 0.56);
+          0 0 16px #c8faff,
+          0 0 42px rgba(42, 201, 255, 1),
+          0 0 82px rgba(126, 72, 255, 0.68);
         transition:
           scale 300ms ease,
           box-shadow 300ms ease;
       }
 
       .node-line {
-        width: 0;
+        width: 3.2rem;
         height: 1px;
         margin-left: 1.35rem;
         background: rgba(151, 231, 246, 0.64);
-        opacity: 0;
+        opacity: 0.72;
         transition:
           width 420ms cubic-bezier(0.16, 1, 0.3, 1),
           opacity 220ms ease;
@@ -421,8 +432,8 @@ interface StarLayer {
         display: grid;
         min-width: 12rem;
         text-align: left;
-        opacity: 0;
-        translate: -0.9rem 0;
+        opacity: 0.82;
+        translate: 0 0;
         transition:
           opacity 260ms ease,
           translate 420ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -448,6 +459,12 @@ interface StarLayer {
         border-color: rgba(164, 241, 255, 0.78);
         opacity: 1;
         scale: 1.28;
+      }
+
+      .near .signal-pulse,
+      .resume-node:hover .signal-pulse,
+      .resume-node:focus-visible .signal-pulse {
+        animation-duration: 1.65s;
       }
 
       .near .node-core,
@@ -635,12 +652,25 @@ interface StarLayer {
         font-size: 1.7rem;
         font-weight: 550;
         line-height: 1.05;
+        text-shadow: 0 0 22px rgba(117, 229, 247, 0.42);
       }
 
       .node-copy em {
         margin-top: 0.3rem;
         color: #7b8797;
         font-size: 0.62rem;
+        opacity: 0;
+        translate: -0.45rem 0;
+        transition:
+          opacity 260ms ease,
+          translate 360ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .near .node-copy em,
+      .resume-node:hover .node-copy em,
+      .resume-node:focus-visible .node-copy em {
+        opacity: 1;
+        translate: 0 0;
       }
 
       .coordinate {
@@ -706,6 +736,18 @@ interface StarLayer {
       @keyframes orbit-reverse {
         to {
           rotate: -360deg;
+        }
+      }
+
+      @keyframes active-pulse {
+        0% {
+          opacity: 0.68;
+          scale: 0.62;
+        }
+        72%,
+        100% {
+          opacity: 0;
+          scale: 1.85;
         }
       }
 
@@ -802,6 +844,11 @@ interface StarLayer {
         .signal-ring,
         .maintenance-ring {
           animation: none;
+        }
+
+        .signal-pulse {
+          animation: none;
+          opacity: 0.4;
         }
 
         .entry-flash {

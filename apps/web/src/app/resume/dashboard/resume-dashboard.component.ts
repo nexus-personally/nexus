@@ -43,20 +43,16 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
   ],
   template: `
     <main class="dashboard-shell" [class.panel-closed]="!createOpen">
-      <aside class="rail" aria-label="NEXUS navigation">
-        <a routerLink="/" class="nexus-mark" aria-label="Back to NEXUS">N</a>
-        <nav>
-          <a routerLink="/resume" class="rail-item" title="Resume Studio" aria-label="Resume Studio"
-            >R</a
-          >
-        </nav>
-        <span class="owner-dot" title="Owner workspace online"></span>
-      </aside>
-
       <header class="topbar">
-        <div class="product-title">
-          <strong>Resume Studio</strong>
-          <span>Owner workspace</span>
+        <div class="topbar-identity">
+          <a routerLink="/" class="nexus-mark" aria-label="Back to NEXUS">
+            <span aria-hidden="true">N</span>
+            <span class="mark-tooltip" role="tooltip">Back to NEXUS</span>
+          </a>
+          <div class="product-title">
+            <strong>Resume Studio</strong>
+            <span>Owner workspace</span>
+          </div>
         </div>
         <button class="primary topbar-action" type="button" (click)="openCreate()">
           <svg lucidePlus size="16"></svg>
@@ -327,75 +323,73 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       .dashboard-shell {
         display: grid;
-        grid-template-columns: 4.5rem minmax(0, 1fr) 22rem;
+        grid-template-columns: minmax(0, 1fr) 22rem;
         grid-template-rows: 4.5rem minmax(calc(100svh - 4.5rem), auto);
         min-height: 100svh;
       }
       .dashboard-shell.panel-closed {
-        grid-template-columns: 4.5rem minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
       }
-      .rail {
-        position: sticky;
-        top: 0;
-        z-index: 5;
-        grid-row: 1 / 3;
+      .topbar-identity {
         display: flex;
-        height: 100svh;
-        flex-direction: column;
         align-items: center;
-        padding: 1rem 0;
-        background: #0b0e10;
-        border-right: 1px solid #24292d;
-      }
-      .nexus-mark,
-      .rail-item {
-        display: grid;
-        place-items: center;
-        width: 2.5rem;
-        height: 2.5rem;
-        color: #f1f4f2;
-        text-decoration: none;
+        gap: 0.8rem;
       }
       .nexus-mark {
-        border: 1px solid #475056;
-        font-weight: 800;
-      }
-      .rail nav {
-        margin-top: 3rem;
-      }
-      .rail-item {
         position: relative;
-        color: #78d8df;
-        background: #172126;
-        font-size: 0.78rem;
-        font-weight: 700;
-      }
-      .rail-item::before {
-        content: '';
-        position: absolute;
-        left: -1rem;
-        width: 2px;
-        height: 1.2rem;
-        background: #79d3dc;
-      }
-      .owner-dot {
-        width: 7px;
-        height: 7px;
-        margin-top: auto;
+        display: grid;
+        place-items: center;
+        width: 2.55rem;
+        height: 2.55rem;
+        border: 1px solid #293237;
         border-radius: 50%;
-        background: #62c8a4;
-        box-shadow: 0 0 12px rgba(98, 200, 164, 0.55);
+        background: #111719;
+        color: #f1f4f2;
+        font-weight: 800;
+        text-decoration: none;
+        transition:
+          border-color 160ms ease,
+          background 160ms ease,
+          transform 160ms ease;
+      }
+      .nexus-mark:hover {
+        border-color: #66cbd3;
+        background: #172427;
+        transform: translateY(-1px);
+      }
+      .mark-tooltip {
+        position: absolute;
+        left: 50%;
+        top: calc(100% + 0.55rem);
+        width: max-content;
+        padding: 0.42rem 0.62rem;
+        border-radius: 0.5rem;
+        background: #111719;
+        color: #ffffff;
+        font-size: 0.66rem;
+        font-weight: 600;
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, -0.2rem);
+        transition:
+          opacity 140ms ease,
+          transform 140ms ease;
+      }
+      .nexus-mark:hover .mark-tooltip,
+      .nexus-mark:focus-visible .mark-tooltip {
+        opacity: 1;
+        transform: translate(-50%, 0);
       }
       .topbar {
         position: sticky;
         top: 0;
         z-index: 4;
-        grid-column: 2 / -1;
+        grid-column: 1 / -1;
         display: flex;
         min-width: 0;
         align-items: center;
         justify-content: space-between;
-        padding: 0 clamp(1rem, 2.6vw, 2.25rem);
+        padding: 0 clamp(2rem, 5vw, 5rem);
         background: rgba(250, 251, 250, 0.96);
         border-bottom: 1px solid #d6dcda;
         backdrop-filter: blur(12px);
@@ -417,13 +411,22 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       button {
         border: 1px solid #c9d0cd;
-        border-radius: 6px;
+        border-radius: var(--radius-button, 25px);
         background: #ffffff;
         color: #202527;
         cursor: pointer;
+        transition:
+          border-color 160ms ease,
+          background 160ms ease,
+          color 160ms ease,
+          box-shadow 160ms ease,
+          transform 160ms ease;
       }
       button:hover {
         border-color: #8f9b97;
+      }
+      button:active:not(:disabled) {
+        transform: scale(0.98);
       }
       .primary {
         display: inline-flex;
@@ -444,12 +447,16 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       .topbar-action {
         min-height: 2.55rem;
-        padding: 0 0.95rem;
+        padding: 0 1.15rem;
       }
       .workspace {
-        grid-column: 2;
+        grid-column: 1;
+        grid-row: 2;
         min-width: 0;
-        padding: 2rem clamp(1rem, 2.6vw, 2.25rem) 4rem;
+        width: 100%;
+        max-width: 90rem;
+        margin: 0 auto;
+        padding: 2.25rem clamp(2rem, 5vw, 5rem) 4rem;
       }
       .template-heading {
         display: grid;
@@ -495,7 +502,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         gap: 0.45rem;
         padding: 0 0.7rem;
         border: 1px solid #cbd2cf;
-        border-radius: 6px;
+        border-radius: 0.75rem;
         background: #ffffff;
         color: #63706d;
       }
@@ -518,7 +525,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       .filter-tabs button {
         height: 2.5rem;
-        padding: 0 0.75rem;
+        padding: 0 0.9rem;
         border-color: transparent;
         background: #e9edeb;
         font-size: 0.72rem;
@@ -550,11 +557,13 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         padding: 0.45rem 0.65rem;
       }
       .template-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
         gap: 1.15rem;
       }
       .template-card {
+        flex: 0 1 calc((100% - 2.3rem) / 3);
         min-width: 0;
       }
       .template-preview {
@@ -565,6 +574,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         overflow: hidden;
         padding: 0.75rem;
         border: 1px solid #d0d7d4;
+        border-radius: 0.65rem;
         background: #e7ebea;
         text-align: left;
         transition:
@@ -607,7 +617,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         align-items: center;
         gap: 0.35rem;
         padding: 0.48rem 0.6rem;
-        border-radius: 5px;
+        border-radius: var(--radius-button, 25px);
         background: rgba(14, 19, 21, 0.92);
         color: #ffffff;
         font-size: 0.68rem;
@@ -703,7 +713,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         min-width: 0;
         padding: 0.7rem;
         border: 1px solid #d2d8d5;
-        border-radius: 6px;
+        border-radius: 0.65rem;
         background: #fbfcfb;
       }
       .resume-thumbnail {
@@ -766,6 +776,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         place-items: center;
         padding: 0;
         border-color: transparent;
+        border-radius: 50%;
         background: transparent;
         color: #65706c;
       }
@@ -788,7 +799,8 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         position: sticky;
         top: 4.5rem;
         z-index: 3;
-        grid-column: 3;
+        grid-column: 2;
+        grid-row: 2;
         align-self: start;
         height: calc(100svh - 4.5rem);
         overflow: auto;
@@ -823,6 +835,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         place-items: center;
         padding: 0;
         border-color: transparent;
+        border-radius: 50%;
         background: transparent;
       }
       .selected-preview {
@@ -832,6 +845,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         overflow: hidden;
         background: #eef1f0;
         border: 1px solid #dbe0de;
+        border-radius: 0.65rem;
       }
       .selected-preview > span {
         position: absolute;
@@ -856,7 +870,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .panel-form > input {
         width: 100%;
         border: 1px solid #c8d0cc;
-        border-radius: 5px;
+        border-radius: 0.75rem;
         padding: 0.72rem 0.75rem;
         background: #ffffff;
         color: #202527;
@@ -886,7 +900,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         margin-top: 0.55rem;
         padding: 0.75rem;
         border: 1px dashed #bdc7c3;
-        border-radius: 6px;
+        border-radius: 0.75rem;
         background: #f7f9f8;
       }
       .photo-uploader > img,
@@ -942,6 +956,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         place-items: center;
         padding: 0;
         border: 0;
+        border-radius: 50%;
         background: #ffffff;
         color: #9b4944;
         box-shadow: 0 2px 8px rgba(30, 38, 38, 0.12);
@@ -1010,7 +1025,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .photo-note {
         padding: 0.75rem;
         border: 1px solid #cde2e4;
-        border-radius: 6px;
+        border-radius: 0.75rem;
         background: #eff8f8;
         color: #4c6b6f;
         font-size: 0.66rem;
@@ -1033,15 +1048,24 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         min-height: 2.75rem;
       }
       @media (max-width: 1220px) {
-        .dashboard-shell {
-          grid-template-columns: 4.5rem minmax(0, 1fr);
+        .dashboard-shell,
+        .dashboard-shell.panel-closed {
+          display: block;
         }
         .create-panel {
-          position: fixed;
-          top: 4.5rem;
-          right: 0;
-          width: min(23rem, calc(100vw - 4.5rem));
-          box-shadow: -18px 0 48px rgba(20, 27, 27, 0.18);
+          position: relative;
+          top: auto;
+          width: auto;
+          height: auto;
+          margin: 0 clamp(2rem, 5vw, 5rem) 3rem;
+          overflow: visible;
+          border: 1px solid #d4dad7;
+          border-radius: 1rem;
+          box-shadow: 0 18px 48px rgba(20, 27, 27, 0.1);
+        }
+        .create-panel > header,
+        .create-panel > footer {
+          position: static;
         }
         .template-heading {
           grid-template-columns: 1fr;
@@ -1055,32 +1079,9 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         }
       }
       @media (max-width: 820px) {
-        .dashboard-shell,
-        .dashboard-shell.panel-closed {
-          display: block;
-          padding-bottom: 4rem;
-        }
-        .rail {
-          position: fixed;
-          top: auto;
-          bottom: 0;
-          width: 100%;
-          height: 4rem;
-          flex-direction: row;
-          justify-content: space-between;
-          padding: 0 1rem;
-        }
-        .rail nav {
-          margin: 0;
-        }
-        .rail-item::before {
-          display: none;
-        }
-        .owner-dot {
-          margin: 0;
-        }
         .topbar {
           min-height: 4rem;
+          padding: 0 1rem;
         }
         .product-title span {
           display: none;
@@ -1099,7 +1100,9 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         .filter-tabs button {
           flex: 1 0 auto;
         }
-        .template-grid,
+        .template-card {
+          flex-basis: calc((100% - 1.15rem) / 2);
+        }
         .resume-row {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -1107,13 +1110,13 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
           height: 18rem;
         }
         .create-panel {
-          top: 0;
-          width: min(23rem, 100vw);
-          height: calc(100svh - 4rem);
+          margin: 0 1rem 2rem;
         }
       }
       @media (max-width: 560px) {
-        .template-grid,
+        .template-card {
+          flex-basis: 100%;
+        }
         .resume-row {
           grid-template-columns: 1fr;
         }

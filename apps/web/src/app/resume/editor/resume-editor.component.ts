@@ -295,7 +295,7 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
       }
       button {
         border: 1px solid #c4ccc8;
-        border-radius: 5px;
+        border-radius: var(--radius-button, 25px);
         padding: 0.5rem 0.7rem;
         background: #ffffff;
         color: #252a2c;
@@ -402,6 +402,7 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
       .more-button {
         width: 2.2rem;
         padding-inline: 0;
+        border-radius: 50%;
         color: #66706d;
       }
       .editor-workspace {
@@ -509,6 +510,7 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
         width: 2rem;
         justify-content: center;
         padding-inline: 0;
+        border-radius: 50%;
         color: #9a5148;
       }
       .photo-visibility input {
@@ -541,6 +543,7 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
         width: 100%;
         padding: 0.62rem;
         border: 0;
+        border-radius: inherit;
         background: transparent;
         text-align: left;
       }
@@ -577,6 +580,7 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
         height: 1.7rem;
         padding: 0;
         border: 0;
+        border-radius: 50%;
         background: transparent;
         color: #6c7672;
         font-size: 0.7rem;

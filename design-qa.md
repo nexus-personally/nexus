@@ -13,7 +13,7 @@
 
 ## Full-View Comparison
 
-The implementation matches the reference's core visual language: a full-bleed black field, a dense central spiral, cyan/blue/violet/magenta particle mixing, deep peripheral dust, sparse foreground sparks, and very restrained interface chrome. The source contains several business-area nodes, while NEXUS intentionally exposes the single product area currently available, Resume.
+The implementation matches the reference's core visual language: a full-bleed black field, a dense central spiral, cyan/blue/violet/magenta particle mixing, deep peripheral dust, sparse foreground sparks, and very restrained interface chrome. NEXUS exposes Resume as the single active product area and places three visibly disabled development nodes across the remaining spiral arms.
 
 ## Focused Comparison
 
@@ -34,6 +34,7 @@ The central galaxy and active-node region were inspected in the combined compari
 - Mean canvas pixel delta during the click-through warp: `42.09467`.
 - Resume hover opacity: `1`.
 - Click transition entered the warp state and completed navigation to `/resume`.
+- Three maintenance nodes are present; every node uses a native disabled button and a programmatic click leaves the route unchanged.
 - Same-origin `/api/resumes` request through the Angular proxy returned `200`.
 - Mobile document size exactly matched the `390 x 844` viewport.
 - Browser console and page errors: none.
@@ -58,6 +59,7 @@ No actionable P0, P1, or P2 differences remain for the requested Galaxy / Partic
 - [x] Pointer-responsive local particle field
 - [x] Near, mid, and far depth layers
 - [x] Hover-revealed project name
+- [x] Three disabled development nodes with visible maintenance states
 - [x] Focus, expansion, and zoom-through click transition
 - [x] Desktop and mobile visual verification
 - [x] Console and API proxy verification

@@ -167,6 +167,51 @@ interface StarLayer {
         </span>
       </button>
 
+      <button
+        class="maintenance-node node-02"
+        type="button"
+        disabled
+        aria-label="System 02 under maintenance"
+      >
+        <span class="maintenance-ring" aria-hidden="true"></span>
+        <span class="maintenance-core" aria-hidden="true"></span>
+        <span class="maintenance-copy">
+          <small>SYSTEM 02</small>
+          <strong>Under maintenance</strong>
+          <em>Development in progress</em>
+        </span>
+      </button>
+
+      <button
+        class="maintenance-node node-03"
+        type="button"
+        disabled
+        aria-label="System 03 in development"
+      >
+        <span class="maintenance-ring" aria-hidden="true"></span>
+        <span class="maintenance-core" aria-hidden="true"></span>
+        <span class="maintenance-copy">
+          <small>SYSTEM 03</small>
+          <strong>In development</strong>
+          <em>Not available yet</em>
+        </span>
+      </button>
+
+      <button
+        class="maintenance-node node-04"
+        type="button"
+        disabled
+        aria-label="System 04 work in progress"
+      >
+        <span class="maintenance-ring" aria-hidden="true"></span>
+        <span class="maintenance-core" aria-hidden="true"></span>
+        <span class="maintenance-copy">
+          <small>SYSTEM 04</small>
+          <strong>Work in progress</strong>
+          <em>Not available yet</em>
+        </span>
+      </button>
+
       <div class="coordinate coordinate-left" aria-hidden="true">
         <span>NXS / GALAXY 01</span>
         <strong>Move through the field</strong>
@@ -420,6 +465,159 @@ interface StarLayer {
         outline-offset: -2.8rem;
       }
 
+      .maintenance-node {
+        position: absolute;
+        z-index: 3;
+        width: 13rem;
+        height: 7rem;
+        translate: -50% -50%;
+        border: 0;
+        padding: 0;
+        color: #9aa8b8;
+        background: transparent;
+        cursor: not-allowed;
+        opacity: 0;
+        scale: 0.76;
+        transition:
+          opacity 700ms ease 340ms,
+          scale 800ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .maintenance-node:disabled {
+        color: #9aa8b8;
+      }
+
+      .ready .maintenance-node {
+        opacity: 0.78;
+        scale: 1;
+      }
+
+      .node-02 {
+        left: 31%;
+        top: 35%;
+      }
+
+      .node-03 {
+        left: 37%;
+        top: 69%;
+      }
+
+      .node-04 {
+        left: 78%;
+        top: 66%;
+      }
+
+      .maintenance-ring,
+      .maintenance-core {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        border-radius: 50%;
+        pointer-events: none;
+      }
+
+      .maintenance-ring {
+        width: 2.4rem;
+        height: 2.4rem;
+        margin: -1.2rem;
+        border: 1px dashed rgba(133, 153, 186, 0.38);
+        animation: orbit 28s linear infinite;
+        transition:
+          border-color 260ms ease,
+          scale 360ms ease;
+      }
+
+      .maintenance-core {
+        width: 5px;
+        height: 5px;
+        margin: -2.5px;
+        background: #8599b7;
+        box-shadow: 0 0 18px rgba(91, 123, 178, 0.8);
+        transition:
+          background 260ms ease,
+          box-shadow 260ms ease,
+          scale 260ms ease;
+      }
+
+      .node-02 .maintenance-core {
+        background: #a870e9;
+        box-shadow: 0 0 18px rgba(168, 112, 233, 0.78);
+      }
+
+      .node-03 .maintenance-core {
+        background: #55c8e6;
+        box-shadow: 0 0 18px rgba(85, 200, 230, 0.78);
+      }
+
+      .node-04 .maintenance-core {
+        background: #d85ca9;
+        box-shadow: 0 0 18px rgba(216, 92, 169, 0.76);
+      }
+
+      .maintenance-copy {
+        position: absolute;
+        left: calc(50% + 1.8rem);
+        top: calc(50% - 1rem);
+        display: grid;
+        min-width: 9.5rem;
+        text-align: left;
+        opacity: 0.72;
+        transition:
+          color 260ms ease,
+          opacity 260ms ease,
+          translate 360ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .node-04 .maintenance-copy {
+        right: calc(50% + 1.8rem);
+        left: auto;
+        text-align: right;
+      }
+
+      .maintenance-copy small,
+      .maintenance-copy em {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-style: normal;
+        letter-spacing: 0;
+      }
+
+      .maintenance-copy small {
+        color: #66768a;
+        font-size: 0.5rem;
+      }
+
+      .maintenance-copy strong {
+        margin-top: 0.18rem;
+        color: #c0cad4;
+        font-size: 0.82rem;
+        font-weight: 520;
+        line-height: 1.15;
+      }
+
+      .maintenance-copy em {
+        margin-top: 0.18rem;
+        color: #566476;
+        font-size: 0.5rem;
+      }
+
+      .maintenance-node:hover .maintenance-copy {
+        opacity: 1;
+        translate: 0.25rem 0;
+      }
+
+      .node-04:hover .maintenance-copy {
+        translate: -0.25rem 0;
+      }
+
+      .maintenance-node:hover .maintenance-ring {
+        border-color: rgba(172, 191, 219, 0.72);
+        scale: 1.25;
+      }
+
+      .maintenance-node:hover .maintenance-core {
+        scale: 1.45;
+      }
+
       .node-copy small,
       .node-copy em {
         font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -493,6 +691,7 @@ interface StarLayer {
 
       .entering .universe-header,
       .entering .coordinate,
+      .entering .maintenance-node,
       .entering .node-copy {
         opacity: 0;
         transition-delay: 0ms;
@@ -556,13 +755,52 @@ interface StarLayer {
           display: none;
         }
 
+        .maintenance-node {
+          width: 9rem;
+          height: 5rem;
+        }
+
+        .node-02 {
+          left: 25%;
+          top: 32%;
+        }
+
+        .node-03 {
+          left: 22%;
+          top: 68%;
+        }
+
+        .node-04 {
+          left: 79%;
+          top: 68%;
+        }
+
+        .maintenance-copy {
+          left: calc(50% + 1.3rem);
+          min-width: 6.8rem;
+        }
+
+        .node-04 .maintenance-copy {
+          right: calc(50% + 1.3rem);
+          left: auto;
+        }
+
+        .maintenance-copy strong {
+          font-size: 0.67rem;
+        }
+
+        .maintenance-copy em {
+          display: none;
+        }
+
         .coordinate strong {
           display: none;
         }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .signal-ring {
+        .signal-ring,
+        .maintenance-ring {
           animation: none;
         }
 

@@ -392,7 +392,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       .topbar {
         position: sticky;
-        top: 0;
+        top: 0.55rem;
         z-index: 4;
         grid-column: 1 / -1;
         display: flex;

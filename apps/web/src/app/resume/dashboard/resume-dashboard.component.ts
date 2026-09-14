@@ -803,7 +803,6 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .resume-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
-        justify-items: center;
         gap: 0.8rem;
         margin-top: 1rem;
       }
@@ -834,9 +833,9 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .resume-thumbnail > span {
         position: absolute;
         left: 50%;
-        top: 0;
+        top: 50%;
         width: 210mm;
-        transform: translateX(-50%) scale(0.066);
+        transform: translate(-50%, -50%) scale(0.066);
         transform-origin: top center;
         pointer-events: none;
       }

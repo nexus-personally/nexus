@@ -803,6 +803,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .resume-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
+        justify-items: center;
         gap: 0.8rem;
         margin-top: 1rem;
       }
@@ -812,9 +813,11 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         align-items: center;
         gap: 0.75rem;
         min-width: 0;
+        width: 100%;
         max-width: 42rem;
         min-height: 7.4rem;
         padding: 0.85rem;
+        box-sizing: border-box;
         border: 1px solid #d2d8d5;
         border-radius: 0.65rem;
         background: #fbfcfb;

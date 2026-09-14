@@ -808,7 +808,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       .resume-item {
         display: grid;
-        grid-template-columns: 5.2rem minmax(0, 1fr) auto;
+        grid-template-columns: minmax(8rem, 10rem) minmax(0, 1fr) auto;
         align-items: center;
         gap: 0.75rem;
         min-width: 0;
@@ -826,6 +826,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         display: block;
         width: 5.2rem;
         height: 6.8rem;
+        justify-self: center;
         overflow: hidden;
         background: #ffffff;
         box-shadow: 0 2px 8px rgba(30, 38, 38, 0.1);

@@ -833,9 +833,9 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .resume-thumbnail > span {
         position: absolute;
         left: 50%;
-        top: 50%;
+        top: 0;
         width: 210mm;
-        transform: translate(-50%, -50%) scale(0.066);
+        transform: translateX(-50%) scale(0.066);
         transform-origin: top center;
         pointer-events: none;
       }

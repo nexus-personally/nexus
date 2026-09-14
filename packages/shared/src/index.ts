@@ -21,6 +21,18 @@ export interface ResumeTheme {
   accent: string;
 }
 
+export interface ResumeColors {
+  accent: string;
+  heading: string;
+  body: string;
+}
+
+export interface ResumePhotoCrop {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
 export interface ResumeTemplateMeta {
   id: ResumeTemplateId;
   name: string;
@@ -35,8 +47,10 @@ export interface ResumeProfile {
   email: string;
   phone: string;
   location: string;
+  photoSourceDataUrl?: string;
   photoDataUrl?: string;
   photoVisible?: boolean;
+  photoCrop?: ResumePhotoCrop;
   website?: string;
   linkedin?: string;
   github?: string;
@@ -131,6 +145,7 @@ export interface ResumeRecord {
   name: string;
   templateId: ResumeTemplateId;
   themeId: string;
+  colors?: ResumeColors;
   status: ResumeStatus;
   content: ResumeContent;
   sectionOrder: string[];
@@ -156,7 +171,7 @@ export const RESUME_TEMPLATES: ResumeTemplateMeta[] = [
     id: 'tech-core',
     name: 'ATS Classic',
     description: 'Clean, ATS-friendly single-column layout for any profession.',
-    photoDefault: 'hidden',
+    photoDefault: 'circle',
     atsFriendly: true,
   },
   {
@@ -169,15 +184,15 @@ export const RESUME_TEMPLATES: ResumeTemplateMeta[] = [
   {
     id: 'tech-minimal',
     name: 'Minimal',
-    description: 'Spacious monochrome layout with quiet typography and light dividers.',
-    photoDefault: 'hidden',
+    description: 'Balanced two-column layout with a profile header and focused skill blocks.',
+    photoDefault: 'circle',
     atsFriendly: true,
   },
   {
     id: 'tech-executive',
     name: 'Executive',
     description: 'Classic serif CV emphasizing leadership, progression, and impact.',
-    photoDefault: 'hidden',
+    photoDefault: 'circle',
     atsFriendly: true,
   },
   {
@@ -195,6 +210,24 @@ export const RESUME_THEMES: ResumeTheme[] = [
   { id: 'oxide-red', name: 'Oxide Red', accent: '#b43737' },
   { id: 'moss-green', name: 'Moss Green', accent: '#34785f' },
 ];
+
+export const RESUME_TEMPLATE_COLOR_DEFAULTS: Record<ResumeTemplateId, ResumeColors> = {
+  'tech-core': { accent: '#0f9fb8', heading: '#20272a', body: '#30383b' },
+  'tech-modern': { accent: '#34b9c2', heading: '#17262b', body: '#30383b' },
+  'tech-minimal': { accent: '#356d72', heading: '#282c2e', body: '#373d3f' },
+  'tech-executive': { accent: '#8c6a35', heading: '#1d2427', body: '#303638' },
+  'tech-creative': { accent: '#d45a69', heading: '#20262a', body: '#30373a' },
+};
+
+export function resolveResumeColors(
+  resume: Pick<ResumeRecord, 'templateId' | 'themeId' | 'colors'>,
+) {
+  const defaults = RESUME_TEMPLATE_COLOR_DEFAULTS[resume.templateId];
+  if (resume.colors) return { ...defaults, ...resume.colors };
+
+  const legacyAccent = RESUME_THEMES.find((theme) => theme.id === resume.themeId)?.accent;
+  return { ...defaults, accent: legacyAccent ?? defaults.accent };
+}
 
 export const RESERVED_PUBLIC_SLUGS = new Set([
   'api',
@@ -281,6 +314,7 @@ export function createStarterResume(
     name,
     templateId,
     themeId: 'signal-cyan',
+    colors: { ...RESUME_TEMPLATE_COLOR_DEFAULTS[templateId] },
     status: 'draft',
     content: {
       profile: {
@@ -289,7 +323,7 @@ export function createStarterResume(
         email: 'you@example.com',
         phone: '+1 555 0100',
         location: 'United States',
-        photoVisible: templateId === 'tech-modern' || templateId === 'tech-creative',
+        photoVisible: false,
         website: 'https://example.com',
         linkedin: 'https://linkedin.com/in/your-name',
         github: 'https://github.com/your-name',

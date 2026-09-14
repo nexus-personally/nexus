@@ -5,7 +5,6 @@ import { Router, RouterLink } from '@angular/router';
 import {
   LucideArrowRight,
   LucideCopy,
-  LucideExternalLink,
   LucideFileText,
   LucidePlus,
   LucideSearch,
@@ -17,7 +16,7 @@ import {
 import type { ResumeRecord, ResumeTemplateId, ResumeTemplateMeta } from '@nexus/shared';
 import { RESUME_TEMPLATES, createStarterResume } from '@nexus/shared';
 import { ApiService } from '../../core/api.service';
-import { prepareProfilePhoto } from '../profile-photo';
+import { cropProfilePhoto, prepareProfilePhotoSource } from '../profile-photo';
 import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
 
 type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
@@ -32,7 +31,6 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
     ResumeRendererComponent,
     LucideArrowRight,
     LucideCopy,
-    LucideExternalLink,
     LucideFileText,
     LucidePlus,
     LucideSearch,
@@ -50,10 +48,14 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
             <span class="mark-tooltip" role="tooltip">Back to NEXUS</span>
           </a>
           <div class="product-title">
-            <strong>Resume Studio</strong>
-            <span>Owner workspace</span>
+            <strong>NEXUS</strong>
+            <span>Resume Studio</span>
           </div>
         </div>
+        <nav class="topbar-nav" aria-label="Resume sections">
+          <a class="active" href="#templates-title">Templates</a>
+          <a href="#library-title">My resumes</a>
+        </nav>
         <button class="primary topbar-action" type="button" (click)="openCreate()">
           <svg lucidePlus size="16"></svg>
           New resume
@@ -107,7 +109,10 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
 
           <div class="template-grid" aria-label="Resume templates">
             @for (template of filteredTemplates; track template.id) {
-              <article class="template-card" [class.selected]="newTemplate === template.id">
+              <article
+                [class]="'template-card ' + template.id"
+                [class.selected]="newTemplate === template.id"
+              >
                 <button
                   type="button"
                   class="template-preview"
@@ -120,10 +125,6 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
                       <nexus-resume-renderer [resume]="previewFor(template.id)" />
                     </span>
                   </span>
-                  <span class="preview-action">
-                    <svg lucideExternalLink size="15"></svg>
-                    {{ newTemplate === template.id ? 'Selected' : 'Use template' }}
-                  </span>
                 </button>
 
                 <div class="template-summary">
@@ -132,6 +133,15 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
                     <span [class]="'tag ' + template.id">{{ templateTag(template.id) }}</span>
                   </div>
                   <p>{{ template.description }}</p>
+                  <button
+                    type="button"
+                    class="template-use"
+                    [class.selected]="newTemplate === template.id"
+                    (click)="selectTemplate(template.id)"
+                  >
+                    {{ newTemplate === template.id ? 'Selected' : 'Use template' }}
+                    <svg lucideArrowRight size="15"></svg>
+                  </button>
                 </div>
               </article>
             }
@@ -318,8 +328,8 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
     `
       :host {
         display: block;
-        color: #171b1d;
-        background: #f1f3f2;
+        color: #172231;
+        background: #fbfaf8;
       }
       .dashboard-shell {
         display: grid;
@@ -399,11 +409,43 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         gap: 0.12rem;
       }
       .product-title strong {
-        font-size: 0.92rem;
+        font-size: 1rem;
+        letter-spacing: 0.01em;
       }
       .product-title span {
-        color: #7b8582;
+        color: #7b8490;
         font-size: 0.7rem;
+      }
+      .topbar-nav {
+        display: flex;
+        align-self: stretch;
+        align-items: center;
+        gap: 1.6rem;
+        margin-left: auto;
+        margin-right: 2rem;
+      }
+      .topbar-nav a {
+        position: relative;
+        display: inline-flex;
+        height: 100%;
+        align-items: center;
+        color: #5f6978;
+        font-size: 0.75rem;
+        font-weight: 650;
+        text-decoration: none;
+      }
+      .topbar-nav a:hover,
+      .topbar-nav a.active {
+        color: #172231;
+      }
+      .topbar-nav a.active::after {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        height: 2px;
+        background: #f25555;
+        content: '';
       }
       button,
       input {
@@ -433,13 +475,13 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         align-items: center;
         justify-content: center;
         gap: 0.45rem;
-        border-color: #15191b;
-        background: #15191b;
+        border-color: #f25555;
+        background: #f25555;
         color: #ffffff;
         font-weight: 680;
       }
       .primary svg {
-        color: #78d8df;
+        color: #ffffff;
       }
       .primary:disabled {
         cursor: not-allowed;
@@ -452,21 +494,21 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .workspace {
         grid-column: 1;
         grid-row: 2;
+        display: flex;
+        flex-direction: column;
         min-width: 0;
-        width: 100%;
-        max-width: 90rem;
-        margin: 0 auto;
-        padding: 2.25rem clamp(2rem, 5vw, 5rem) 4rem;
+        width: min(100%, 84rem);
+        margin-inline: auto;
+        padding: 2.75rem clamp(1.5rem, 3vw, 2.25rem) 4.5rem;
       }
       .template-heading {
         display: grid;
-        grid-template-columns: minmax(18rem, 1fr) auto;
-        align-items: end;
-        gap: 1.25rem;
-        margin-bottom: 1.4rem;
+        gap: 1.45rem;
+        margin-bottom: 1.65rem;
+        text-align: center;
       }
       .eyebrow {
-        color: #557f83;
+        color: #7b8795;
         font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
         font-size: 0.62rem;
         letter-spacing: 0.08em;
@@ -478,21 +520,26 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       .template-heading h1 {
         margin-top: 0.35rem;
-        font-size: clamp(1.75rem, 2.5vw, 2.35rem);
-        line-height: 1.08;
-        font-weight: 680;
+        color: #172231;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: clamp(2.45rem, 4vw, 3.2rem);
+        line-height: 1.04;
+        font-weight: 700;
       }
       .template-heading p,
       .resume-library p {
-        margin-top: 0.4rem;
-        color: #6d7774;
-        font-size: 0.78rem;
+        margin-top: 0.55rem;
+        color: #687383;
+        font-size: 1rem;
         line-height: 1.5;
       }
       .template-tools {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(15rem, 1fr) auto;
         align-items: center;
-        gap: 0.65rem;
+        gap: 1rem;
+        margin-top: 0.35rem;
+        text-align: left;
       }
       .search-field {
         display: flex;
@@ -501,14 +548,14 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         align-items: center;
         gap: 0.45rem;
         padding: 0 0.7rem;
-        border: 1px solid #cbd2cf;
-        border-radius: 0.75rem;
+        border: 1px solid #d8dde3;
+        border-radius: 0.9rem;
         background: #ffffff;
         color: #63706d;
       }
       .search-field:focus-within {
-        border-color: #4c8a91;
-        box-shadow: 0 0 0 3px rgba(76, 138, 145, 0.12);
+        border-color: #607caa;
+        box-shadow: 0 0 0 3px rgba(96, 124, 170, 0.12);
       }
       .search-field input {
         min-width: 0;
@@ -522,18 +569,21 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .filter-tabs {
         display: flex;
         gap: 0.3rem;
+        justify-content: center;
       }
       .filter-tabs button {
         height: 2.5rem;
-        padding: 0 0.9rem;
-        border-color: transparent;
-        background: #e9edeb;
+        padding: 0 0.85rem;
+        border-color: #dce1e6;
+        border-radius: 0.8rem;
+        background: #ffffff;
+        color: #4e5b6b;
         font-size: 0.72rem;
       }
       .filter-tabs button.active {
-        border-color: #161a1c;
-        background: #161a1c;
-        color: #ffffff;
+        border-color: #ffd8d8;
+        background: #fff0ef;
+        color: #db4646;
       }
       .error-banner {
         display: flex;
@@ -558,38 +608,80 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       .template-grid {
         display: flex;
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 1440px;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 1.15rem;
+        align-items: stretch;
+        gap: 1.5rem;
+        margin-inline: auto;
+        padding-inline: clamp(32px, 5vw, 80px);
+      }
+      .template-section {
+        padding-top: 0;
       }
       .template-card {
-        flex: 0 1 calc((100% - 2.3rem) / 3);
+        display: flex;
+        flex: 0 0 calc((100% - 3rem) / 3);
+        min-height: 100%;
         min-width: 0;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid #dfe3e7;
+        border-radius: 1.15rem;
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(25, 32, 32, 0.04);
+        transition:
+          border-color 180ms ease,
+          box-shadow 180ms ease,
+          transform 180ms ease;
+      }
+      .template-card:hover {
+        border-color: #c4ccd5;
+        box-shadow: 0 14px 34px rgba(28, 37, 37, 0.1);
+        transform: translateY(-2px);
+      }
+      .template-card.selected {
+        border-color: #6bcddd;
+        box-shadow: 0 0 0 2px rgba(107, 205, 221, 0.18);
       }
       .template-preview {
         position: relative;
         display: block;
         width: 100%;
-        height: clamp(17rem, 25vw, 21rem);
+        aspect-ratio: 0.64;
         overflow: hidden;
-        padding: 0.75rem;
-        border: 1px solid #d0d7d4;
-        border-radius: 0.65rem;
-        background: #e7ebea;
+        padding: 0.45rem;
+        border: 0;
+        border-bottom: 1px solid #e2e5e8;
+        border-radius: 0;
+        background: #e9eeec;
         text-align: left;
         transition:
-          border-color 180ms ease,
-          box-shadow 180ms ease,
-          translate 180ms ease;
+          background 180ms ease,
+          box-shadow 180ms ease;
+      }
+      .template-card.tech-core .template-preview {
+        background: #edf3f5;
+      }
+      .template-card.tech-modern .template-preview {
+        background: #f2edf5;
+      }
+      .template-card.tech-minimal .template-preview {
+        background: #f3f0ea;
+      }
+      .template-card.tech-executive .template-preview {
+        background: #edf2eb;
+      }
+      .template-card.tech-creative .template-preview {
+        background: #f8ece8;
       }
       .template-card.selected .template-preview {
-        border-color: #37b9c3;
-        box-shadow: 0 0 0 2px rgba(55, 185, 195, 0.24);
+        background: #e3f3f4;
       }
       .template-preview:hover {
-        translate: 0 -2px;
-        border-color: #8d9a96;
-        box-shadow: 0 13px 28px rgba(28, 37, 37, 0.1);
+        background: #e4eae8;
       }
       .preview-document {
         position: relative;
@@ -598,42 +690,25 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         height: 100%;
         overflow: hidden;
         background: #ffffff;
-        box-shadow: 0 6px 18px rgba(31, 39, 39, 0.12);
+        border-radius: 0.65rem;
+        box-shadow: 0 7px 20px rgba(31, 39, 39, 0.13);
       }
       .preview-scale {
         position: absolute;
         left: 50%;
         top: 0;
         width: 210mm;
-        transform: translateX(-50%) scale(0.31);
+        transform: translateX(-50%) scale(0.48);
         transform-origin: top center;
         pointer-events: none;
       }
-      .preview-action {
-        position: absolute;
-        right: 1.15rem;
-        bottom: 1.15rem;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.48rem 0.6rem;
-        border-radius: var(--radius-button, 25px);
-        background: rgba(14, 19, 21, 0.92);
-        color: #ffffff;
-        font-size: 0.68rem;
-        font-weight: 650;
-        opacity: 0;
-        transform: translateY(5px);
-        transition: 160ms ease;
-      }
-      .template-card.selected .preview-action,
-      .template-preview:hover .preview-action,
-      .template-preview:focus-visible .preview-action {
-        opacity: 1;
-        transform: translateY(0);
-      }
       .template-summary {
-        padding: 0.75rem 0.1rem 0.15rem;
+        display: grid;
+        min-height: 9rem;
+        flex: 1;
+        grid-template-rows: auto 1fr auto;
+        gap: 0.55rem;
+        padding: 0.9rem 0.95rem 1rem;
       }
       .template-line {
         display: flex;
@@ -642,8 +717,10 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         gap: 0.55rem;
       }
       .template-line h2 {
-        font-size: 0.98rem;
+        min-width: 0;
+        font-size: 1rem;
         font-weight: 680;
+        line-height: 1.25;
       }
       .tag {
         flex: 0 0 auto;
@@ -663,10 +740,32 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         color: #8c2c69;
       }
       .template-summary p {
-        margin-top: 0.35rem;
         color: #6c7773;
-        font-size: 0.71rem;
+        font-size: 0.78rem;
         line-height: 1.45;
+      }
+      .template-use {
+        display: inline-flex;
+        width: fit-content;
+        min-height: 2.35rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0 0.8rem;
+        border-color: #d3dbe2;
+        border-radius: 0.8rem;
+        background: #ffffff;
+        color: #202527;
+        font-size: 0.74rem;
+        font-weight: 680;
+      }
+      .template-use.selected {
+        border-color: #172231;
+        background: #172231;
+        color: #ffffff;
+      }
+      .template-use.selected svg {
+        color: #7dd8e4;
       }
       .no-results {
         display: grid;
@@ -681,9 +780,10 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         padding: 0.45rem 0.65rem;
       }
       .resume-library {
-        margin-top: 2rem;
-        padding-top: 1.65rem;
-        border-top: 1px solid #d1d7d4;
+        order: -1;
+        margin-bottom: 2.35rem;
+        padding: 0 0 1.85rem;
+        border-bottom: 1px solid #d1d7d4;
       }
       .resume-library > header {
         display: flex;
@@ -701,17 +801,19 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       .resume-row {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr);
         gap: 0.8rem;
         margin-top: 1rem;
       }
       .resume-item {
         display: grid;
-        grid-template-columns: 3.4rem minmax(0, 1fr) auto;
+        grid-template-columns: 5.2rem minmax(0, 1fr) auto;
         align-items: center;
         gap: 0.75rem;
         min-width: 0;
-        padding: 0.7rem;
+        max-width: 42rem;
+        min-height: 7.4rem;
+        padding: 0.85rem;
         border: 1px solid #d2d8d5;
         border-radius: 0.65rem;
         background: #fbfcfb;
@@ -719,8 +821,8 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .resume-thumbnail {
         position: relative;
         display: block;
-        width: 3.4rem;
-        height: 4.4rem;
+        width: 5.2rem;
+        height: 6.8rem;
         overflow: hidden;
         background: #ffffff;
         box-shadow: 0 2px 8px rgba(30, 38, 38, 0.1);
@@ -1078,10 +1180,21 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
+      @media (max-width: 980px) {
+        .template-grid {
+          gap: 1rem;
+        }
+        .template-card {
+          flex-basis: calc((100% - 1rem) / 2);
+        }
+      }
       @media (max-width: 820px) {
         .topbar {
           min-height: 4rem;
           padding: 0 1rem;
+        }
+        .topbar-nav {
+          display: none;
         }
         .product-title span {
           display: none;
@@ -1093,6 +1206,9 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         .search-field {
           width: 100%;
         }
+        .template-grid {
+          gap: 1rem;
+        }
         .filter-tabs {
           width: 100%;
           overflow-x: auto;
@@ -1101,13 +1217,13 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
           flex: 1 0 auto;
         }
         .template-card {
-          flex-basis: calc((100% - 1.15rem) / 2);
+          flex-basis: calc((100% - 1rem) / 2);
+        }
+        .preview-scale {
+          transform: translateX(-50%) scale(0.47);
         }
         .resume-row {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-        .template-preview {
-          height: 18rem;
+          grid-template-columns: minmax(0, 1fr);
         }
         .create-panel {
           margin: 0 1rem 2rem;
@@ -1120,14 +1236,18 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         .resume-row {
           grid-template-columns: 1fr;
         }
-        .template-preview {
-          height: 23rem;
+        .preview-scale {
+          transform: translateX(-50%) scale(0.43);
         }
         .template-heading h1 {
           font-size: 1.8rem;
         }
         .resume-item {
-          grid-template-columns: 3.4rem minmax(0, 1fr);
+          grid-template-columns: 4.4rem minmax(0, 1fr);
+        }
+        .resume-thumbnail {
+          width: 4.4rem;
+          height: 5.8rem;
         }
         .resume-actions {
           grid-column: 2;
@@ -1150,12 +1270,13 @@ export class ResumeDashboardComponent implements OnInit {
   protected resumes: ResumeRecord[] = [];
   protected newName = 'Product Manager Resume';
   protected newTemplate: ResumeTemplateId = 'tech-modern';
-  protected createOpen = true;
+  protected createOpen = false;
   protected creating = false;
   protected loading = true;
   protected errorMessage = '';
   protected photoError = '';
   protected photoPreviewDataUrl = '';
+  private photoSourceDataUrl = '';
   protected photoFileName = '';
   protected includePhoto = true;
   protected activeFilter: TemplateFilter = 'all';
@@ -1270,6 +1391,7 @@ export class ResumeDashboardComponent implements OnInit {
 
   protected removePhoto() {
     this.photoPreviewDataUrl = '';
+    this.photoSourceDataUrl = '';
     this.photoFileName = '';
     this.photoError = '';
   }
@@ -1280,7 +1402,11 @@ export class ResumeDashboardComponent implements OnInit {
     this.errorMessage = '';
     this.api.createResume(this.newName.trim(), this.newTemplate).subscribe({
       next: (resume) => {
+        resume.content.profile.photoSourceDataUrl = this.photoSourceDataUrl || undefined;
         resume.content.profile.photoDataUrl = this.photoPreviewDataUrl || undefined;
+        resume.content.profile.photoCrop = this.photoPreviewDataUrl
+          ? { x: 0, y: 0, zoom: 1 }
+          : undefined;
         resume.content.profile.photoVisible =
           this.includePhoto && this.selectedTemplateSupportsPhoto && !!this.photoPreviewDataUrl;
 
@@ -1330,9 +1456,14 @@ export class ResumeDashboardComponent implements OnInit {
       return;
     }
 
-    prepareProfilePhoto(file)
-      .then((dataUrl) => {
-        this.photoPreviewDataUrl = dataUrl;
+    prepareProfilePhotoSource(file)
+      .then(async (sourceDataUrl) => ({
+        sourceDataUrl,
+        previewDataUrl: await cropProfilePhoto(sourceDataUrl, { x: 0, y: 0, zoom: 1 }),
+      }))
+      .then(({ sourceDataUrl, previewDataUrl }) => {
+        this.photoSourceDataUrl = sourceDataUrl;
+        this.photoPreviewDataUrl = previewDataUrl;
         this.photoFileName = file.name;
         if (this.selectedTemplateSupportsPhoto) this.includePhoto = true;
       })
@@ -1364,7 +1495,11 @@ export class ResumeDashboardComponent implements OnInit {
     preview.content.profile.email =
       names[templateId].name.toLowerCase().replace(' ', '.') + '@example.com';
     preview.content.profile.location = 'San Francisco, CA';
-    if (templateId === 'tech-modern' || templateId === 'tech-creative') {
+    if (
+      templateId === 'tech-modern' ||
+      templateId === 'tech-minimal' ||
+      templateId === 'tech-creative'
+    ) {
       preview.content.profile.photoDataUrl = '/assets/resume/template-profile.png';
       preview.content.profile.photoVisible = true;
     }

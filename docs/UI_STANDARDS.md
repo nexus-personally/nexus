@@ -48,11 +48,24 @@ This applies to primary, secondary, outline, ghost, danger, segmented-filter, up
 
 - Do not use a persistent left sidebar on the Resume Studio dashboard.
 - Place the NEXUS return mark in the top-left header area and link it to `/`.
-- Center the template workspace with `clamp(32px, 5vw, 80px)` horizontal padding and a `1440px` maximum width.
+- Apply `clamp(32px, 5vw, 80px)` horizontal padding and a `1440px` maximum width to the template grid only.
+- Keep the template heading and its search/filter tools aligned to the full workspace width.
 - Use three equal-width template cards per row on desktop.
 - Center an incomplete final row as a group; five templates must render as `3 + 2`.
 - Keep the create panel docked on desktop. Place it in normal document flow below the workspace on tablet and mobile layouts.
 - Reduce the template grid to two columns on tablet and one column on narrow mobile screens.
+
+## Resume Editor
+
+- Every resume template must support the shared optional profile photo. Hiding the photo collapses its layout space completely.
+- Store the compressed photo source, 1:1 crop position, zoom, and cropped output so the crop can be adjusted after reload.
+- Use a circular safe-area preview for photo cropping. Support pointer and touch dragging plus zoom; rotation and flipping are intentionally excluded.
+- Keep one shared photo and one global `Show profile photo` setting across all templates.
+- Expose resume colors through the `Colors` panel, not persistent command-bar swatches.
+- Provide 24 accent presets, 16 heading presets, 12 body presets, native color pickers, and editable HEX values.
+- Apply heading and body colors only to light content areas. Dark structural panels retain automatic high-contrast text.
+- Show contrast ratios and warnings for low-contrast custom colors without blocking the user's choice.
+- Preserve custom colors when switching templates. `Reset to template defaults` is the only action that replaces them with the selected template's defaults.
 
 ## Review Checklist
 

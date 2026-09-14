@@ -1,18 +1,48 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  inject,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { LucideTrash2, LucideUpload, LucideUserRound } from '@lucide/angular';
+import {
+  LucideCheck,
+  LucideCrop,
+  LucidePalette,
+  LucideRotateCcw,
+  LucideTrash2,
+  LucideUpload,
+  LucideUserRound,
+} from '@lucide/angular';
 import type {
+  ResumeColors,
+  ResumePhotoCrop,
   ResumeRecord,
   ResumeSection,
   ResumeSectionType,
   ResumeTemplateId,
 } from '@nexus/shared';
-import { RESUME_TEMPLATES, RESUME_THEMES } from '@nexus/shared';
+import {
+  RESUME_TEMPLATE_COLOR_DEFAULTS,
+  RESUME_TEMPLATES,
+  resolveResumeColors,
+} from '@nexus/shared';
 import { ApiService } from '../../core/api.service';
-import { prepareProfilePhoto } from '../profile-photo';
+import {
+  cropProfilePhoto,
+  drawProfilePhotoCrop,
+  loadProfileImage,
+  photoCropTravel,
+  prepareProfilePhotoSource,
+} from '../profile-photo';
 import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
+
+type ColorTarget = keyof ResumeColors;
 
 @Component({
   selector: 'nexus-resume-editor',
@@ -25,6 +55,10 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
     LucideTrash2,
     LucideUpload,
     LucideUserRound,
+    LucidePalette,
+    LucideCrop,
+    LucideRotateCcw,
+    LucideCheck,
   ],
   template: `
     @if (resume) {
@@ -53,16 +87,91 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
                 }
               </select>
             </label>
-            <div class="theme-swatches" role="group" aria-label="Resume accent color">
-              @for (theme of themes; track theme.id) {
-                <button
-                  type="button"
-                  [class.selected]="resume.themeId === theme.id"
-                  [style.--swatch]="theme.accent"
-                  [title]="theme.name"
-                  [attr.aria-label]="theme.name"
-                  (click)="setTheme(theme.id)"
-                ></button>
+            <div class="color-control">
+              <button
+                class="colors-button"
+                type="button"
+                [attr.aria-expanded]="colorsOpen"
+                aria-controls="resume-colors-panel"
+                (click)="colorsOpen = !colorsOpen"
+              >
+                <svg lucidePalette size="15"></svg>
+                Colors
+                <i [style.background]="currentColors.accent"></i>
+              </button>
+              @if (colorsOpen) {
+                <section id="resume-colors-panel" class="colors-panel" aria-label="Resume colors">
+                  <header>
+                    <div>
+                      <span>APPEARANCE</span>
+                      <h2>Resume colors</h2>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Close colors"
+                      title="Close"
+                      (click)="colorsOpen = false"
+                    >
+                      ×
+                    </button>
+                  </header>
+                  @for (group of colorGroups; track group.key) {
+                    <div class="color-group">
+                      <div class="color-group-heading">
+                        <strong>{{ group.label }}</strong>
+                        <span
+                          [class.low-contrast]="
+                            contrastRatio(colorValue(group.key)) < group.minimum
+                          "
+                        >
+                          {{ contrastRatio(colorValue(group.key)) }}:1
+                        </span>
+                      </div>
+                      <div
+                        class="preset-grid"
+                        role="group"
+                        [attr.aria-label]="group.label + ' presets'"
+                      >
+                        @for (preset of presetsFor(group.key); track preset) {
+                          <button
+                            type="button"
+                            class="color-preset"
+                            [class.selected]="colorValue(group.key) === preset"
+                            [style.--swatch]="preset"
+                            [title]="preset"
+                            [attr.aria-label]="'Use ' + preset + ' for ' + group.label"
+                            (click)="setColor(group.key, preset)"
+                          ></button>
+                        }
+                      </div>
+                      <div class="custom-color-row">
+                        <input
+                          type="color"
+                          [value]="colorValue(group.key)"
+                          [attr.aria-label]="'Custom ' + group.label + ' color'"
+                          (input)="onNativeColor(group.key, $event)"
+                        />
+                        <input
+                          class="hex-input"
+                          [value]="colorValue(group.key)"
+                          [attr.aria-label]="group.label + ' hex color'"
+                          maxlength="7"
+                          spellcheck="false"
+                          (input)="onHexColor(group.key, $event)"
+                        />
+                      </div>
+                      @if (contrastRatio(colorValue(group.key)) < group.minimum) {
+                        <p class="contrast-warning">
+                          Low contrast on white. This color is still allowed.
+                        </p>
+                      }
+                    </div>
+                  }
+                  <button class="reset-colors" type="button" (click)="resetTemplateColors()">
+                    <svg lucideRotateCcw size="14"></svg>
+                    Reset to template defaults
+                  </button>
+                </section>
               }
             </div>
           </div>
@@ -125,6 +234,10 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
                     {{ resume.content.profile.photoDataUrl ? 'Replace' : 'Upload' }}
                   </button>
                   @if (resume.content.profile.photoDataUrl) {
+                    <button type="button" (click)="openCropEditor()">
+                      <svg lucideCrop size="14"></svg>
+                      Adjust
+                    </button>
                     <button
                       class="photo-delete"
                       type="button"
@@ -138,7 +251,7 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
                 </div>
               </div>
               <label class="photo-visibility">
-                <span>Show in supported templates</span>
+                <span>Show profile photo</span>
                 <input
                   type="checkbox"
                   [(ngModel)]="resume.content.profile.photoVisible"
@@ -242,6 +355,71 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
             <nexus-resume-renderer [resume]="resume" [editable]="true" (edited)="markDirty()" />
           </section>
         </div>
+        @if (cropOpen) {
+          <div class="crop-backdrop" (click)="closeCropEditor()">
+            <section
+              class="crop-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="crop-dialog-title"
+              (click)="$event.stopPropagation()"
+            >
+              <header>
+                <div>
+                  <span>PROFILE PHOTO</span>
+                  <h2 id="crop-dialog-title">Position and crop</h2>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close crop editor"
+                  title="Close"
+                  (click)="closeCropEditor()"
+                >
+                  ×
+                </button>
+              </header>
+              <div
+                class="crop-viewport"
+                (pointerdown)="startCropDrag($event)"
+                (pointermove)="moveCropDrag($event)"
+                (pointerup)="endCropDrag($event)"
+                (pointercancel)="endCropDrag($event)"
+              >
+                <canvas #cropCanvas width="480" height="480"></canvas>
+                <span class="crop-safe-area" aria-hidden="true"></span>
+              </div>
+              <label class="zoom-control">
+                <span>Zoom</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.01"
+                  [value]="cropDraft.zoom"
+                  (input)="setCropZoom($event)"
+                />
+                <output>{{ cropDraft.zoom.toFixed(2) }}×</output>
+              </label>
+              <footer>
+                <button type="button" (click)="resetCrop()">
+                  <svg lucideRotateCcw size="14"></svg>
+                  Reset
+                </button>
+                <span></span>
+                <button type="button" (click)="closeCropEditor()">Cancel</button>
+                <button
+                  class="apply-crop"
+                  type="button"
+                  [disabled]="cropApplying"
+                  (click)="applyCrop()"
+                >
+                  <svg lucideCheck size="14"></svg>
+                  {{ cropApplying ? 'Applying' : 'Apply crop' }}
+                </button>
+              </footer>
+            </section>
+          </div>
+        }
       </main>
     } @else {
       <main class="loading-state">
@@ -349,28 +527,139 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
         background: #ffffff;
         color: #252a2c;
       }
-      .theme-swatches {
+      .color-control {
+        position: relative;
+      }
+      .colors-button,
+      .reset-colors,
+      .crop-dialog footer button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+      }
+      .colors-button i {
+        width: 0.72rem;
+        height: 0.72rem;
+        border: 1px solid rgba(0, 0, 0, 0.18);
+        border-radius: 50%;
+      }
+      .colors-panel {
+        position: absolute;
+        top: calc(100% + 0.75rem);
+        left: 50%;
+        z-index: 20;
+        width: min(25rem, calc(100vw - 2rem));
+        max-height: calc(100svh - 6rem);
+        overflow: auto;
+        padding: 1rem;
+        border: 1px solid #bac4c0;
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 18px 55px rgba(21, 29, 29, 0.2);
+        transform: translateX(-50%);
+      }
+      .colors-panel > header,
+      .crop-dialog > header {
         display: flex;
         align-items: center;
-        gap: 0.25rem;
-        padding-left: 0.55rem;
-        border-left: 1px solid #d7dcda;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-bottom: 0.8rem;
+        border-bottom: 1px solid #e0e5e3;
       }
-      .theme-swatches button {
-        position: relative;
-        width: 1.65rem;
-        height: 1.65rem;
+      .colors-panel header span,
+      .crop-dialog header span {
+        color: #71827d;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.56rem;
+        letter-spacing: 0.08em;
+      }
+      .colors-panel h2,
+      .crop-dialog h2 {
+        margin: 0.2rem 0 0;
+        font-size: 1rem;
+      }
+      .colors-panel header button,
+      .crop-dialog header button {
+        width: 2rem;
+        height: 2rem;
         padding: 0;
-        border-color: transparent;
+        border-radius: 50%;
+      }
+      .color-group {
+        padding: 0.85rem 0;
+        border-bottom: 1px solid #edf0ef;
+      }
+      .color-group-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.55rem;
+        font-size: 0.72rem;
+      }
+      .color-group-heading span {
+        color: #658078;
+        font-size: 0.63rem;
+      }
+      .color-group-heading span.low-contrast,
+      .contrast-warning {
+        color: #a04c43;
+      }
+      .preset-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 0.42rem;
+      }
+      .preset-grid .color-preset {
+        position: relative;
+        width: 1.55rem;
+        height: 1.55rem;
+        padding: 0;
+        border: 1px solid color-mix(in srgb, var(--swatch), black 15%);
         border-radius: 50%;
         background: var(--swatch);
       }
-      .theme-swatches button.selected::after {
+      .preset-grid .color-preset.selected::after {
         content: '';
         position: absolute;
         inset: -4px;
-        border: 1px solid #606b68;
+        border: 1px solid #202729;
         border-radius: 50%;
+      }
+      .custom-color-row {
+        display: grid;
+        grid-template-columns: 2.5rem minmax(0, 1fr);
+        gap: 0.5rem;
+        margin-top: 0.65rem;
+      }
+      .custom-color-row input[type='color'] {
+        width: 2.5rem;
+        height: 2rem;
+        padding: 0.1rem;
+        border: 1px solid #c4ccc8;
+        border-radius: 5px;
+        background: #ffffff;
+        cursor: pointer;
+      }
+      .hex-input {
+        min-width: 0;
+        border: 1px solid #c4ccc8;
+        border-radius: 5px;
+        padding: 0.35rem 0.55rem;
+        color: #242b2d;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+      }
+      .contrast-warning {
+        margin: 0.45rem 0 0;
+        font-size: 0.62rem;
+      }
+      .reset-colors {
+        width: 100%;
+        margin-top: 0.9rem;
+        font-size: 0.7rem;
       }
       .save-state {
         display: flex;
@@ -626,6 +915,79 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
         font-size: 0.58rem;
         letter-spacing: 0.05em;
       }
+      .crop-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        background: rgba(12, 17, 18, 0.68);
+      }
+      .crop-dialog {
+        width: min(31rem, 100%);
+        max-height: calc(100svh - 2rem);
+        overflow: auto;
+        padding: 1.1rem;
+        border-radius: 8px;
+        background: #f8faf9;
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+      }
+      .crop-viewport {
+        position: relative;
+        width: min(100%, 25rem);
+        aspect-ratio: 1;
+        margin: 1rem auto;
+        overflow: hidden;
+        background: #171d1f;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+      }
+      .crop-viewport:active {
+        cursor: grabbing;
+      }
+      .crop-viewport canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .crop-safe-area {
+        position: absolute;
+        inset: 4%;
+        border: 2px solid rgba(255, 255, 255, 0.92);
+        border-radius: 50%;
+        box-shadow: 0 0 0 999px rgba(9, 14, 15, 0.3);
+        pointer-events: none;
+      }
+      .zoom-control {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) 3rem;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.72rem;
+      }
+      .zoom-control input {
+        accent-color: #278e97;
+      }
+      .zoom-control output {
+        text-align: right;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+      .crop-dialog footer {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #dce2df;
+      }
+      .apply-crop {
+        border-color: #171c1e;
+        background: #171c1e;
+        color: #ffffff;
+        font-weight: 700;
+      }
       .loading-state {
         display: grid;
         min-height: 100svh;
@@ -702,8 +1064,75 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
   ],
 })
 export class ResumeEditorComponent implements OnInit, OnDestroy {
+  @ViewChild('cropCanvas') private cropCanvas?: ElementRef<HTMLCanvasElement>;
   protected readonly templates = RESUME_TEMPLATES;
-  protected readonly themes = RESUME_THEMES;
+  protected readonly colorGroups: Array<{
+    key: ColorTarget;
+    label: string;
+    minimum: number;
+  }> = [
+    { key: 'accent', label: 'Accent', minimum: 3 },
+    { key: 'heading', label: 'Heading', minimum: 4.5 },
+    { key: 'body', label: 'Body text', minimum: 4.5 },
+  ];
+  protected readonly accentPresets = [
+    '#0F9FB8',
+    '#167D8D',
+    '#205E74',
+    '#1D6F5F',
+    '#34785F',
+    '#4F772D',
+    '#6B7D2C',
+    '#9A7B24',
+    '#B87912',
+    '#A85D19',
+    '#B4522D',
+    '#B43737',
+    '#9F3F52',
+    '#A94672',
+    '#8A4772',
+    '#754C9B',
+    '#5D55A5',
+    '#4257A6',
+    '#315F9B',
+    '#38769A',
+    '#3A7771',
+    '#6B6F76',
+    '#4E636B',
+    '#D45A69',
+  ];
+  protected readonly headingPresets = [
+    '#111416',
+    '#171C1E',
+    '#1D2427',
+    '#20272A',
+    '#252A2D',
+    '#282C2E',
+    '#2C3235',
+    '#303638',
+    '#24343A',
+    '#18333B',
+    '#26352F',
+    '#373026',
+    '#38282D',
+    '#30283A',
+    '#263047',
+    '#333333',
+  ];
+  protected readonly bodyPresets = [
+    '#252A2C',
+    '#2B3133',
+    '#303638',
+    '#30383B',
+    '#373D3F',
+    '#3E4446',
+    '#344348',
+    '#35433E',
+    '#48423A',
+    '#453B3E',
+    '#3D3B48',
+    '#4A4A4A',
+  ];
   protected readonly sectionOptions: Array<{ type: ResumeSectionType; label: string }> = [
     { type: 'summary', label: 'Summary' },
     { type: 'experience', label: 'Experience' },
@@ -721,10 +1150,17 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   protected selectedSectionId = '';
   protected newSectionType: ResumeSectionType = 'education';
   protected photoError = '';
+  protected colorsOpen = false;
+  protected cropOpen = false;
+  protected cropApplying = false;
+  protected cropDraft: ResumePhotoCrop = { x: 0, y: 0, zoom: 1 };
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
   private saveTimer?: number;
   private draggedSectionId = '';
+  private pendingPhotoSource = '';
+  private cropImage?: HTMLImageElement;
+  private cropPointer?: { id: number; x: number; y: number };
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id') ?? '';
@@ -758,6 +1194,12 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   protected get visibleSectionCount() {
     return this.orderedSections.filter((section) => !section.hidden).length;
+  }
+
+  protected get currentColors(): ResumeColors {
+    return this.resume
+      ? resolveResumeColors(this.resume)
+      : { accent: '#0f9fb8', heading: '#20272a', body: '#30383b' };
   }
 
   protected markDirty() {
@@ -849,14 +1291,51 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     this.markDirty();
   }
 
-  protected setTheme(themeId: string) {
-    if (this.resume) {
-      this.resume.themeId = themeId;
-      this.markDirty();
-    }
+  protected presetsFor(target: ColorTarget) {
+    if (target === 'accent') return this.accentPresets;
+    if (target === 'heading') return this.headingPresets;
+    return this.bodyPresets;
   }
 
-  protected onPhotoSelected(event: Event) {
+  protected colorValue(target: ColorTarget) {
+    return this.currentColors[target].toUpperCase();
+  }
+
+  protected setColor(target: ColorTarget, value: string) {
+    if (!this.resume || !/^#[0-9a-f]{6}$/i.test(value)) return;
+    this.resume.colors = { ...this.currentColors, [target]: value.toLowerCase() };
+    this.markDirty();
+  }
+
+  protected onNativeColor(target: ColorTarget, event: Event) {
+    this.setColor(target, (event.target as HTMLInputElement).value);
+  }
+
+  protected onHexColor(target: ColorTarget, event: Event) {
+    const value = (event.target as HTMLInputElement).value.trim();
+    if (/^#[0-9a-f]{6}$/i.test(value)) this.setColor(target, value);
+  }
+
+  protected resetTemplateColors() {
+    if (!this.resume) return;
+    this.resume.colors = { ...RESUME_TEMPLATE_COLOR_DEFAULTS[this.resume.templateId] };
+    this.markDirty();
+  }
+
+  protected contrastRatio(color: string) {
+    const rgb = color
+      .slice(1)
+      .match(/.{2}/g)
+      ?.map((part) => Number.parseInt(part, 16) / 255);
+    if (!rgb || rgb.some(Number.isNaN)) return 1;
+    const luminance = rgb.reduce((sum, channel, index) => {
+      const linear = channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      return sum + linear * [0.2126, 0.7152, 0.0722][index];
+    }, 0);
+    return Number((1.05 / (luminance + 0.05)).toFixed(2));
+  }
+
+  protected async onPhotoSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
@@ -870,22 +1349,120 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
       this.photoError = 'The image must be smaller than 5 MB.';
       return;
     }
-    prepareProfilePhoto(file)
-      .then((dataUrl) => {
-        if (!this.resume) return;
-        this.resume.content.profile.photoDataUrl = dataUrl;
-        this.resume.content.profile.photoVisible = true;
-        this.markDirty();
-      })
-      .catch(() => (this.photoError = 'The image could not be read.'));
+    try {
+      const source = await prepareProfilePhotoSource(file);
+      await this.openCropEditor(source, { x: 0, y: 0, zoom: 1 });
+    } catch {
+      this.photoError = 'The image could not be read.';
+    }
   }
 
   protected removePhoto() {
     if (!this.resume) return;
+    this.resume.content.profile.photoSourceDataUrl = undefined;
     this.resume.content.profile.photoDataUrl = undefined;
     this.resume.content.profile.photoVisible = false;
+    this.resume.content.profile.photoCrop = undefined;
     this.photoError = '';
     this.markDirty();
+  }
+
+  protected async openCropEditor(source?: string, crop?: ResumePhotoCrop) {
+    if (!this.resume) return;
+    const resolvedSource =
+      source ??
+      this.resume.content.profile.photoSourceDataUrl ??
+      this.resume.content.profile.photoDataUrl;
+    if (!resolvedSource) return;
+
+    this.pendingPhotoSource = resolvedSource;
+    this.cropDraft = {
+      ...(crop ?? this.resume.content.profile.photoCrop ?? { x: 0, y: 0, zoom: 1 }),
+    };
+    this.cropOpen = true;
+    try {
+      this.cropImage = await loadProfileImage(resolvedSource);
+      requestAnimationFrame(() => this.drawCropPreview());
+    } catch {
+      this.closeCropEditor();
+      this.photoError = 'The image could not be read.';
+    }
+  }
+
+  protected closeCropEditor() {
+    if (this.cropApplying) return;
+    this.cropOpen = false;
+    this.pendingPhotoSource = '';
+    this.cropImage = undefined;
+    this.cropPointer = undefined;
+  }
+
+  protected resetCrop() {
+    this.cropDraft = { x: 0, y: 0, zoom: 1 };
+    this.drawCropPreview();
+  }
+
+  protected setCropZoom(event: Event) {
+    this.cropDraft = {
+      ...this.cropDraft,
+      zoom: Number((event.target as HTMLInputElement).value),
+    };
+    this.drawCropPreview();
+  }
+
+  protected startCropDrag(event: PointerEvent) {
+    if (!this.cropImage) return;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    this.cropPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  }
+
+  protected moveCropDrag(event: PointerEvent) {
+    if (!this.cropPointer || this.cropPointer.id !== event.pointerId || !this.cropImage) return;
+    const canvas = this.cropCanvas?.nativeElement;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;
+    const travel = photoCropTravel(this.cropImage, canvas.width, this.cropDraft.zoom);
+    const deltaX = (event.clientX - this.cropPointer.x) * scale;
+    const deltaY = (event.clientY - this.cropPointer.y) * scale;
+    this.cropDraft = {
+      ...this.cropDraft,
+      x: travel.x ? this.clamp(this.cropDraft.x + deltaX / travel.x, -1, 1) : 0,
+      y: travel.y ? this.clamp(this.cropDraft.y + deltaY / travel.y, -1, 1) : 0,
+    };
+    this.cropPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    this.drawCropPreview();
+  }
+
+  protected endCropDrag(event: PointerEvent) {
+    if (this.cropPointer?.id !== event.pointerId) return;
+    const target = event.currentTarget as HTMLElement;
+    if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+    this.cropPointer = undefined;
+  }
+
+  protected async applyCrop() {
+    if (!this.resume || !this.pendingPhotoSource) return;
+    this.cropApplying = true;
+    try {
+      const cropped = await cropProfilePhoto(this.pendingPhotoSource, this.cropDraft);
+      this.resume.content.profile.photoSourceDataUrl = this.pendingPhotoSource;
+      this.resume.content.profile.photoDataUrl = cropped;
+      this.resume.content.profile.photoCrop = { ...this.cropDraft };
+      this.resume.content.profile.photoVisible = true;
+      this.markDirty();
+      this.cropApplying = false;
+      this.closeCropEditor();
+    } catch {
+      this.cropApplying = false;
+      this.photoError = 'The crop could not be applied.';
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  protected closeFloatingPanels() {
+    this.colorsOpen = false;
+    this.closeCropEditor();
   }
   protected templateName(id: ResumeTemplateId) {
     return this.templates.find((template) => template.id === id)?.name ?? id;
@@ -998,6 +1575,17 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
       custom: 'Custom Section',
     };
     return { id, type, title: labels[type], hidden: false, items: ['Add an item.'] };
+  }
+
+  private drawCropPreview() {
+    const canvas = this.cropCanvas?.nativeElement;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context || !this.cropImage) return;
+    drawProfilePhotoCrop(context, this.cropImage, this.cropDraft, canvas.width);
+  }
+
+  private clamp(value: number, minimum: number, maximum: number) {
+    return Math.min(maximum, Math.max(minimum, value));
   }
 
   private recoveryKey(id: string) {

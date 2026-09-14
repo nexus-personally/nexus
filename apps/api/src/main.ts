@@ -4,7 +4,10 @@ import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fa
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter());
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({ bodyLimit: 4 * 1024 * 1024 }),
+  );
   const allowedOrigins = new Set(
     (process.env.WEB_ORIGIN ?? 'http://localhost:4200,http://127.0.0.1:4200')
       .split(',')

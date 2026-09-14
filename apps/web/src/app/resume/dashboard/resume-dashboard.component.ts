@@ -649,8 +649,9 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .template-preview {
         position: relative;
         display: block;
+        box-sizing: border-box;
         width: 100%;
-        aspect-ratio: 0.64;
+        aspect-ratio: 0.72;
         overflow: hidden;
         padding: 0.45rem;
         border: 0;
@@ -698,7 +699,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         left: 50%;
         top: 0;
         width: 210mm;
-        transform: translateX(-50%) scale(0.48);
+        transform: translateX(-50%) scale(0.42);
         transform-origin: top center;
         pointer-events: none;
       }
@@ -1220,7 +1221,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
           flex-basis: calc((100% - 1rem) / 2);
         }
         .preview-scale {
-          transform: translateX(-50%) scale(0.47);
+          transform: translateX(-50%) scale(0.38);
         }
         .resume-row {
           grid-template-columns: minmax(0, 1fr);
@@ -1237,7 +1238,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
           grid-template-columns: 1fr;
         }
         .preview-scale {
-          transform: translateX(-50%) scale(0.43);
+          transform: translateX(-50%) scale(0.34);
         }
         .template-heading h1 {
           font-size: 1.8rem;

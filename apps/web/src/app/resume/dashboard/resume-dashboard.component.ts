@@ -835,7 +835,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         left: 50%;
         top: 0;
         width: 210mm;
-        transform: translateX(-50%) scale(0.066);
+        transform: translateX(-50%) scale(0.082);
         transform-origin: top center;
         pointer-events: none;
       }

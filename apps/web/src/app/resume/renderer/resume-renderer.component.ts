@@ -282,10 +282,11 @@ import { resolveResumeColors } from '@nexus/shared';
         --accent: #0f9fb8;
         --heading: #20272a;
         --body: #30383b;
+        --template-inline-padding: 50px;
         width: 210mm;
         min-height: 297mm;
         margin: 0 auto;
-        padding: 17mm 18mm;
+        padding: 17mm var(--template-inline-padding);
         overflow: hidden;
         background: #ffffff;
         color: var(--body);
@@ -438,7 +439,7 @@ import { resolveResumeColors } from '@nexus/shared';
         min-height: 297mm;
         flex-direction: column;
         grid-column: 1;
-        padding: 18mm 8mm;
+        padding: 18mm var(--template-inline-padding);
         border: 0;
         background: #17262b;
         color: #f4f8f7;
@@ -464,13 +465,13 @@ import { resolveResumeColors } from '@nexus/shared';
       }
       .tech-modern .resume-body {
         grid-column: 2;
-        padding: 15mm 15mm 15mm 11mm;
+        padding: 15mm var(--template-inline-padding);
       }
       .tech-modern .skill-grid {
         grid-template-columns: 1fr;
       }
       .tech-minimal {
-        padding: 22mm;
+        padding: 22mm var(--template-inline-padding);
       }
       .tech-minimal .identity,
       .tech-minimal .identity.has-photo,
@@ -502,8 +503,8 @@ import { resolveResumeColors } from '@nexus/shared';
         grid-column: 1 / -1;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.55rem 1.4rem;
-        margin: 4mm -22mm 0;
-        padding: 4mm 22mm;
+        margin: 4mm calc(var(--template-inline-padding) * -1) 0;
+        padding: 4mm var(--template-inline-padding);
         background: var(--accent);
         color: #ffffff;
         text-align: left;
@@ -554,7 +555,7 @@ import { resolveResumeColors } from '@nexus/shared';
         color: var(--heading);
       }
       .tech-executive {
-        padding: 16mm 18mm;
+        padding: 16mm var(--template-inline-padding);
         font-family: Arial, Helvetica, sans-serif;
       }
       .tech-executive .identity {
@@ -672,11 +673,11 @@ import { resolveResumeColors } from '@nexus/shared';
         font-size: 0.76rem;
       }
       .tech-creative {
-        padding: 0 18mm 17mm;
+        padding: 0 var(--template-inline-padding) 17mm;
       }
       .tech-creative .identity {
-        margin: 0 -18mm 1.2rem;
-        padding: 17mm 18mm 13mm;
+        margin: 0 calc(var(--template-inline-padding) * -1) 1.2rem;
+        padding: 17mm var(--template-inline-padding) 13mm;
         border: 0;
         background: #172126;
         color: #ffffff;

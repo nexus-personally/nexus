@@ -74,202 +74,230 @@ import { resolveResumeColors } from '@nexus/shared';
           </address>
         </header>
 
-        <div class="resume-body">
-          @for (section of orderedSections; track section.id) {
-            @if (!section.hidden) {
-              <section class="resume-section" [attr.data-section]="section.type">
-                <h2
-                  [attr.contenteditable]="editable ? 'true' : null"
-                  (keydown.enter)="singleLine($event)"
-                  (blur)="editField(section, 'title', $event)"
-                >
-                  {{ section.title }}
-                </h2>
+        @if (usesIndependentColumns) {
+          <div class="resume-body two-column-body">
+            <div class="resume-column resume-column-main">
+              @for (section of mainColumnSections; track section.id) {
+                <ng-container
+                  [ngTemplateOutlet]="resumeSection"
+                  [ngTemplateOutletContext]="{ $implicit: section }"
+                />
+              }
+            </div>
+            <div class="resume-column resume-column-side">
+              @for (section of sideColumnSections; track section.id) {
+                <ng-container
+                  [ngTemplateOutlet]="resumeSection"
+                  [ngTemplateOutletContext]="{ $implicit: section }"
+                />
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="resume-body">
+            @for (section of orderedSections; track section.id) {
+              <ng-container
+                [ngTemplateOutlet]="resumeSection"
+                [ngTemplateOutletContext]="{ $implicit: section }"
+              />
+            }
+          </div>
+        }
 
-                @switch (section.type) {
-                  @case ('summary') {
-                    <p
-                      class="summary"
-                      [attr.contenteditable]="editable ? 'true' : null"
-                      (blur)="editField(section, 'body', $event)"
-                    >
-                      {{ section.body }}
-                    </p>
-                  }
-                  @case ('experience') {
-                    @for (item of section.items; track item.id) {
-                      <div class="block experience-block">
-                        <h3>
-                          <span
-                            class="primary-field"
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(item, 'company', $event)"
-                            >{{ item.company }}</span
-                          >
-                          <span
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(item, 'location', $event)"
-                            >{{ item.location }}</span
-                          >
-                        </h3>
-                        @for (position of item.positions; track position.id) {
-                          <div class="position">
-                            <div class="position-line">
-                              <strong
-                                [attr.contenteditable]="editable ? 'true' : null"
-                                (keydown.enter)="singleLine($event)"
-                                (blur)="editField(position, 'title', $event)"
-                                >{{ position.title }}</strong
-                              >
-                              <em>
-                                <span
-                                  [attr.contenteditable]="editable ? 'true' : null"
-                                  (keydown.enter)="singleLine($event)"
-                                  (blur)="editField(position, 'startDate', $event)"
-                                  >{{ position.startDate }}</span
-                                >
-                                -
-                                <span
-                                  [attr.contenteditable]="editable ? 'true' : null"
-                                  (keydown.enter)="singleLine($event)"
-                                  (blur)="editField(position, 'endDate', $event)"
-                                  >{{ position.endDate }}</span
-                                >
-                              </em>
-                            </div>
-                            <ul>
-                              @for (bullet of position.bullets; track $index) {
-                                <li
-                                  [attr.contenteditable]="editable ? 'true' : null"
-                                  (blur)="editArrayItem(position.bullets, $index, $event)"
-                                >
-                                  {{ bullet }}
-                                </li>
-                              }
-                            </ul>
-                          </div>
-                        }
-                      </div>
-                    }
-                  }
-                  @case ('education') {
-                    @for (item of section.items; track item.id) {
-                      <div class="block education-block">
-                        <h3>
-                          <span
-                            class="primary-field"
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(item, 'school', $event)"
-                            >{{ item.school }}</span
-                          >
-                          <span
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(item, 'dates', $event)"
-                            >{{ item.dates }}</span
-                          >
-                        </h3>
-                        <p>
-                          <span
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(item, 'degree', $event)"
-                            >{{ item.degree }}</span
-                          >
-                          ·
-                          <span
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(item, 'location', $event)"
-                            >{{ item.location }}</span
-                          >
-                        </p>
-                      </div>
-                    }
-                  }
-                  @case ('projects') {
-                    @for (project of section.items; track project.id) {
-                      <div class="block project-block">
-                        <h3>
-                          <span
-                            class="primary-field"
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(project, 'name', $event)"
-                            >{{ project.name }}</span
-                          >
-                          <span
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(project, 'dates', $event)"
-                            >{{ project.dates }}</span
-                          >
-                        </h3>
-                        <p>
-                          <strong
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(project, 'role', $event)"
-                            >{{ project.role }}</strong
-                          >
-                          <span
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (blur)="editField(project, 'description', $event)"
-                            >{{ project.description }}</span
-                          >
-                        </p>
-                        <p
-                          class="technologies"
+        <ng-template #resumeSection let-section>
+          @if (!section.hidden) {
+            <section class="resume-section" [attr.data-section]="section.type">
+              <h2
+                [attr.contenteditable]="editable ? 'true' : null"
+                (keydown.enter)="singleLine($event)"
+                (blur)="editField(section, 'title', $event)"
+              >
+                {{ section.title }}
+              </h2>
+
+              @switch (section.type) {
+                @case ('summary') {
+                  <p
+                    class="summary"
+                    [attr.contenteditable]="editable ? 'true' : null"
+                    (blur)="editField(section, 'body', $event)"
+                  >
+                    {{ section.body }}
+                  </p>
+                }
+                @case ('experience') {
+                  @for (item of section.items; track item.id) {
+                    <div class="block experience-block">
+                      <h3>
+                        <span
+                          class="primary-field"
                           [attr.contenteditable]="editable ? 'true' : null"
                           (keydown.enter)="singleLine($event)"
-                          (blur)="editStringList(project, 'technologies', $event)"
+                          (blur)="editField(item, 'company', $event)"
+                          >{{ item.company }}</span
                         >
-                          {{ project.technologies.join(' · ') }}
-                        </p>
-                      </div>
-                    }
-                  }
-                  @case ('skills') {
-                    <div class="skill-grid">
-                      @for (group of section.groups; track group.id) {
-                        <div class="skill-group">
-                          <strong
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editField(group, 'name', $event)"
-                            >{{ group.name }}</strong
-                          >
-                          <p
-                            [attr.contenteditable]="editable ? 'true' : null"
-                            (keydown.enter)="singleLine($event)"
-                            (blur)="editStringList(group, 'skills', $event)"
-                          >
-                            {{ group.skills.join(', ') }}
-                          </p>
+                        <span
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editField(item, 'location', $event)"
+                          >{{ item.location }}</span
+                        >
+                      </h3>
+                      @for (position of item.positions; track position.id) {
+                        <div class="position">
+                          <div class="position-line">
+                            <strong
+                              [attr.contenteditable]="editable ? 'true' : null"
+                              (keydown.enter)="singleLine($event)"
+                              (blur)="editField(position, 'title', $event)"
+                              >{{ position.title }}</strong
+                            >
+                            <em>
+                              <span
+                                [attr.contenteditable]="editable ? 'true' : null"
+                                (keydown.enter)="singleLine($event)"
+                                (blur)="editField(position, 'startDate', $event)"
+                                >{{ position.startDate }}</span
+                              >
+                              -
+                              <span
+                                [attr.contenteditable]="editable ? 'true' : null"
+                                (keydown.enter)="singleLine($event)"
+                                (blur)="editField(position, 'endDate', $event)"
+                                >{{ position.endDate }}</span
+                              >
+                            </em>
+                          </div>
+                          <ul>
+                            @for (bullet of position.bullets; track $index) {
+                              <li
+                                [attr.contenteditable]="editable ? 'true' : null"
+                                (blur)="editArrayItem(position.bullets, $index, $event)"
+                              >
+                                {{ bullet }}
+                              </li>
+                            }
+                          </ul>
                         </div>
                       }
                     </div>
                   }
-                  @default {
-                    <ul>
-                      @for (item of section.items; track $index) {
-                        <li
+                }
+                @case ('education') {
+                  @for (item of section.items; track item.id) {
+                    <div class="block education-block">
+                      <h3>
+                        <span
+                          class="primary-field"
                           [attr.contenteditable]="editable ? 'true' : null"
-                          (blur)="editArrayItem(section.items, $index, $event)"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editField(item, 'school', $event)"
+                          >{{ item.school }}</span
                         >
-                          {{ item }}
-                        </li>
-                      }
-                    </ul>
+                        <span
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editField(item, 'dates', $event)"
+                          >{{ item.dates }}</span
+                        >
+                      </h3>
+                      <p>
+                        <span
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editField(item, 'degree', $event)"
+                          >{{ item.degree }}</span
+                        >
+                        ·
+                        <span
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editField(item, 'location', $event)"
+                          >{{ item.location }}</span
+                        >
+                      </p>
+                    </div>
                   }
                 }
-              </section>
-            }
+                @case ('projects') {
+                  @for (project of section.items; track project.id) {
+                    <div class="block project-block">
+                      <h3>
+                        <span
+                          class="primary-field"
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editField(project, 'name', $event)"
+                          >{{ project.name }}</span
+                        >
+                        <span
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editField(project, 'dates', $event)"
+                          >{{ project.dates }}</span
+                        >
+                      </h3>
+                      <p>
+                        <strong
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editField(project, 'role', $event)"
+                          >{{ project.role }}</strong
+                        >
+                        <span
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (blur)="editField(project, 'description', $event)"
+                          >{{ project.description }}</span
+                        >
+                      </p>
+                      <p
+                        class="technologies"
+                        [attr.contenteditable]="editable ? 'true' : null"
+                        (keydown.enter)="singleLine($event)"
+                        (blur)="editStringList(project, 'technologies', $event)"
+                      >
+                        {{ project.technologies.join(' · ') }}
+                      </p>
+                    </div>
+                  }
+                }
+                @case ('skills') {
+                  <div class="skill-grid">
+                    @for (group of section.groups; track group.id) {
+                      <div class="skill-group">
+                        <strong
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editField(group, 'name', $event)"
+                          >{{ group.name }}</strong
+                        >
+                        <p
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          (keydown.enter)="singleLine($event)"
+                          (blur)="editStringList(group, 'skills', $event)"
+                        >
+                          {{ group.skills.join(', ') }}
+                        </p>
+                      </div>
+                    }
+                  </div>
+                }
+                @default {
+                  <ul>
+                    @for (item of section.items; track $index) {
+                      <li
+                        [attr.contenteditable]="editable ? 'true' : null"
+                        (blur)="editArrayItem(section.items, $index, $event)"
+                      >
+                        {{ item }}
+                      </li>
+                    }
+                  </ul>
+                }
+              }
+            </section>
           }
-        </div>
+        </ng-template>
       </article>
     }
   `,
@@ -346,6 +374,11 @@ import { resolveResumeColors } from '@nexus/shared';
       .resume-section {
         margin-top: 0.95rem;
         break-inside: avoid;
+      }
+      .resume-column {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
       }
       h2 {
         padding-bottom: 0.2rem;
@@ -523,6 +556,9 @@ import { resolveResumeColors } from '@nexus/shared';
       .tech-minimal .resume-section {
         margin-top: 0;
       }
+      .tech-minimal .resume-column {
+        gap: 8mm;
+      }
       .tech-minimal .resume-section[data-section='summary'],
       .tech-minimal .resume-section[data-section='experience'],
       .tech-minimal .resume-section[data-section='projects'],
@@ -609,6 +645,9 @@ import { resolveResumeColors } from '@nexus/shared';
       }
       .tech-executive .resume-section {
         margin-top: 0;
+      }
+      .tech-executive .resume-column {
+        gap: 6mm;
       }
       .tech-executive .resume-section[data-section='summary'],
       .tech-executive .resume-section[data-section='experience'],
@@ -835,6 +874,20 @@ export class ResumeRendererComponent {
     });
   }
 
+  get usesIndependentColumns() {
+    return (
+      this.resume?.templateId === 'tech-minimal' || this.resume?.templateId === 'tech-executive'
+    );
+  }
+
+  get mainColumnSections() {
+    return this.orderedSections.filter((section) => !this.isSideColumnSection(section));
+  }
+
+  get sideColumnSections() {
+    return this.orderedSections.filter((section) => this.isSideColumnSection(section));
+  }
+
   protected editField(target: object, field: string, event: Event) {
     if (!this.editable) return;
     (target as Record<string, unknown>)[field] = this.readText(event);
@@ -863,5 +916,11 @@ export class ResumeRendererComponent {
 
   private readText(event: Event) {
     return (event.currentTarget as HTMLElement).innerText.replace(/\u00a0/g, ' ').trim();
+  }
+
+  private isSideColumnSection(section: ResumeSection) {
+    return ['skills', 'languages', 'interests', 'certifications', 'awards', 'custom'].includes(
+      section.type,
+    );
   }
 }

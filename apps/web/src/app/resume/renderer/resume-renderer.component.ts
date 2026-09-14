@@ -740,20 +740,22 @@ import { resolveResumeColors } from '@nexus/shared';
           height: 4.5rem;
         }
         .tech-executive .resume-body {
-          grid-template-columns: 1fr;
-          gap: 1.4rem;
+          grid-template-columns: minmax(0, 1.55fr) minmax(0, 0.92fr);
+          gap: 1rem;
         }
         .tech-executive .resume-section[data-section='summary'],
         .tech-executive .resume-section[data-section='experience'],
         .tech-executive .resume-section[data-section='projects'],
-        .tech-executive .resume-section[data-section='languages'],
+        .tech-executive .resume-section[data-section='languages'] {
+          grid-column: 1;
+        }
         .tech-executive .resume-section[data-section='skills'],
         .tech-executive .resume-section[data-section='education'],
         .tech-executive .resume-section[data-section='certifications'],
         .tech-executive .resume-section[data-section='awards'],
         .tech-executive .resume-section[data-section='interests'],
         .tech-executive .resume-section[data-section='custom'] {
-          grid-column: 1;
+          grid-column: 2;
         }
         .tech-minimal .identity,
         .tech-minimal .identity.has-photo,
@@ -770,20 +772,22 @@ import { resolveResumeColors } from '@nexus/shared';
           padding: 1rem 1.3rem;
         }
         .tech-minimal .resume-body {
-          grid-template-columns: 1fr;
-          gap: 1.4rem;
+          grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr);
+          gap: 1rem;
         }
         .tech-minimal .resume-section[data-section='summary'],
         .tech-minimal .resume-section[data-section='experience'],
         .tech-minimal .resume-section[data-section='projects'],
-        .tech-minimal .resume-section[data-section='education'],
+        .tech-minimal .resume-section[data-section='education'] {
+          grid-column: 1;
+        }
         .tech-minimal .resume-section[data-section='skills'],
         .tech-minimal .resume-section[data-section='languages'],
         .tech-minimal .resume-section[data-section='interests'],
         .tech-minimal .resume-section[data-section='certifications'],
         .tech-minimal .resume-section[data-section='awards'],
         .tech-minimal .resume-section[data-section='custom'] {
-          grid-column: 1;
+          grid-column: 2;
         }
         .tech-creative .identity {
           margin: -1.3rem -1.3rem 1.2rem;

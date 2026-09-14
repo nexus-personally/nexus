@@ -808,7 +808,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
       .resume-item {
         display: grid;
-        grid-template-columns: minmax(8rem, 10rem) minmax(0, 1fr) auto;
+        grid-template-columns: 5.2rem minmax(0, 1fr) auto;
         align-items: center;
         gap: 0.75rem;
         min-width: 0;
@@ -826,7 +826,6 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         display: block;
         width: 5.2rem;
         height: 6.8rem;
-        justify-self: center;
         overflow: hidden;
         background: #ffffff;
         box-shadow: 0 2px 8px rgba(30, 38, 38, 0.1);
@@ -834,11 +833,19 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .resume-thumbnail > span {
         position: absolute;
         left: 50%;
+        top: 50%;
+        width: 4.07rem;
+        height: 5.75rem;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .resume-thumbnail > span nexus-resume-renderer {
+        position: absolute;
+        left: 0;
         top: 0;
         width: 210mm;
-        transform: translateX(-50%) scale(0.082);
-        transform-origin: top center;
-        pointer-events: none;
+        transform: scale(0.082);
+        transform-origin: top left;
       }
       .resume-details {
         display: grid;

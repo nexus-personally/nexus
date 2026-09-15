@@ -17,6 +17,7 @@ import { resolveResumeColors } from '@nexus/shared';
         [style.--accent]="colors.accent"
         [style.--heading]="colors.heading"
         [style.--body]="colors.body"
+        (paste)="pastePlainText($event)"
       >
         <header class="identity">
           @if (showPhoto) {
@@ -119,6 +120,7 @@ import { resolveResumeColors } from '@nexus/shared';
                 @case ('summary') {
                   <p
                     class="summary"
+                    data-paste-multiline="true"
                     [attr.contenteditable]="editable ? 'true' : null"
                     (blur)="editField(section, 'body', $event)"
                   >
@@ -245,6 +247,7 @@ import { resolveResumeColors } from '@nexus/shared';
                           >{{ project.role }}</strong
                         >
                         <span
+                          data-paste-multiline="true"
                           [attr.contenteditable]="editable ? 'true' : null"
                           (blur)="editField(project, 'description', $event)"
                           >{{ project.description }}</span
@@ -311,6 +314,15 @@ import { resolveResumeColors } from '@nexus/shared';
         --heading: #20272a;
         --body: #30383b;
         --template-inline-padding: 50px;
+        --font-name: 2.15rem;
+        --font-headline: 0.95rem;
+        --font-contact: 0.72rem;
+        --font-section-title: 0.74rem;
+        --font-organization: 0.9rem;
+        --font-meta: 0.7rem;
+        --font-body: 0.78rem;
+        --font-role: 0.78rem;
+        --font-skill-label: 0.72rem;
         width: 210mm;
         min-height: 297mm;
         margin: 0 auto;
@@ -348,21 +360,21 @@ import { resolveResumeColors } from '@nexus/shared';
       }
       h1 {
         color: var(--heading);
-        font-size: 2.15rem;
+        font-size: var(--font-name);
         line-height: 1;
         font-weight: 720;
       }
       .identity-main > p {
         margin-top: 0.32rem;
         color: var(--accent);
-        font-size: 0.95rem;
+        font-size: var(--font-headline);
         font-weight: 700;
       }
       address {
         display: grid;
         align-content: end;
         gap: 0.18rem;
-        font-size: 0.72rem;
+        font-size: var(--font-contact);
         font-style: normal;
         text-align: right;
       }
@@ -384,7 +396,7 @@ import { resolveResumeColors } from '@nexus/shared';
         padding-bottom: 0.2rem;
         border-bottom: 1px solid #d8ddde;
         color: var(--accent);
-        font-size: 0.74rem;
+        font-size: var(--font-section-title);
         font-weight: 800;
         text-transform: uppercase;
       }
@@ -397,12 +409,12 @@ import { resolveResumeColors } from '@nexus/shared';
       }
       h3 {
         margin-top: 0.5rem;
-        font-size: 0.9rem;
+        font-size: var(--font-organization);
       }
       h3 > span:last-child,
       em {
         color: color-mix(in srgb, var(--body), white 34%);
-        font-size: 0.7rem;
+        font-size: var(--font-meta);
         font-style: normal;
         font-weight: 500;
       }
@@ -410,7 +422,7 @@ import { resolveResumeColors } from '@nexus/shared';
       li,
       .block p,
       .skill-grid p {
-        font-size: 0.78rem;
+        font-size: var(--font-body);
         line-height: 1.45;
       }
       ul {
@@ -424,7 +436,7 @@ import { resolveResumeColors } from '@nexus/shared';
         margin-top: 0.25rem;
       }
       .position-line strong {
-        font-size: 0.78rem;
+        font-size: var(--font-role);
       }
       .technologies {
         margin-top: 0.15rem;
@@ -444,7 +456,10 @@ import { resolveResumeColors } from '@nexus/shared';
         align-items: baseline;
       }
       .skill-group strong {
-        font-size: 0.72rem;
+        font-size: var(--font-skill-label);
+      }
+      [data-paste-multiline='true'] {
+        white-space: pre-line;
       }
       .is-editable [contenteditable='true'] {
         border-radius: 2px;
@@ -452,6 +467,18 @@ import { resolveResumeColors } from '@nexus/shared';
         transition:
           background 120ms ease,
           outline-color 120ms ease;
+      }
+      .is-editable [contenteditable='true'] * {
+        background: transparent !important;
+        color: inherit !important;
+        font-family: inherit !important;
+        font-size: inherit !important;
+        font-style: inherit !important;
+        font-weight: inherit !important;
+        letter-spacing: inherit !important;
+        line-height: inherit !important;
+        text-decoration: none !important;
+        -webkit-text-fill-color: currentColor !important;
       }
       .is-editable [contenteditable='true']:hover {
         background: color-mix(in srgb, var(--accent), white 93%);
@@ -463,6 +490,7 @@ import { resolveResumeColors } from '@nexus/shared';
         outline-offset: 2px;
       }
       .tech-modern {
+        --font-name: 1.65rem;
         display: grid;
         grid-template-columns: 46mm 1fr;
         padding: 0;
@@ -485,7 +513,6 @@ import { resolveResumeColors } from '@nexus/shared';
       }
       .tech-modern .identity h1 {
         color: #ffffff;
-        font-size: 1.65rem;
       }
       .tech-modern .identity-main > p {
         color: #8ed8df;
@@ -504,6 +531,9 @@ import { resolveResumeColors } from '@nexus/shared';
         grid-template-columns: 1fr;
       }
       .tech-minimal {
+        --font-name: 2.45rem;
+        --font-headline: 1.05rem;
+        --font-section-title: 0.82rem;
         padding: 22mm var(--template-inline-padding);
       }
       .tech-minimal .identity,
@@ -519,11 +549,9 @@ import { resolveResumeColors } from '@nexus/shared';
         grid-template-columns: minmax(0, 1fr);
       }
       .tech-minimal .identity-main h1 {
-        font-size: 2.45rem;
         font-weight: 500;
       }
       .tech-minimal .identity-main > p {
-        font-size: 1.05rem;
         font-weight: 600;
       }
       .tech-minimal .profile-photo {
@@ -576,7 +604,6 @@ import { resolveResumeColors } from '@nexus/shared';
       .tech-minimal h2 {
         border-bottom: 0;
         color: var(--accent);
-        font-size: 0.82rem;
         letter-spacing: 0.03em;
       }
       .tech-minimal .skill-grid {
@@ -591,6 +618,15 @@ import { resolveResumeColors } from '@nexus/shared';
         color: var(--heading);
       }
       .tech-executive {
+        --font-name: 2.2rem;
+        --font-headline: 0.82rem;
+        --font-contact: 0.59rem;
+        --font-section-title: 0.76rem;
+        --font-organization: 0.75rem;
+        --font-meta: 0.6rem;
+        --font-body: 0.67rem;
+        --font-role: 0.68rem;
+        --font-skill-label: 0.67rem;
         padding: 16mm var(--template-inline-padding);
         font-family: Arial, Helvetica, sans-serif;
       }
@@ -614,7 +650,6 @@ import { resolveResumeColors } from '@nexus/shared';
         grid-row: 1;
       }
       .tech-executive h1 {
-        font-size: 2.2rem;
         line-height: 1.05;
         font-weight: 800;
         letter-spacing: 0.01em;
@@ -622,7 +657,6 @@ import { resolveResumeColors } from '@nexus/shared';
       .tech-executive .identity-main > p {
         margin-top: 1.4mm;
         color: var(--accent);
-        font-size: 0.82rem;
         line-height: 1.35;
         font-weight: 800;
       }
@@ -632,7 +666,6 @@ import { resolveResumeColors } from '@nexus/shared';
         flex-wrap: wrap;
         gap: 1.4mm 4mm;
         margin-top: 3mm;
-        font-size: 0.59rem;
         line-height: 1.25;
         text-align: left;
       }
@@ -667,7 +700,6 @@ import { resolveResumeColors } from '@nexus/shared';
         padding-bottom: 1.5mm;
         border-bottom: 1.3px solid #1d2427;
         color: var(--heading);
-        font-size: 0.72rem;
         letter-spacing: 0.02em;
         line-height: 1.2;
       }
@@ -675,20 +707,13 @@ import { resolveResumeColors } from '@nexus/shared';
       .tech-executive li,
       .tech-executive .block p,
       .tech-executive .skill-grid p {
-        font-size: 0.67rem;
         line-height: 1.38;
       }
       .tech-executive h3 {
         margin-top: 3mm;
-        font-size: 0.75rem;
-      }
-      .tech-executive h3 > span:last-child,
-      .tech-executive em {
-        font-size: 0.6rem;
       }
       .tech-executive .position-line strong {
         color: var(--accent);
-        font-size: 0.68rem;
       }
       .tech-executive .technologies {
         color: var(--accent);
@@ -704,12 +729,10 @@ import { resolveResumeColors } from '@nexus/shared';
       }
       .tech-executive .skill-group strong {
         color: var(--accent);
-        font-size: 0.67rem;
       }
       .tech-executive h2 {
         color: var(--heading);
         border-bottom-color: var(--accent);
-        font-size: 0.76rem;
       }
       .tech-creative {
         padding: 0 var(--template-inline-padding) 17mm;
@@ -914,8 +937,46 @@ export class ResumeRendererComponent {
     (event.currentTarget as HTMLElement).blur();
   }
 
+  protected pastePlainText(event: ClipboardEvent) {
+    if (!this.editable) return;
+
+    const target = event.target;
+    const clipboardText = event.clipboardData?.getData('text/plain');
+    if (
+      !(target instanceof HTMLElement) ||
+      target.contentEditable !== 'true' ||
+      clipboardText == null
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    const allowsMultipleLines = target.dataset['pasteMultiline'] === 'true';
+    const text = allowsMultipleLines
+      ? clipboardText.replace(/\r\n?/g, '\n').trim()
+      : clipboardText.replace(/\s+/g, ' ').trim();
+    this.insertTextAtCaret(target, text);
+  }
+
   private readText(event: Event) {
     return (event.currentTarget as HTMLElement).innerText.replace(/\u00a0/g, ' ').trim();
+  }
+
+  private insertTextAtCaret(target: HTMLElement, text: string) {
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || !target.contains(selection.anchorNode)) {
+      target.textContent = `${target.textContent ?? ''}${text}`;
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    const textNode = document.createTextNode(text);
+    range.insertNode(textNode);
+    range.setStartAfter(textNode);
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
   }
 
   private isSideColumnSection(section: ResumeSection) {

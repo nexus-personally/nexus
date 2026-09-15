@@ -58,6 +58,11 @@ This applies to primary, secondary, outline, ghost, danger, segmented-filter, up
 ## Resume Editor
 
 - Every resume template must support the shared optional profile photo. Hiding the photo collapses its layout space completely.
+- Treat pasted resume content as plain text. Strip source HTML, font family, size, weight, color, background, decoration, and links before insertion.
+- Collapse pasted whitespace in single-line fields. Preserve plain line breaks only in multiline fields such as summaries and project descriptions.
+- Define typography by semantic role: name, headline, contact, section title, organization, metadata, body, role, and skill label.
+- Keep each template's semantic typography values fixed across editing, previews, printing, and PDF output. Long content wraps and must never trigger automatic font shrinking.
+- Allow resume text colors to come only from the template and the shared Accent, Heading, and Body color controls.
 - Store the compressed photo source, 1:1 crop position, zoom, and cropped output so the crop can be adjusted after reload.
 - Use a circular safe-area preview for photo cropping. Support pointer and touch dragging plus zoom; rotation and flipping are intentionally excluded.
 - Keep one shared photo and one global `Show profile photo` setting across all templates.
@@ -74,4 +79,5 @@ This applies to primary, secondary, outline, ghost, danger, segmented-filter, up
 - [ ] Focus states are visible with keyboard navigation.
 - [ ] Disabled states are visually distinct and non-interactive.
 - [ ] Template cards remain equal width and incomplete rows are centered.
+- [ ] Rich-text paste cannot override resume typography or colors.
 - [ ] Desktop and mobile layouts are checked for clipping, overlap, and unintended horizontal scrolling.

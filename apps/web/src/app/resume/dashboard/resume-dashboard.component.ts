@@ -236,7 +236,11 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
 
           <div class="panel-form">
             <label for="resume-name">Resume name</label>
-            <input id="resume-name" [(ngModel)]="newName" />
+            <input
+              id="resume-name"
+              [(ngModel)]="newName"
+              placeholder="e.g. Product Manager Resume"
+            />
 
             <fieldset>
               <legend>Profile photo <span>(optional)</span></legend>
@@ -330,6 +334,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         display: block;
         color: #172231;
         background: #fbfaf8;
+        font-family: Roboto, 'Helvetica Neue', sans-serif;
       }
       .dashboard-shell {
         display: grid;
@@ -521,7 +526,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .template-heading h1 {
         margin-top: 0.35rem;
         color: #172231;
-        font-family: Georgia, 'Times New Roman', serif;
+        font-family: Roboto, 'Helvetica Neue', sans-serif;
         font-size: clamp(2.45rem, 4vw, 3.2rem);
         line-height: 1.04;
         font-weight: 700;

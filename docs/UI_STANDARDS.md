@@ -62,15 +62,23 @@ This applies to primary, secondary, outline, ghost, danger, segmented-filter, up
 - Collapse pasted whitespace in single-line fields. Preserve plain line breaks only in multiline fields such as summaries and project descriptions.
 - Define typography by semantic role: name, headline, contact, section title, organization, metadata, body, role, and skill label.
 - Keep each template's semantic typography values fixed across editing, previews, printing, and PDF output. Long content wraps and must never trigger automatic font shrinking.
-- Allow resume text colors to come only from the template and the shared Accent, Heading, and Body color controls.
+- Allow resume text colors to come only from the template, the shared Accent control, and per-field Text color overrides.
 - Store the compressed photo source, 1:1 crop position, zoom, and cropped output so the crop can be adjusted after reload.
 - Use a circular safe-area preview for photo cropping. Support pointer and touch dragging plus zoom; rotation and flipping are intentionally excluded.
 - Keep one shared photo and one global `Show profile photo` setting across all templates.
 - Expose resume colors through the `Colors` panel, not persistent command-bar swatches.
-- Provide 24 accent presets, 16 heading presets, 12 body presets, native color pickers, and editable HEX values.
+- Provide 24 accent presets, a native color picker, and an editable HEX value in Document colors. Keep text-role choices in Text color.
 - Apply heading and body colors only to light content areas. Dark structural panels retain automatic high-contrast text.
 - Show contrast ratios and warnings for low-contrast custom colors without blocking the user's choice.
 - Preserve custom colors when switching templates. `Reset to template defaults` is the only action that replaces them with the selected template's defaults.
+- Provide semantic document colors for names, headlines, contact details, section titles, organizations, roles, metadata, descriptions, bullets, skill labels, and skill text.
+- Every user-editable resume field may override its semantic color. Field overrides apply to the whole field, never to a rich-text substring, and can be cleared with `Use global color`.
+- Keep source formatting stripped on paste even when field color overrides are enabled. Only colors chosen inside Resume Studio may persist.
+- Experience bullets and simple-list sections support visible-on-focus add/delete controls, Enter to insert, empty Enter to leave the list, and empty Backspace to remove while retaining at least one item.
+- Render the resume as a fixed A4 canvas at every screen size. Responsive behavior scales the complete canvas; it must not change template columns, typography, spacing, or document flow.
+- Default the editor preview to `Fit`, allow manual 50%-125% zoom, and permit horizontal scrolling when a manual zoom is wider than the viewport. Preview zoom never changes saved resume data or PDF dimensions.
+- Use 44px top and bottom content safety areas in preview and print. Full-width template backgrounds may reach the page edge while their content observes the safety area.
+- Print each output page at `210mm x 297mm`; allow overflowing content to continue onto additional A4 pages without shrinking typography or clipping content.
 
 ## Review Checklist
 
@@ -80,4 +88,8 @@ This applies to primary, secondary, outline, ghost, danger, segmented-filter, up
 - [ ] Disabled states are visually distinct and non-interactive.
 - [ ] Template cards remain equal width and incomplete rows are centered.
 - [ ] Rich-text paste cannot override resume typography or colors.
+- [ ] Every editable resume field can inherit or override its semantic text color.
+- [ ] Adding and removing list items does not leak editor controls into preview or print.
+- [ ] Narrow screens scale the A4 canvas without changing its internal layout.
+- [ ] Preview zoom has no effect on PDF page size.
 - [ ] Desktop and mobile layouts are checked for clipping, overlap, and unintended horizontal scrolling.

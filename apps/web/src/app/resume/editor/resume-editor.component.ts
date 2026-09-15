@@ -11,11 +11,20 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
+  LucideArrowLeft,
+  LucideBriefcaseBusiness,
+  LucideChartNoAxesColumnIncreasing,
   LucideCheck,
+  LucideChevronDown,
   LucideCrop,
-  LucidePalette,
+  LucideDownload,
+  LucideFileText,
+  LucideFolder,
+  LucideGripVertical,
+  LucideMoreHorizontal,
+  LucidePencil,
+  LucidePlus,
   LucideRotateCcw,
-  LucideTrash2,
   LucideUpload,
   LucideUserRound,
 } from '@lucide/angular';
@@ -40,7 +49,11 @@ import {
   photoCropTravel,
   prepareProfilePhotoSource,
 } from '../profile-photo';
-import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
+import {
+  ResumeRendererComponent,
+  type ResumeColorRole,
+  type ResumeColorSelection,
+} from '../renderer/resume-renderer.component';
 
 type ColorTarget = keyof ResumeColors;
 
@@ -52,42 +65,82 @@ type ColorTarget = keyof ResumeColors;
     FormsModule,
     RouterLink,
     ResumeRendererComponent,
-    LucideTrash2,
+    LucideArrowLeft,
+    LucideBriefcaseBusiness,
+    LucideChartNoAxesColumnIncreasing,
     LucideUpload,
     LucideUserRound,
-    LucidePalette,
     LucideCrop,
+    LucideDownload,
     LucideRotateCcw,
     LucideCheck,
+    LucideChevronDown,
+    LucideFileText,
+    LucideFolder,
+    LucideGripVertical,
+    LucideMoreHorizontal,
+    LucidePlus,
+    LucidePencil,
   ],
   template: `
     @if (resume) {
       <main class="editor-shell">
         <header class="command-bar">
           <div class="document-identity">
-            <a routerLink="/resume" class="back-button" aria-label="Back to dashboard">←</a>
-            <span class="studio-mark">N</span>
-            <input
-              [(ngModel)]="resume.name"
-              (ngModelChange)="markDirty()"
-              aria-label="Resume name"
-            />
+            <a routerLink="/resume" class="back-button" aria-label="Back to dashboard">
+              <svg lucideArrowLeft size="17"></svg>
+            </a>
+            <span class="studio-mark">NEXUS</span>
+            <label class="document-name-control">
+              <input
+                [(ngModel)]="resume.name"
+                (ngModelChange)="markDirty()"
+                aria-label="Resume name"
+                placeholder="Resume name"
+              />
+              <svg lucidePencil size="15" aria-hidden="true"></svg>
+            </label>
           </div>
 
           <div class="document-controls">
             <label>
               <span>Template</span>
-              <select
-                [(ngModel)]="resume.templateId"
-                (ngModelChange)="markDirty()"
-                aria-label="Template"
-              >
-                @for (template of templates; track template.id) {
-                  <option [value]="template.id">{{ template.name }}</option>
+              <span class="template-picker template-picker-compact">
+                <button
+                  type="button"
+                  class="template-picker-trigger"
+                  role="combobox"
+                  aria-haspopup="listbox"
+                  [attr.aria-expanded]="templateMenuOpen"
+                  [attr.aria-label]="'Template. Selected: ' + templateName(resume.templateId)"
+                  (click)="templateMenuOpen = !templateMenuOpen; inspectorTemplateMenuOpen = false"
+                >
+                  <span>{{ templateName(resume.templateId) }}</span>
+                  <svg lucideChevronDown size="14" [class.open]="templateMenuOpen"></svg>
+                </button>
+                @if (templateMenuOpen) {
+                  <span class="template-options" role="listbox">
+                    @for (template of templates; track template.id) {
+                      <button
+                        type="button"
+                        role="option"
+                        [class.selected]="resume.templateId === template.id"
+                        [attr.aria-selected]="resume.templateId === template.id"
+                        (click)="chooseTemplate(template.id)"
+                      >
+                        <svg lucideFileText size="16"></svg>
+                        <span>{{ template.name }}</span>
+                        @if (resume.templateId === template.id) {
+                          <svg lucideCheck size="15"></svg>
+                        }
+                      </button>
+                    }
+                  </span>
                 }
-              </select>
+              </span>
             </label>
             <div class="color-control">
+              <span class="control-label">Document accent</span>
               <button
                 class="colors-button"
                 type="button"
@@ -95,9 +148,9 @@ type ColorTarget = keyof ResumeColors;
                 aria-controls="resume-colors-panel"
                 (click)="colorsOpen = !colorsOpen"
               >
-                <svg lucidePalette size="15"></svg>
-                Colors
                 <i [style.background]="currentColors.accent"></i>
+                <code>{{ currentColors.accent }}</code>
+                <svg lucideChevronDown size="15"></svg>
               </button>
               @if (colorsOpen) {
                 <section id="resume-colors-panel" class="colors-panel" aria-label="Resume colors">
@@ -155,6 +208,7 @@ type ColorTarget = keyof ResumeColors;
                           class="hex-input"
                           [value]="colorValue(group.key)"
                           [attr.aria-label]="group.label + ' hex color'"
+                          [placeholder]="'#000000'"
                           maxlength="7"
                           spellcheck="false"
                           (input)="onHexColor(group.key, $event)"
@@ -180,18 +234,32 @@ type ColorTarget = keyof ResumeColors;
             <span
               class="save-state"
               [class.unsaved]="saveState.includes('Unsaved') || saveState.includes('Unable')"
-              ><i></i>{{ saveState }}</span
+              ><i></i>{{ displaySaveState }}</span
             >
             <button type="button" (click)="save()">Save</button>
-            <button class="publish" type="button" (click)="publish()">Publish</button>
-            <button
-              class="more-button"
-              type="button"
-              (click)="unpublish()"
-              title="Unpublish public link"
-              aria-label="Unpublish public link"
-            >
-              •••
+            <button type="button" (click)="publish()">Share</button>
+            <div class="more-actions-anchor">
+              <button
+                class="more-button"
+                type="button"
+                (click)="moreOpen = !moreOpen"
+                [attr.aria-expanded]="moreOpen"
+                title="More actions"
+                aria-label="More actions"
+              >
+                •••
+              </button>
+              @if (moreOpen) {
+                <div class="more-menu">
+                  <button type="button" (click)="unpublish(); moreOpen = false">
+                    Disable public link
+                  </button>
+                </div>
+              }
+            </div>
+            <button class="download-button" type="button" (click)="downloadPdf()">
+              <svg lucideDownload size="14"></svg>
+              Export PDF
             </button>
           </div>
         </header>
@@ -205,11 +273,25 @@ type ColorTarget = keyof ResumeColors;
               </div>
               <small>{{ visibleSectionCount }}/{{ orderedSections.length }}</small>
             </header>
+            <p class="sections-help">Drag to reorder sections. Toggle visibility and customize each section.</p>
 
             <section class="profile-photo-control" aria-labelledby="profile-photo-title">
               <div class="profile-photo-heading">
-                <span id="profile-photo-title">PROFILE PHOTO</span>
-                <small>Optional</small>
+                <span class="profile-title-wrap">
+                  <svg class="drag-handle" lucideGripVertical size="16" aria-hidden="true"></svg>
+                  <svg lucideUserRound size="17" aria-hidden="true"></svg>
+                  <strong id="profile-photo-title">Profile Photo</strong>
+                </span>
+                <span class="profile-heading-actions">
+                  <input
+                    class="visibility-toggle"
+                    type="checkbox"
+                    [(ngModel)]="resume.content.profile.photoVisible"
+                    [disabled]="!resume.content.profile.photoDataUrl"
+                    aria-label="Show profile photo"
+                    (ngModelChange)="markDirty()"
+                  />
+                </span>
               </div>
               <div class="profile-photo-row">
                 @if (resume.content.profile.photoDataUrl) {
@@ -238,20 +320,11 @@ type ColorTarget = keyof ResumeColors;
                       <svg lucideCrop size="14"></svg>
                       Adjust
                     </button>
-                    <button
-                      class="photo-delete"
-                      type="button"
-                      title="Remove profile photo"
-                      aria-label="Remove profile photo"
-                      (click)="removePhoto()"
-                    >
-                      <svg lucideTrash2 size="14"></svg>
-                    </button>
                   }
                 </div>
               </div>
               <label class="photo-visibility">
-                <span>Show profile photo</span>
+                <span>Show profile photo on resume</span>
                 <input
                   type="checkbox"
                   [(ngModel)]="resume.content.profile.photoVisible"
@@ -278,68 +351,133 @@ type ColorTarget = keyof ResumeColors;
                   <button
                     class="section-main"
                     type="button"
-                    (click)="selectedSectionId = section.id"
+                    (click)="selectSection(section.id)"
                   >
-                    <span class="drag-handle" aria-hidden="true">⋮⋮</span>
-                    <span
-                      ><strong>{{ section.title }}</strong
-                      ><small>{{ section.type }}</small></span
-                    >
+                    <svg class="drag-handle" lucideGripVertical size="16" aria-hidden="true"></svg>
+                    @switch (section.type) {
+                      @case ('experience') {
+                        <svg lucideBriefcaseBusiness size="17" aria-hidden="true"></svg>
+                      }
+                      @case ('projects') {
+                        <svg lucideFolder size="17" aria-hidden="true"></svg>
+                      }
+                      @case ('skills') {
+                        <svg lucideChartNoAxesColumnIncreasing size="17" aria-hidden="true"></svg>
+                      }
+                      @default {
+                        <svg lucideFileText size="17" aria-hidden="true"></svg>
+                      }
+                    }
+                    <span><strong>{{ section.title }}</strong></span>
                   </button>
                   <div class="section-actions">
-                    <button
-                      type="button"
-                      (click)="move(section.id, -1)"
-                      title="Move up"
-                      [attr.aria-label]="'Move ' + section.title + ' up'"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      (click)="move(section.id, 1)"
-                      title="Move down"
-                      [attr.aria-label]="'Move ' + section.title + ' down'"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      (click)="toggleHidden(section)"
-                      [title]="section.hidden ? 'Show section' : 'Hide section'"
+                    <input
+                      class="visibility-toggle"
+                      type="checkbox"
+                      [checked]="!section.hidden"
                       [attr.aria-label]="(section.hidden ? 'Show ' : 'Hide ') + section.title"
-                    >
-                      {{ section.hidden ? '○' : '●' }}
-                    </button>
+                      (change)="toggleHidden(section)"
+                    />
                     <button
                       type="button"
-                      (click)="duplicateSection(section)"
-                      title="Duplicate section"
-                      [attr.aria-label]="'Duplicate ' + section.title"
+                      (click)="toggleSectionMenu(section.id, $event)"
+                      title="Section actions"
+                      [attr.aria-label]="section.title + ' actions'"
+                      [attr.aria-expanded]="sectionMenuId === section.id"
                     >
-                      ＋
+                      <svg lucideMoreHorizontal size="17"></svg>
                     </button>
-                    <button
-                      class="danger"
-                      type="button"
-                      (click)="deleteSection(section)"
-                      title="Delete section"
-                      [attr.aria-label]="'Delete ' + section.title"
-                    >
-                      ×
-                    </button>
+                    @if (sectionMenuId === section.id) {
+                      <div class="section-menu">
+                        <button type="button" (click)="move(section.id, -1); sectionMenuId = ''">
+                          Move up
+                        </button>
+                        <button type="button" (click)="move(section.id, 1); sectionMenuId = ''">
+                          Move down
+                        </button>
+                        <button
+                          type="button"
+                          (click)="duplicateSection(section); sectionMenuId = ''"
+                        >
+                          Duplicate section
+                        </button>
+                        <button
+                          class="danger"
+                          type="button"
+                          (click)="deleteSection(section); sectionMenuId = ''"
+                        >
+                          Delete section
+                        </button>
+                      </div>
+                    }
                   </div>
                 </div>
               }
             </div>
 
             <div class="add-section">
-              <select [(ngModel)]="newSectionType" aria-label="Section type">
-                @for (option of sectionOptions; track option.type) {
-                  <option [value]="option.type">{{ option.label }}</option>
-                }
-              </select>
-              <button type="button" (click)="addSection()">Add</button>
+              <label class="add-section-type">
+                <span>Section type</span>
+                <span class="add-section-select">
+                  <button
+                    type="button"
+                    class="add-section-select-trigger"
+                    role="combobox"
+                    aria-haspopup="listbox"
+                    aria-controls="section-type-options"
+                    [attr.aria-expanded]="addSectionMenuOpen"
+                    [attr.aria-label]="'Section type. Selected: ' + selectedSectionTypeLabel"
+                    [title]="'Selected section type: ' + selectedSectionTypeLabel"
+                    (click)="addSectionMenuOpen = !addSectionMenuOpen"
+                  >
+                    <span>{{ selectedSectionTypeLabel }}</span>
+                    <svg
+                      lucideChevronDown
+                      size="15"
+                      aria-hidden="true"
+                      [class.open]="addSectionMenuOpen"
+                    ></svg>
+                  </button>
+                  @if (addSectionMenuOpen) {
+                    <span id="section-type-options" class="add-section-options" role="listbox">
+                      @for (option of sectionOptions; track option.type) {
+                        <button
+                          type="button"
+                          role="option"
+                          [class.selected]="newSectionType === option.type"
+                          [attr.aria-selected]="newSectionType === option.type"
+                          (click)="chooseSectionType(option.type)"
+                        >
+                          <span class="section-option-icon">
+                            @switch (option.type) {
+                              @case ('experience') {
+                                <svg lucideBriefcaseBusiness size="16"></svg>
+                              }
+                              @case ('projects') {
+                                <svg lucideFolder size="16"></svg>
+                              }
+                              @case ('skills') {
+                                <svg lucideChartNoAxesColumnIncreasing size="16"></svg>
+                              }
+                              @default {
+                                <svg lucideFileText size="16"></svg>
+                              }
+                            }
+                          </span>
+                          <span>{{ option.label }}</span>
+                          @if (newSectionType === option.type) {
+                            <svg class="section-option-check" lucideCheck size="15"></svg>
+                          }
+                        </button>
+                      }
+                    </span>
+                  }
+                </span>
+              </label>
+              <button type="button" class="add-section-button" (click)="addSection()">
+                <svg lucidePlus size="17"></svg>
+                Add section
+              </button>
             </div>
 
             <footer>
@@ -349,11 +487,227 @@ type ColorTarget = keyof ResumeColors;
           </aside>
 
           <section class="page-stage">
-            <div class="page-meta">
-              <span>PAGE 01</span><span>{{ templateName(resume.templateId) }}</span>
+            <div #previewArea class="preview-area">
+              <div class="page-meta" [style.width.px]="a4Width * previewScale">
+                <span>Page 1 / 1 (A4)</span><span>{{ templateName(resume.templateId) }}</span>
+              </div>
+              <div
+                class="a4-viewport"
+                [style.width.px]="a4Width * previewScale"
+                [style.height.px]="previewContentHeight * previewScale"
+              >
+                <div
+                  #previewCanvas
+                  class="a4-canvas"
+                  [style.transform]="'scale(' + previewScale + ')'"
+                >
+                  <nexus-resume-renderer
+                    [resume]="resume"
+                    [editable]="true"
+                    (edited)="markDirty()"
+                    (colorSelected)="openFieldColor($event)"
+                  />
+                </div>
+              </div>
             </div>
-            <nexus-resume-renderer [resume]="resume" [editable]="true" (edited)="markDirty()" />
+            <div class="preview-controls" aria-label="Resume preview zoom">
+              <button type="button" (click)="useFitPreview()">Fit</button>
+              <button type="button" aria-label="Zoom out" (click)="adjustPreviewScale(-0.05)">
+                −
+              </button>
+              <output>{{ (previewScale * 100).toFixed(0) }}%</output>
+              <button type="button" aria-label="Zoom in" (click)="adjustPreviewScale(0.05)">
+                +
+              </button>
+            </div>
           </section>
+
+          <aside class="design-panel" aria-label="Resume inspector">
+            <nav class="inspector-tabs" aria-label="Inspector view">
+              <button
+                type="button"
+                [class.active]="inspectorTab === 'design'"
+                (click)="inspectorTab = 'design'"
+              >
+                Design
+              </button>
+              <button
+                type="button"
+                [class.active]="inspectorTab === 'section'"
+                (click)="inspectorTab = 'section'"
+              >
+                Section
+              </button>
+            </nav>
+
+            @if (inspectorTab === 'design') {
+              <section class="inspector-group">
+                <label>Template</label>
+                <div class="template-card-picker">
+                  <button
+                    type="button"
+                    class="template-control-card"
+                    role="combobox"
+                    aria-haspopup="listbox"
+                    [attr.aria-expanded]="inspectorTemplateMenuOpen"
+                    [attr.aria-label]="'Template. Selected: ' + templateName(resume.templateId)"
+                    (click)="inspectorTemplateMenuOpen = !inspectorTemplateMenuOpen; templateMenuOpen = false"
+                  >
+                    <span class="template-thumbnail" aria-hidden="true">
+                      <span class="template-thumbnail-canvas">
+                        <nexus-resume-renderer [resume]="resume" />
+                      </span>
+                    </span>
+                    <span class="template-card-copy">
+                      <strong>{{ templateName(resume.templateId) }}</strong>
+                      <small>Clean and professional layout with a focus on content.</small>
+                    </span>
+                    <svg class="template-chevron" lucideChevronDown size="15" [class.open]="inspectorTemplateMenuOpen"></svg>
+                  </button>
+                  @if (inspectorTemplateMenuOpen) {
+                    <span class="template-options template-options-rich" role="listbox">
+                      @for (template of templates; track template.id) {
+                        <button
+                          type="button"
+                          role="option"
+                          [class.selected]="resume.templateId === template.id"
+                          [attr.aria-selected]="resume.templateId === template.id"
+                          (click)="chooseTemplate(template.id)"
+                        >
+                          <span class="section-option-icon"><svg lucideFileText size="16"></svg></span>
+                          <span><strong>{{ template.name }}</strong><small>{{ template.description }}</small></span>
+                          @if (resume.templateId === template.id) {
+                            <svg class="section-option-check" lucideCheck size="15"></svg>
+                          }
+                        </button>
+                      }
+                    </span>
+                  }
+                </div>
+              </section>
+
+              <section class="inspector-group">
+                <label>Document accent</label>
+                <button
+                  type="button"
+                  class="inspector-color-control"
+                  [attr.aria-expanded]="colorsOpen"
+                  (click)="colorsOpen = !colorsOpen"
+                >
+                  <i [style.background]="currentColors.accent"></i>
+                  <code>{{ currentColors.accent }}</code>
+                  <svg lucideChevronDown size="15"></svg>
+                </button>
+                <p>Controls accents, headers and highlights across your resume.</p>
+              </section>
+
+              <section class="inspector-group text-color-inspector">
+                <label>Text color</label>
+                <button
+                  #textColorButton
+                  type="button"
+                  class="inspector-color-control"
+                  [disabled]="!selectedColorField"
+                  [attr.aria-expanded]="fieldColorOpen"
+                  (click)="toggleFieldPalette(textColorButton)"
+                >
+                  <i [style.background]="selectedFieldColor"></i>
+                  <code>{{ selectedFieldColor }}</code>
+                  <svg lucideChevronDown size="15"></svg>
+                </button>
+                <p>
+                  {{
+                    selectedColorField
+                      ? 'Color for the selected text or section content.'
+                      : 'Select text in the resume to customize its color.'
+                  }}
+                </p>
+                <button
+                  type="button"
+                  class="inspector-reset"
+                  [disabled]="!selectedColorField"
+                  (click)="clearFieldColor()"
+                >
+                  <svg lucideRotateCcw size="15"></svg>
+                  Reset to default
+                </button>
+              </section>
+            } @else {
+              <section class="inspector-group section-inspector">
+                <label>Selected section</label>
+                <strong>{{ selectedSection?.title ?? 'No section selected' }}</strong>
+                <p>Reorder, show, duplicate or remove this section from the left panel menu.</p>
+              </section>
+            }
+
+            <section class="page-size-card">
+              <label for="page-size">Page size</label>
+              <select id="page-size" aria-label="Page size">
+                <option>A4 (210 × 297 mm)</option>
+              </select>
+              <small>Optimized for job applications worldwide.</small>
+            </section>
+          </aside>
+
+          @if (fieldColorOpen) {
+            <section
+              class="field-color-panel"
+              aria-label="Selected text color"
+              [style.left.px]="activeColorField?.left ?? 8"
+              [style.top.px]="activeColorField?.top ?? 8"
+              [style.max-height.px]="fieldColorMaxHeight"
+              (mousedown)="$event.stopPropagation()"
+            >
+              <header>
+                <div>
+                  <span>TEXT COLOR</span>
+                  <strong>{{ activeColorField?.label ?? 'Text' }}</strong>
+                </div>
+                <button type="button" aria-label="Close text color" (click)="fieldColorOpen = false">
+                  ×
+                </button>
+              </header>
+              @for (collection of fieldPaletteGroups; track collection.label) {
+                <p class="palette-label">{{ collection.label }}</p>
+                <div class="field-preset-grid" role="group" [attr.aria-label]="collection.label">
+                  @for (preset of collection.colors; track preset) {
+                    <button
+                      type="button"
+                      class="color-preset"
+                      [class.selected]="selectedFieldColor === preset"
+                      [style.--swatch]="preset"
+                      [title]="preset"
+                      [attr.aria-label]="'Use ' + preset"
+                      (click)="setFieldColor(preset)"
+                    ></button>
+                  }
+                </div>
+              }
+              <div class="custom-color-row">
+                <input
+                  type="color"
+                  [value]="selectedFieldColor"
+                  aria-label="Custom text color"
+                  (input)="onFieldNativeColor($event)"
+                />
+                <input
+                  class="hex-input"
+                  [value]="selectedFieldColor"
+                  aria-label="Text color hex"
+                  placeholder="#000000"
+                  maxlength="7"
+                  spellcheck="false"
+                  (input)="onFieldHexColor($event)"
+                />
+              </div>
+              <div class="field-color-footer">
+                <span>{{ contrastRatio(selectedFieldColor, activeColorField?.background ?? '#ffffff') }}:1 contrast</span>
+                <button type="button" (click)="clearFieldColor()" class="restore-color">
+                  <i [style.background]="selectedRoleColor"></i> Reset to default
+                </button>
+              </div>
+            </section>
+          }
         </div>
         @if (cropOpen) {
           <div class="crop-backdrop" (click)="closeCropEditor()">
@@ -434,6 +788,7 @@ type ColorTarget = keyof ResumeColors;
         display: block;
         background: #dfe4e2;
         color: #1d2224;
+        font-family: Roboto, 'Helvetica Neue', sans-serif;
       }
       .editor-shell {
         min-height: 100svh;
@@ -441,7 +796,7 @@ type ColorTarget = keyof ResumeColors;
       .command-bar {
         position: sticky;
         top: 0;
-        z-index: 8;
+        z-index: 30;
         display: grid;
         grid-template-columns: minmax(16rem, 1fr) auto minmax(18rem, 1fr);
         min-height: 4rem;
@@ -615,6 +970,9 @@ type ColorTarget = keyof ResumeColors;
         position: relative;
         width: 1.55rem;
         height: 1.55rem;
+        min-height: 0;
+        aspect-ratio: 1;
+        box-sizing: border-box;
         padding: 0;
         border: 1px solid color-mix(in srgb, var(--swatch), black 15%);
         border-radius: 50%;
@@ -687,6 +1045,11 @@ type ColorTarget = keyof ResumeColors;
         background: #171c1e;
         color: #ffffff;
         font-weight: 650;
+      }
+      .download-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
       }
       .more-button {
         width: 2.2rem;
@@ -905,15 +1268,138 @@ type ColorTarget = keyof ResumeColors;
         overflow: auto;
         padding: 2rem clamp(1rem, 4vw, 4rem) 5rem;
       }
+      .preview-controls {
+        position: relative;
+        top: auto;
+        z-index: 6;
+        display: flex;
+        width: fit-content;
+        align-items: center;
+        gap: 0.55rem;
+        margin: 0 auto 0.9rem;
+        padding: 0.4rem 0.55rem;
+        border: 1px solid #c5cfcb;
+        border-radius: 25px;
+        background: rgba(248, 250, 249, 0.96);
+        box-shadow: 0 5px 18px rgba(20, 29, 30, 0.08);
+      }
+      .preview-controls button {
+        min-width: 3rem;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.68rem;
+      }
+      .preview-controls button.active {
+        border-color: #172231;
+        background: #172231;
+        color: #ffffff;
+      }
+      .preview-controls input {
+        width: 8rem;
+        accent-color: #278e97;
+      }
+      .preview-controls output {
+        min-width: 2.8rem;
+        color: #52605c;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.66rem;
+        text-align: right;
+      }
+      .preview-area {
+        min-width: 100%;
+      }
       .page-meta {
         display: flex;
-        width: min(100%, 210mm);
         justify-content: space-between;
         margin: 0 auto 0.65rem;
         color: #64706d;
         font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
         font-size: 0.58rem;
         letter-spacing: 0.05em;
+      }
+      .a4-viewport {
+        position: relative;
+        margin: 0 auto;
+        overflow: visible;
+      }
+      .a4-canvas {
+        width: 210mm;
+        transform-origin: top left;
+      }
+      .field-color-panel {
+        position: fixed;
+        z-index: 35;
+        width: min(19rem, calc(100vw - 1rem));
+        padding: 0.8rem;
+        border: 1px solid #b9c5c1;
+        border-radius: 8px;
+        background: #ffffff;
+        max-height: min(580px, 65svh);
+        overflow-y: auto;
+        box-shadow: 0 18px 50px rgba(18, 27, 28, 0.24);
+      }
+      .field-color-panel > header,
+      .field-color-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+      }
+      .field-color-panel > header div {
+        display: grid;
+        gap: 0.12rem;
+      }
+      .field-color-panel > header span {
+        color: #6b898b;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.55rem;
+        letter-spacing: 0.08em;
+      }
+      .field-color-panel > header strong {
+        font-size: 0.76rem;
+      }
+      .field-color-panel > header button {
+        width: 1.8rem;
+        height: 1.8rem;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+      }
+      .field-preset-grid {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 0.4rem;
+        margin: 0.75rem 0;
+      }
+      .field-preset-grid .color-preset {
+        width: 100%;
+        aspect-ratio: 1;
+        padding: 0;
+        border: 1px solid color-mix(in srgb, var(--swatch), black 15%);
+        border-radius: 50%;
+        background: var(--swatch);
+      }
+      .field-preset-grid .color-preset.selected {
+        box-shadow:
+          0 0 0 2px #ffffff,
+          0 0 0 4px #172231;
+      }
+      .field-color-panel .custom-color-row {
+        margin-bottom: 0.75rem;
+      }
+      .field-color-footer {
+        padding-top: 0.7rem;
+        border-top: 1px solid #e1e6e4;
+      }
+      .field-color-footer span {
+        color: #66736f;
+        font-size: 0.62rem;
+      }
+      .field-color-footer span.low-contrast {
+        color: #a04c43;
+      }
+      .field-color-footer button {
+        padding: 0.38rem 0.65rem;
+        font-size: 0.64rem;
       }
       .crop-backdrop {
         position: fixed;
@@ -985,7 +1471,6 @@ type ColorTarget = keyof ResumeColors;
       .apply-crop {
         border-color: #171c1e;
         background: #171c1e;
-        color: #ffffff;
         font-weight: 700;
       }
       .loading-state {
@@ -1059,12 +1544,1183 @@ type ColorTarget = keyof ResumeColors;
         .page-stage {
           padding: 1rem 0.5rem 3rem;
         }
+        .preview-controls {
+          top: 0.5rem;
+        }
+      }
+      .text-toolbar {
+        position: sticky;
+        top: 4rem;
+        z-index: 9;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 8px 20px;
+        background: #ffffff;
+        border-bottom: 1px solid #d6dcda;
+        font-size: 13px;
+      }
+      .text-toolbar > span {
+        min-width: 120px;
+      }
+      .text-color-trigger,
+      .restore-color {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .text-color-trigger i,
+      .restore-color i {
+        width: 16px;
+        height: 16px;
+        border: 1px solid #b9c5c1;
+        border-radius: 50%;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      button:focus-visible {
+        outline: 2px solid #278e97;
+        outline-offset: 3px;
+      }
+      .command-bar button,
+      .text-toolbar button {
+        min-height: 38px;
+        border-radius: 25px;
+      }
+      .download-button {
+        background: #172231;
+        color: #ffffff;
+        border-color: #172231;
+        font-weight: 650;
+      }
+      .save-controls {
+        position: relative;
+      }
+      .more-actions-anchor {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+      .more-menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        min-width: 10.5rem;
+        padding: 0.35rem;
+        background: white;
+        border: 1px solid #c5cfcb;
+        border-radius: 10px;
+        box-shadow: 0 8px 24px #0002;
+        z-index: 25;
+      }
+      .more-menu button {
+        width: 100%;
+        min-height: 2.5rem;
+        padding: 0.55rem 0.7rem;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        text-align: left;
+        white-space: nowrap;
+        color: #a04740;
+      }
+      .more-menu button:hover {
+        background: #fff2f0;
+      }
+      .palette-label {
+        margin: 14px 0 6px;
+        font-size: 12px;
+        color: #52605c;
+      }
+      .field-preset-grid {
+        margin: 6px 0 12px;
+      }
+      .section-actions {
+        gap: 3px;
+        padding-left: 4px;
+      }
+      .section-actions button {
+        min-height: 32px;
+        min-width: 28px;
+        border-radius: 25px;
+      }
+      /* Structured Studio: faithful implementation of the selected three-column concept. */
+      :host {
+        --editor-accent: #277f84;
+        --editor-accent-soft: #e8f5f5;
+        --editor-text: #1f2329;
+        --editor-text-secondary: #646a73;
+        --editor-border: #dfe3e6;
+        --editor-surface: #ffffff;
+        --editor-workspace: #eef2f3;
+      }
+      .editor-shell {
+        background: var(--editor-workspace);
+      }
+      .command-bar {
+        grid-template-columns: minmax(18rem, 1fr) auto minmax(24rem, 1fr);
+        min-height: 4.25rem;
+        gap: 1.25rem;
+        padding: 0 1.25rem;
+        border-bottom-color: var(--editor-border);
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 0 1px 5px rgba(31, 35, 41, 0.06);
+      }
+      .command-bar button,
+      .command-bar select,
+      .command-bar input {
+        min-height: 2.5rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+      }
+      .back-button {
+        width: 2rem;
+        height: 2rem;
+        font-size: 1.1rem;
+      }
+      .studio-mark {
+        width: auto;
+        height: auto;
+        padding-right: 1rem;
+        border-right: 1px solid var(--editor-border);
+        background: transparent;
+        color: #172231;
+        font-size: 1.18rem;
+        letter-spacing: 0.025em;
+      }
+      .document-identity input {
+        width: min(16rem, 24vw);
+        border: 1px solid transparent;
+        padding-inline: 0.75rem;
+        color: var(--editor-text);
+        font-size: 0.9rem;
+        font-weight: 650;
+      }
+      .document-identity input:hover,
+      .document-identity input:focus {
+        border-color: var(--editor-border);
+        background: #ffffff;
+      }
+      .document-controls label {
+        gap: 0.6rem;
+        color: var(--editor-text-secondary);
+        font-size: 0.75rem;
+      }
+      .colors-button {
+        flex-direction: row-reverse;
+        border-color: var(--editor-border);
+      }
+      .colors-button i {
+        width: 1.35rem;
+        height: 1.35rem;
+      }
+      .save-controls {
+        gap: 0.65rem;
+        font-weight: 700;
+      }
+      .save-state {
+        font-size: 0.72rem;
+      }
+      .save-controls > button:not(.download-button):not(.more-button) {
+        border-color: var(--editor-border);
+        background: #ffffff;
+      }
+      .save-controls > button:nth-of-type(2) {
+        border-color: transparent;
+        background: transparent;
+        color: var(--editor-accent);
+      }
+      .save-controls .more-button {
+        width: 2.5rem;
+        border-color: var(--editor-border);
+      }
+      .download-button {
+        min-width: 8.5rem;
+        justify-content: center;
+        border-color: #236f74;
+        background: var(--editor-accent);
+        color: #ffffff;
+        font-weight: 700;
+      }
+      .editor-workspace {
+        grid-template-columns: 16.25rem minmax(30rem, 1fr) 17rem;
+        height: calc(100svh - 4.25rem);
+        min-height: 0;
+        overflow: hidden;
+      }
+      .structure-panel,
+      .design-panel {
+        position: relative;
+        top: 0;
+        height: 100%;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        background: #fbfcfc;
+      }
+      .structure-panel {
+        border-right: 1px solid var(--editor-border);
+      }
+      .structure-panel > header {
+        padding: 1.5rem 1.25rem 0.45rem;
+        border-bottom: 0;
+      }
+      .structure-panel header span {
+        display: none;
+      }
+      .structure-panel h2 {
+        margin: 0;
+        color: var(--editor-text);
+        font-size: 1.05rem;
+      }
+      .structure-panel header > small {
+        font-size: 0.75rem;
+      }
+      .sections-help {
+        margin: 0;
+        padding: 0 1.25rem 1.1rem;
+        border-bottom: 1px solid var(--editor-border);
+        color: var(--editor-text-secondary);
+        font-size: 0.75rem;
+        line-height: 1.5;
+      }
+      .profile-photo-control {
+        margin: 0;
+        padding: 1.15rem 1.25rem;
+        border-bottom: 1px solid var(--editor-border);
+        background: transparent;
+      }
+      .profile-photo-heading span {
+        color: var(--editor-text);
+        font-family: inherit;
+        font-size: 0.75rem;
+        font-weight: 650;
+        letter-spacing: 0;
+      }
+      .profile-photo-row {
+        display: grid;
+        grid-template-columns: 3.25rem minmax(0, 1fr);
+        margin-top: 0.85rem;
+      }
+      .profile-photo-row > div {
+        flex-wrap: wrap;
+        min-width: 0;
+      }
+      .profile-photo-row > img,
+      .profile-photo-placeholder {
+        width: 3.25rem;
+        height: 3.25rem;
+      }
+      .profile-photo-row button {
+        min-height: 2rem;
+        border-color: var(--editor-border);
+        border-radius: 6px;
+        font-size: 0.72rem;
+      }
+      .photo-visibility {
+        margin-top: 0.8rem;
+        color: var(--editor-text-secondary);
+        font-size: 0.72rem;
+      }
+      .section-list {
+        padding: 0.75rem 1rem;
+      }
+      .section-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        min-height: 3.5rem;
+        margin-bottom: 0.35rem;
+        border-color: var(--editor-border);
+        border-radius: 6px;
+        box-shadow: none;
+      }
+      .section-row.active {
+        border-color: #bee1e2;
+        background: var(--editor-accent-soft);
+        box-shadow: inset 3px 0 0 var(--editor-accent);
+      }
+      .section-main {
+        grid-template-columns: 1rem 1.1rem minmax(0, 1fr);
+        gap: 0.55rem;
+        min-width: 0;
+        padding: 0.62rem 0.45rem;
+      }
+      .section-main strong {
+        color: var(--editor-text);
+        font-size: 0.78rem;
+      }
+      .section-main small {
+        color: #7b8490;
+        font-size: 0.65rem;
+        text-transform: none;
+      }
+      .section-actions,
+      .section-row.active .section-actions,
+      .section-row:focus-within .section-actions {
+        position: relative;
+        display: flex;
+        grid-template-columns: none;
+        gap: 0.1rem;
+        padding: 0 0.35rem 0 0;
+      }
+      .section-actions button {
+        min-width: 1.8rem;
+        min-height: 1.8rem;
+        border: 0;
+        border-radius: 5px;
+      }
+      .visibility-toggle {
+        appearance: none;
+        position: relative;
+        width: 2rem;
+        height: 1.15rem;
+        flex: 0 0 auto;
+        border: 0;
+        border-radius: 999px;
+        background: #cbd2d5;
+        cursor: pointer;
+        transition: background 140ms ease;
+      }
+      .visibility-toggle::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 0.9rem;
+        height: 0.9rem;
+        border-radius: 50%;
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(31, 35, 41, 0.2);
+        transition: transform 140ms ease;
+      }
+      .visibility-toggle:checked {
+        background: var(--editor-accent);
+      }
+      .visibility-toggle:checked::after {
+        transform: translateX(0.85rem);
+      }
+      .section-menu {
+        position: absolute;
+        top: calc(100% + 0.35rem);
+        right: 0;
+        z-index: 24;
+        display: grid;
+        width: 10.5rem;
+        padding: 0.35rem;
+        border: 1px solid var(--editor-border);
+        border-radius: 7px;
+        background: #ffffff;
+        box-shadow: 0 8px 24px rgba(31, 35, 41, 0.14);
+      }
+      .section-menu button {
+        justify-content: flex-start;
+        width: 100%;
+        padding-inline: 0.65rem;
+        color: var(--editor-text);
+        text-align: left;
+      }
+      .section-menu button:hover {
+        background: #f3f5f5;
+      }
+      .section-menu button.danger {
+        color: #c53b3f;
+      }
+      .add-section {
+        position: relative;
+        grid-template-columns: minmax(0, 1fr) 2.75rem;
+        margin-top: auto;
+        padding: 1rem;
+        border-top-color: var(--editor-border);
+      }
+      .add-section-button {
+        display: inline-flex;
+        min-height: 2.5rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.45rem;
+        border-color: var(--editor-border);
+        border-radius: 6px 0 0 6px;
+        color: var(--editor-text);
+      }
+      .add-section select {
+        box-sizing: border-box;
+        min-height: 2.5rem;
+        border-color: var(--editor-border);
+        border-radius: 0 6px 6px 0;
+        border-left: 0;
+        padding: 0;
+        color: transparent;
+      }
+      .add-section select option {
+        color: var(--editor-text);
+      }
+      .add-section-chevron {
+        position: absolute;
+        right: 1.85rem;
+        top: 50%;
+        pointer-events: none;
+        transform: translateY(-50%);
+      }
+      .structure-panel > footer {
+        display: none;
+      }
+      .page-stage {
+        position: relative;
+        min-height: 0;
+        overflow: auto;
+        padding: 1.3rem 2rem 5rem;
+        background: var(--editor-workspace);
+      }
+      .page-meta {
+        margin-bottom: 0.65rem;
+        color: #7b8490;
+        font-family: inherit;
+        font-size: 0.72rem;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      .preview-controls {
+        position: fixed;
+        right: calc(17rem + 1.5rem);
+        bottom: 1rem;
+        z-index: 8;
+        gap: 0;
+        margin: 0;
+        padding: 0.3rem;
+        border-color: var(--editor-border);
+        border-radius: 7px;
+        background: #ffffff;
+        box-shadow: 0 4px 16px rgba(31, 35, 41, 0.1);
+      }
+      .preview-controls button {
+        min-width: 2.7rem;
+        min-height: 2rem;
+        border-color: transparent;
+        border-radius: 5px;
+        padding: 0.25rem 0.65rem;
+        background: transparent;
+        font-size: 0.75rem;
+      }
+      .preview-controls button:hover {
+        background: #f2f4f5;
+      }
+      .preview-controls output {
+        display: grid;
+        min-width: 3.8rem;
+        place-items: center;
+        color: var(--editor-text);
+        font-family: inherit;
+        font-size: 0.75rem;
+        font-weight: 650;
+      }
+      .design-panel {
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid var(--editor-border);
+      }
+      .inspector-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-bottom: 1px solid var(--editor-border);
+      }
+      .inspector-tabs button {
+        min-height: 3.5rem;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        border-radius: 0;
+        background: transparent;
+        color: var(--editor-text-secondary);
+        font-size: 0.78rem;
+      }
+      .inspector-tabs button.active {
+        border-bottom-color: var(--editor-accent);
+        color: var(--editor-accent);
+        font-weight: 700;
+      }
+      .inspector-group {
+        padding: 1.35rem 1rem;
+        border-bottom: 1px solid var(--editor-border);
+      }
+      .inspector-group > label,
+      .page-size-card > label {
+        display: block;
+        margin-bottom: 0.7rem;
+        color: var(--editor-text);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .inspector-group > p,
+      .page-size-card > small {
+        display: block;
+        margin: 0.65rem 0 0;
+        color: #7b8490;
+        font-size: 0.7rem;
+        line-height: 1.5;
+      }
+      .template-control-card {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 1.2rem;
+        align-items: center;
+        gap: 0.7rem;
+        min-height: 5rem;
+        padding: 0.65rem;
+        border: 1px solid var(--editor-border);
+        border-radius: 7px;
+        background: #ffffff;
+      }
+      .template-thumbnail {
+        display: none;
+      }
+      .template-control-card div {
+        display: grid;
+        gap: 0.25rem;
+      }
+      .template-control-card strong {
+        font-size: 0.76rem;
+      }
+      .template-control-card small {
+        color: #7b8490;
+        font-size: 0.65rem;
+        line-height: 1.35;
+      }
+      .template-control-card select {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .inspector-color-control {
+        display: grid;
+        grid-template-columns: 2.1rem minmax(0, 1fr) auto;
+        width: 100%;
+        min-height: 2.65rem;
+        align-items: center;
+        gap: 0.65rem;
+        border-color: var(--editor-border);
+        border-radius: 7px;
+        background: #ffffff;
+        text-align: left;
+      }
+      .inspector-color-control i {
+        width: 1.8rem;
+        height: 1.8rem;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 50%;
+      }
+      .inspector-color-control code {
+        color: var(--editor-text);
+        font-family: inherit;
+        font-size: 0.74rem;
+      }
+      .inspector-reset {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-top: 0.8rem;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--editor-accent);
+        font-size: 0.72rem;
+      }
+      .section-inspector > strong {
+        color: var(--editor-text);
+        font-size: 0.9rem;
+      }
+      .page-size-card {
+        margin: auto 1rem 1rem;
+        padding: 0.9rem;
+        border: 1px solid var(--editor-border);
+        border-radius: 7px;
+        background: #ffffff;
+      }
+      .page-size-card select {
+        width: 100%;
+        min-height: 2.5rem;
+        border: 1px solid var(--editor-border);
+        border-radius: 6px;
+        padding: 0.45rem 0.6rem;
+        background: #ffffff;
+        color: var(--editor-text);
+        font-size: 0.72rem;
+      }
+      .colors-panel {
+        position: fixed;
+        top: 4.75rem;
+        right: 19.5rem;
+        left: auto;
+        width: 19rem;
+        transform: none;
+      }
+      .field-color-panel {
+        width: 18.5rem;
+      }
+
+      /* Screenshot-aligned refinements for the Structured Studio shell. */
+      .document-name-control {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .document-name-control input {
+        padding-right: 2.35rem;
+      }
+      .document-name-control > svg {
+        position: absolute;
+        right: 0.8rem;
+        pointer-events: none;
+        color: #172231;
+      }
+      .color-control {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+      }
+      .control-label {
+        color: var(--editor-text-secondary);
+        font-size: 0.75rem;
+        white-space: nowrap;
+      }
+      .colors-button {
+        display: grid;
+        grid-template-columns: 1.35rem minmax(4.9rem, auto) 1rem;
+        gap: 0.55rem;
+        padding-inline: 0.65rem;
+      }
+      .select-control {
+        position: relative;
+        display: block;
+      }
+      .select-control select {
+        min-width: 9rem;
+        padding-right: 2.15rem;
+        appearance: none;
+      }
+      .select-control > svg {
+        position: absolute;
+        top: 50%;
+        right: 0.7rem;
+        pointer-events: none;
+        transform: translateY(-50%);
+        color: var(--editor-text);
+      }
+      .template-picker,
+      .template-card-picker {
+        position: relative;
+        display: block;
+      }
+      .template-picker-trigger {
+        display: flex;
+        min-width: 9rem;
+        min-height: 2.5rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.5rem 0.7rem 0.5rem 0.85rem;
+        border: 1px solid var(--editor-border);
+        border-radius: 7px;
+        background: #ffffff;
+        color: var(--editor-text);
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+      .template-picker-trigger:hover,
+      .template-picker-trigger:focus-visible {
+        border-color: #aeb8bd;
+        background: #fbfcfc;
+      }
+      .template-picker-trigger:focus-visible {
+        outline: 2px solid color-mix(in srgb, var(--editor-accent), transparent 72%);
+        outline-offset: 2px;
+      }
+      .template-picker-trigger svg,
+      .template-chevron {
+        transition: transform 150ms ease;
+      }
+      .template-picker-trigger svg.open,
+      .template-chevron.open {
+        transform: rotate(180deg);
+      }
+      .template-options {
+        position: absolute;
+        top: calc(100% + 0.45rem);
+        right: 0;
+        left: 0;
+        z-index: 40;
+        display: grid;
+        min-width: 12rem;
+        padding: 0.35rem;
+        border: 1px solid var(--editor-border);
+        border-radius: 9px;
+        background: #ffffff;
+        box-shadow: 0 12px 32px rgba(31, 35, 41, 0.16);
+      }
+      .template-options > button {
+        display: grid;
+        grid-template-columns: 1.5rem minmax(0, 1fr) 1rem;
+        min-height: 2.5rem;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.65rem;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--editor-text);
+        font-size: 0.78rem;
+        text-align: left;
+      }
+      .template-options > button:hover,
+      .template-options > button:focus-visible {
+        background: #f1f7f7;
+        outline: none;
+      }
+      .template-options > button.selected {
+        background: var(--editor-accent-soft);
+        color: #17666b;
+        font-weight: 700;
+      }
+      .colors-button code {
+        color: var(--editor-text);
+        font-family: inherit;
+        font-size: 0.78rem;
+      }
+      .colors-panel header button,
+      .field-color-panel header button {
+        width: 1.75rem;
+        height: 1.75rem;
+        min-height: 1.75rem;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 0.9rem;
+      }
+      .profile-photo-control {
+        margin: 1rem 1rem 0.75rem;
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid var(--editor-border);
+        border-radius: 7px;
+        background: #ffffff;
+      }
+      .profile-photo-heading {
+        min-height: 3rem;
+        padding: 0 0.6rem;
+      }
+      .profile-title-wrap,
+      .profile-heading-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+      }
+      .profile-title-wrap strong {
+        color: var(--editor-text);
+        font-size: 0.78rem;
+      }
+      .profile-heading-actions button {
+        display: grid;
+        width: 1.8rem;
+        height: 1.8rem;
+        place-items: center;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--editor-text-secondary);
+      }
+      .profile-photo-row {
+        grid-template-columns: 4.15rem minmax(0, 1fr);
+        margin: 0;
+        padding: 0.35rem 0.75rem 0.6rem;
+      }
+      .profile-photo-row > img,
+      .profile-photo-placeholder {
+        width: 4.5rem;
+        height: 4.5rem;
+      }
+      .photo-visibility {
+        margin: 0;
+        padding: 0.65rem 0.75rem;
+        border-top: 1px solid #edf0f1;
+      }
+      .photo-visibility input {
+        width: 1rem;
+        height: 1rem;
+      }
+      .section-list {
+        padding-top: 0;
+      }
+      .section-row {
+        min-height: 3.25rem;
+      }
+      .section-main > span:last-child {
+        display: block;
+      }
+      .template-control-card {
+        grid-template-columns: 2.4rem minmax(0, 1fr) 1rem;
+        width: 100%;
+        text-align: left;
+      }
+      .template-card-copy {
+        display: grid;
+        min-width: 0;
+        gap: 0.25rem;
+      }
+      .template-thumbnail {
+        position: relative;
+        display: block;
+        width: 2.25rem;
+        height: 3rem;
+        overflow: hidden;
+        border: 1px solid #aeb8bd;
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(31, 35, 41, 0.08);
+      }
+      .template-thumbnail-canvas {
+        position: absolute;
+        inset: 0 auto auto 0;
+        display: block;
+        width: 210mm;
+        transform: scale(0.0453);
+        transform-origin: top left;
+        pointer-events: none;
+      }
+      .template-thumbnail-canvas nexus-resume-renderer {
+        display: block;
+      }
+      .template-chevron {
+        color: var(--editor-text);
+      }
+      .template-options-rich {
+        min-width: 100%;
+      }
+      .template-options-rich > button {
+        grid-template-columns: 1.75rem minmax(0, 1fr) 1rem;
+        min-height: 3.25rem;
+      }
+      .template-options-rich > button > span:nth-child(2) {
+        display: grid;
+        min-width: 0;
+        gap: 0.15rem;
+      }
+      .template-options-rich strong {
+        font-size: 0.78rem;
+      }
+      .template-options-rich small {
+        overflow: hidden;
+        color: #7b8490;
+        font-size: 0.65rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .preview-controls {
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .add-section {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.65rem;
+      }
+      .add-section-type {
+        display: grid;
+        gap: 0.4rem;
+        color: var(--editor-text-secondary);
+        font-size: 0.72rem;
+        font-weight: 650;
+      }
+      .add-section-select {
+        position: relative;
+        display: block;
+      }
+      .add-section-select-trigger {
+        display: flex;
+        width: 100%;
+        min-height: 2.65rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.55rem 2.5rem 0.55rem 0.8rem;
+        border: 1px solid var(--editor-border);
+        border-radius: 7px;
+        background: #ffffff;
+        color: var(--editor-text);
+        cursor: pointer;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-align: left;
+      }
+      .add-section-select-trigger:hover {
+        border-color: #aeb8bd;
+        background: #fbfcfc;
+      }
+      .add-section-select-trigger:focus-visible {
+        border-color: var(--editor-accent);
+        outline: 2px solid color-mix(in srgb, var(--editor-accent), transparent 72%);
+        outline-offset: 2px;
+      }
+      .add-section-select-trigger > svg {
+        position: absolute;
+        top: 50%;
+        right: 0.8rem;
+        pointer-events: none;
+        transform: translateY(-50%);
+        color: var(--editor-text-secondary);
+        transition: transform 150ms ease;
+      }
+      .add-section-select-trigger > svg.open {
+        transform: translateY(-50%) rotate(180deg);
+      }
+      .add-section-options {
+        position: absolute;
+        right: 0;
+        bottom: calc(100% + 0.45rem);
+        left: 0;
+        z-index: 30;
+        display: grid;
+        max-height: 17.5rem;
+        overflow-y: auto;
+        padding: 0.35rem;
+        border: 1px solid var(--editor-border);
+        border-radius: 9px;
+        background: #ffffff;
+        box-shadow: 0 12px 32px rgba(31, 35, 41, 0.16);
+      }
+      .add-section-options > button {
+        display: grid;
+        grid-template-columns: 1.75rem minmax(0, 1fr) 1rem;
+        min-height: 2.5rem;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.65rem;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--editor-text);
+        font-size: 0.78rem;
+        font-weight: 550;
+        text-align: left;
+      }
+      .add-section-options > button:hover,
+      .add-section-options > button:focus-visible {
+        background: #f1f7f7;
+        outline: none;
+      }
+      .add-section-options > button.selected {
+        background: var(--editor-accent-soft);
+        color: #17666b;
+        font-weight: 700;
+      }
+      .section-option-icon {
+        display: grid;
+        width: 1.75rem;
+        height: 1.75rem;
+        place-items: center;
+        border-radius: 6px;
+        background: #f2f4f5;
+        color: #53606a;
+      }
+      .selected .section-option-icon {
+        background: #d7eded;
+        color: var(--editor-accent);
+      }
+      .section-option-check {
+        color: var(--editor-accent);
+      }
+      .add-section .add-section-button {
+        width: 100%;
+        min-height: 2.65rem;
+        border: 1px solid var(--editor-accent);
+        border-radius: 7px;
+        background: var(--editor-accent);
+        color: #ffffff;
+      }
+      @media (min-width: 1181px) {
+        .editor-workspace {
+          grid-template-columns: 19.5rem minmax(30rem, 1fr) 19.5rem;
+        }
+        .structure-panel > header {
+          padding: 1.55rem 1.25rem 0.5rem;
+        }
+        .structure-panel h2 {
+          font-size: 1rem;
+          font-weight: 700;
+        }
+        .sections-help {
+          font-size: 0.8rem;
+        }
+        .profile-title-wrap strong,
+        .section-main strong {
+          font-size: 0.82rem;
+          font-weight: 650;
+        }
+        .profile-photo-row {
+          grid-template-columns: 4.5rem minmax(0, 1fr);
+          gap: 0.55rem;
+        }
+        .profile-photo-row > div {
+          flex-wrap: nowrap;
+        }
+        .profile-photo-row button,
+        .photo-visibility,
+        .add-section-button {
+          font-size: 0.76rem;
+        }
+        .profile-photo-row button {
+          padding-inline: 0.48rem;
+        }
+        .section-list {
+          flex: 0 0 auto;
+          overflow: visible;
+        }
+        .section-row {
+          min-height: 3.35rem;
+        }
+        .add-section {
+          margin-top: 0;
+          padding: 0 1rem 1rem;
+          border-top: 0;
+        }
+        .add-section {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0.65rem;
+        }
+        .inspector-tabs button,
+        .inspector-group > label,
+        .page-size-card > label {
+          font-size: 0.82rem;
+        }
+        .inspector-group > p,
+        .page-size-card > small,
+        .template-control-card small {
+          font-size: 0.74rem;
+        }
+        .template-control-card strong,
+        .inspector-color-control code {
+          font-size: 0.8rem;
+        }
+        .colors-panel {
+          position: absolute;
+          top: calc(100% + 0.65rem);
+          right: auto;
+          left: 0;
+          width: 19rem;
+        }
+        .field-color-panel {
+          right: 1rem;
+          left: auto !important;
+          width: 17.5rem;
+          box-sizing: border-box;
+        }
+      }
+      @media (max-width: 980px) {
+        .editor-workspace {
+          grid-template-columns: 15rem minmax(32rem, 1fr);
+        }
+        .design-panel {
+          display: none;
+        }
+        .preview-controls {
+          right: auto;
+        }
+      }
+      @media (max-width: 1100px) {
+        .text-toolbar {
+          top: 0;
+        }
+      }
+      @media (max-width: 760px) {
+        .editor-workspace {
+          display: block;
+          height: auto;
+          overflow: visible;
+        }
+        .structure-panel {
+          max-height: none;
+        }
+        .page-stage {
+          min-height: 100svh;
+        }
+        .preview-controls {
+          top: auto;
+          right: auto;
+          left: 50%;
+          bottom: 0.75rem;
+        }
+        .field-color-panel {
+          left: 0 !important;
+          top: auto !important;
+          bottom: 0;
+          width: 100%;
+          max-height: 55svh;
+          box-sizing: border-box;
+          border-radius: 8px 8px 0 0;
+          padding: 16px;
+        }
+        .text-toolbar {
+          flex-wrap: wrap;
+        }
+        .document-controls {
+          flex-wrap: wrap;
+        }
+      }
+      @page {
+        size: A4;
+        margin: 44px 0;
+      }
+      @media print {
+        :host,
+        .editor-shell,
+        .editor-workspace,
+        .page-stage,
+        .preview-area {
+          display: block;
+          min-height: 0;
+          overflow: visible;
+          padding: 0;
+          background: #ffffff;
+        }
+        .command-bar,
+        .text-toolbar,
+        .more-menu,
+        .structure-panel,
+        .preview-controls,
+        .page-meta,
+        .field-color-panel,
+        .crop-backdrop {
+          display: none !important;
+        }
+        .a4-viewport {
+          width: 210mm !important;
+          height: auto !important;
+          margin: 0;
+        }
+        .a4-canvas {
+          width: 210mm;
+          transform: none !important;
+        }
       }
     `,
   ],
 })
 export class ResumeEditorComponent implements OnInit, OnDestroy {
   @ViewChild('cropCanvas') private cropCanvas?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('previewArea')
+  private set previewAreaRef(value: ElementRef<HTMLElement> | undefined) {
+    this.previewArea = value;
+    this.observePreview();
+  }
+  @ViewChild('previewCanvas')
+  private set previewCanvasRef(value: ElementRef<HTMLElement> | undefined) {
+    this.previewCanvas = value;
+    this.observePreview();
+  }
   protected readonly templates = RESUME_TEMPLATES;
   protected readonly colorGroups: Array<{
     key: ColorTarget;
@@ -1072,8 +2728,6 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     minimum: number;
   }> = [
     { key: 'accent', label: 'Accent', minimum: 3 },
-    { key: 'heading', label: 'Heading', minimum: 4.5 },
-    { key: 'body', label: 'Body text', minimum: 4.5 },
   ];
   protected readonly accentPresets = [
     '#0F9FB8',
@@ -1148,12 +2802,49 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   protected resume?: ResumeRecord;
   protected saveState = 'Loading';
   protected selectedSectionId = '';
+  protected sectionMenuId = '';
+  protected inspectorTab: 'design' | 'section' = 'design';
   protected newSectionType: ResumeSectionType = 'education';
+  protected addSectionMenuOpen = false;
+  protected templateMenuOpen = false;
+  protected inspectorTemplateMenuOpen = false;
   protected photoError = '';
   protected colorsOpen = false;
+  protected fieldColorOpen = false;
+  protected moreOpen = false;
+  protected recentFieldColors: string[] = [];
+  protected get fieldPaletteGroups() {
+    const groups = [
+      {
+        label: 'Document colors',
+        colors: [
+          ...new Set(
+            [
+              ...Object.values(this.currentColors),
+              ...Object.values(this.resume?.fieldColors ?? {}),
+            ].map((color) => color.toUpperCase()),
+          ),
+        ],
+      },
+    ];
+    if (this.recentFieldColors.length)
+      groups.push({ label: 'Recently used', colors: this.recentFieldColors });
+    groups.push({
+      label: 'Palette',
+      colors: ['#FFFFFF', '#20272A', '#69736F', '#A30034', ...this.accentPresets],
+    });
+    return groups;
+  }
   protected cropOpen = false;
   protected cropApplying = false;
   protected cropDraft: ResumePhotoCrop = { x: 0, y: 0, zoom: 1 };
+  protected selectedColorField?: ResumeColorSelection;
+  private paletteTarget?: ResumeColorSelection;
+  protected readonly a4Width = (210 / 25.4) * 96;
+  protected readonly a4Height = (297 / 25.4) * 96;
+  protected previewScale = 1;
+  protected previewContentHeight = this.a4Height;
+  protected previewMode: 'fit' | 'manual' = 'fit';
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
   private saveTimer?: number;
@@ -1161,8 +2852,12 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   private pendingPhotoSource = '';
   private cropImage?: HTMLImageElement;
   private cropPointer?: { id: number; x: number; y: number };
+  private previewArea?: ElementRef<HTMLElement>;
+  private previewCanvas?: ElementRef<HTMLElement>;
+  private previewResizeObserver?: ResizeObserver;
 
   ngOnInit() {
+    this.loadPreviewPreference();
     const id = this.route.snapshot.paramMap.get('id') ?? '';
     const recovery = localStorage.getItem(this.recoveryKey(id));
     if (recovery) {
@@ -1181,6 +2876,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     window.clearTimeout(this.saveTimer);
+    this.previewResizeObserver?.disconnect();
   }
 
   protected get orderedSections(): ResumeSection[] {
@@ -1196,10 +2892,91 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     return this.orderedSections.filter((section) => !section.hidden).length;
   }
 
+  protected get selectedSectionTypeLabel() {
+    return (
+      this.sectionOptions.find((option) => option.type === this.newSectionType)?.label ??
+      'section'
+    );
+  }
+
+  protected chooseSectionType(type: ResumeSectionType) {
+    this.newSectionType = type;
+    this.addSectionMenuOpen = false;
+  }
+
+  protected chooseTemplate(templateId: ResumeTemplateId) {
+    if (!this.resume) return;
+    this.resume.templateId = templateId;
+    this.templateMenuOpen = false;
+    this.inspectorTemplateMenuOpen = false;
+    this.markDirty();
+  }
+
+  protected get displaySaveState() {
+    return this.saveState === 'Saved' ? 'Saved just now' : this.saveState;
+  }
+
+  protected get selectedSection() {
+    return this.orderedSections.find((section) => section.id === this.selectedSectionId);
+  }
+
+  protected selectSection(sectionId: string) {
+    this.selectedSectionId = sectionId;
+    this.sectionMenuId = '';
+    this.addSectionMenuOpen = false;
+    this.templateMenuOpen = false;
+    this.inspectorTemplateMenuOpen = false;
+  }
+
+  protected toggleSectionMenu(sectionId: string, event: MouseEvent) {
+    event.stopPropagation();
+    this.sectionMenuId = this.sectionMenuId === sectionId ? '' : sectionId;
+  }
+
+  protected sectionSubtitle(type: ResumeSectionType) {
+    const subtitles: Record<ResumeSectionType, string> = {
+      summary: 'Introduce yourself',
+      experience: 'Work history',
+      education: 'Qualifications',
+      projects: 'Key projects',
+      skills: 'Technical skills',
+      certifications: 'Credentials',
+      languages: 'Languages',
+      awards: 'Recognition',
+      interests: 'Interests',
+      custom: 'Custom content',
+    };
+    return subtitles[type];
+  }
+
   protected get currentColors(): ResumeColors {
     return this.resume
       ? resolveResumeColors(this.resume)
-      : { accent: '#0f9fb8', heading: '#20272a', body: '#30383b' };
+      : { ...RESUME_TEMPLATE_COLOR_DEFAULTS['tech-core'] };
+  }
+
+  protected get selectedFieldColor() {
+    const target = this.activeColorField;
+    if (!target) return '#30383B';
+    const inheritedColor =
+      this.currentColors[target.role] ?? this.currentColors.body ?? this.currentColors.heading;
+    return (this.resume?.fieldColors?.[target.key] ?? inheritedColor ?? '#30383B').toUpperCase();
+  }
+
+  protected get activeColorField() {
+    return this.selectedColorField ?? this.paletteTarget;
+  }
+
+  protected get fieldColorMaxHeight() {
+    const top = this.activeColorField?.top ?? 8;
+    return Math.max(220, window.innerHeight - top - 12);
+  }
+
+  protected get selectedRoleColor() {
+    const roleColor = this.activeColorField
+      ? this.currentColors[this.activeColorField.role]
+      : undefined;
+    return roleColor ?? this.currentColors.body ?? this.currentColors.heading ?? '#30383B';
   }
 
   protected markDirty() {
@@ -1265,6 +3042,14 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     const duplicate = structuredClone(section);
     duplicate.id = crypto.randomUUID();
     duplicate.title = section.title + ' Copy';
+    const sourcePrefix = `section:${section.id}:`;
+    const duplicatePrefix = `section:${duplicate.id}:`;
+    const copiedColors = Object.fromEntries(
+      Object.entries(this.resume.fieldColors ?? {})
+        .filter(([key]) => key.startsWith(sourcePrefix))
+        .map(([key, color]) => [duplicatePrefix + key.slice(sourcePrefix.length), color]),
+    );
+    this.resume.fieldColors = { ...this.resume.fieldColors, ...copiedColors };
     this.resume.content.sections.push(duplicate);
     const index = this.resume.sectionOrder.indexOf(section.id);
     this.resume.sectionOrder.splice(index + 1, 0, duplicate.id);
@@ -1276,6 +3061,11 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     if (!this.resume || !window.confirm('Delete the "' + section.title + '" section?')) return;
     this.resume.content.sections = this.resume.content.sections.filter(
       (item) => item.id !== section.id,
+    );
+    this.resume.fieldColors = Object.fromEntries(
+      Object.entries(this.resume.fieldColors ?? {}).filter(
+        ([key]) => !key.startsWith(`section:${section.id}:`),
+      ),
     );
     this.resume.sectionOrder = this.resume.sectionOrder.filter((id) => id !== section.id);
     this.selectedSectionId = this.resume.sectionOrder[0] ?? '';
@@ -1292,8 +3082,10 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   }
 
   protected presetsFor(target: ColorTarget) {
-    if (target === 'accent') return this.accentPresets;
-    if (target === 'heading') return this.headingPresets;
+    if (['accent', 'headline', 'sectionTitle'].includes(target)) return this.accentPresets;
+    if (['heading', 'name', 'organization', 'role', 'skillLabel'].includes(target)) {
+      return this.headingPresets;
+    }
     return this.bodyPresets;
   }
 
@@ -1303,8 +3095,99 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   protected setColor(target: ColorTarget, value: string) {
     if (!this.resume || !/^#[0-9a-f]{6}$/i.test(value)) return;
-    this.resume.colors = { ...this.currentColors, [target]: value.toLowerCase() };
+    const next = { ...this.currentColors };
+    const previous = next[target];
+    next[target] = value.toLowerCase();
+    const linkedRoles: Partial<Record<ColorTarget, ColorTarget[]>> = {
+      accent: ['headline', 'sectionTitle'],
+      heading: ['name', 'organization', 'role', 'skillLabel'],
+      body: ['contact', 'meta', 'description', 'bullet', 'skillText'],
+    };
+    for (const role of linkedRoles[target] ?? []) {
+      if (next[role] === previous) next[role] = value.toLowerCase();
+    }
+    this.resume.colors = next;
     this.markDirty();
+  }
+
+  protected openFieldColor(selection: ResumeColorSelection) {
+    const panelWidth = 304;
+    const panelHeight = Math.min(580, window.innerHeight * 0.65);
+    this.selectedColorField = {
+      ...selection,
+      left: this.clamp(selection.left, 8, Math.max(8, window.innerWidth - panelWidth - 8)),
+      top: this.clamp(selection.top, 8, Math.max(8, window.innerHeight - panelHeight - 8)),
+    };
+    this.paletteTarget = this.selectedColorField;
+    this.colorsOpen = false;
+    this.fieldColorOpen = false;
+  }
+
+  protected toggleFieldPalette(button: HTMLElement) {
+    const target = this.selectedColorField ?? this.paletteTarget;
+    if (!target) return;
+    const rect = button.getBoundingClientRect();
+    const panelWidth = Math.min(304, window.innerWidth - 16);
+    this.selectedColorField = {
+      ...target,
+      left: this.clamp(rect.left, 8, Math.max(8, window.innerWidth - panelWidth - 8)),
+      // The palette belongs below the control. Do not push it upward over the trigger
+      // when viewport space is limited; the panel has its own vertical scrolling.
+      top: rect.bottom + 10,
+    };
+    this.paletteTarget = this.selectedColorField;
+    this.fieldColorOpen = !this.fieldColorOpen;
+    this.colorsOpen = false;
+  }
+
+  protected setFieldColor(value: string) {
+    const target = this.activeColorField;
+    if (!this.resume || !target || !/^#[0-9a-f]{6}$/i.test(value)) return;
+    this.resume.fieldColors = {
+      ...this.resume.fieldColors,
+      [target.key]: value.toLowerCase(),
+    };
+    this.recentFieldColors = [
+      value.toUpperCase(),
+      ...this.recentFieldColors.filter((color) => color !== value.toUpperCase()),
+    ].slice(0, 8);
+    this.markDirty();
+  }
+
+  protected onFieldNativeColor(event: Event) {
+    this.setFieldColor((event.target as HTMLInputElement).value);
+  }
+
+  protected onFieldHexColor(event: Event) {
+    const value = (event.target as HTMLInputElement).value.trim();
+    if (/^#[0-9a-f]{6}$/i.test(value)) this.setFieldColor(value);
+  }
+
+  protected clearFieldColor() {
+    const target = this.activeColorField;
+    if (!this.resume || !target) return;
+    const next = { ...this.resume.fieldColors };
+    delete next[target.key];
+    this.resume.fieldColors = next;
+    this.markDirty();
+  }
+
+  protected useFitPreview() {
+    this.previewMode = 'fit';
+    this.updatePreviewMeasurements();
+    this.savePreviewPreference();
+  }
+
+  protected adjustPreviewScale(delta: number) {
+    this.previewMode = 'manual';
+    this.previewScale = this.clamp(this.previewScale + delta, 0.5, 1.25);
+    this.savePreviewPreference();
+  }
+
+  protected downloadPdf() {
+    this.fieldColorOpen = false;
+    this.colorsOpen = false;
+    window.setTimeout(() => window.print());
   }
 
   protected onNativeColor(target: ColorTarget, event: Event) {
@@ -1322,17 +3205,30 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     this.markDirty();
   }
 
-  protected contrastRatio(color: string) {
-    const rgb = color
-      .slice(1)
-      .match(/.{2}/g)
-      ?.map((part) => Number.parseInt(part, 16) / 255);
-    if (!rgb || rgb.some(Number.isNaN)) return 1;
-    const luminance = rgb.reduce((sum, channel, index) => {
+  protected contrastRatio(color: string, background = '#ffffff') {
+    const foregroundLuminance = this.colorLuminance(color);
+    const backgroundLuminance = this.colorLuminance(background);
+    const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+    const darker = Math.min(foregroundLuminance, backgroundLuminance);
+    return Number(((lighter + 0.05) / (darker + 0.05)).toFixed(2));
+  }
+
+  private colorLuminance(color: string) {
+    const hexChannels = color
+      .replace('#', '')
+      .match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+      ?.slice(1)
+      .map((part) => Number.parseInt(part, 16));
+    const rgbChannels = color
+      .match(/rgba?\(\s*(\d+(?:\.\d+)?)\D+(\d+(?:\.\d+)?)\D+(\d+(?:\.\d+)?)/i)
+      ?.slice(1)
+      .map(Number);
+    const channels = hexChannels ?? rgbChannels ?? [255, 255, 255];
+    return channels.reduce((sum, rawChannel, index) => {
+      const channel = rawChannel / 255;
       const linear = channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
       return sum + linear * [0.2126, 0.7152, 0.0722][index];
     }, 0);
-    return Number((1.05 / (luminance + 0.05)).toFixed(2));
   }
 
   protected async onPhotoSelected(event: Event) {
@@ -1461,8 +3357,29 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   protected closeFloatingPanels() {
+    this.fieldColorOpen = false;
+    this.moreOpen = false;
     this.colorsOpen = false;
+    this.sectionMenuId = '';
     this.closeCropEditor();
+  }
+
+  @HostListener('document:mousedown', ['$event'])
+  protected closeFieldColorOnOutsideClick(event: MouseEvent) {
+    const target = event.target as HTMLElement | null;
+    if (
+      target?.closest('.field-color-panel') ||
+      target?.closest('.text-toolbar') ||
+      target?.closest('[data-color-key]')
+    ) {
+      return;
+    }
+    this.fieldColorOpen = false;
+    if (!target?.closest('.save-controls')) this.moreOpen = false;
+    if (!target?.closest('.section-actions')) this.sectionMenuId = '';
+    if (!target?.closest('.add-section-select')) this.addSectionMenuOpen = false;
+    if (!target?.closest('.template-picker')) this.templateMenuOpen = false;
+    if (!target?.closest('.template-card-picker')) this.inspectorTemplateMenuOpen = false;
   }
   protected templateName(id: ResumeTemplateId) {
     return this.templates.find((template) => template.id === id)?.name ?? id;
@@ -1582,6 +3499,47 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     const context = canvas?.getContext('2d');
     if (!canvas || !context || !this.cropImage) return;
     drawProfilePhotoCrop(context, this.cropImage, this.cropDraft, canvas.width);
+  }
+
+  private observePreview() {
+    if (!this.previewArea?.nativeElement || !this.previewCanvas?.nativeElement) return;
+    this.previewResizeObserver?.disconnect();
+    this.previewResizeObserver = new ResizeObserver(() => this.updatePreviewMeasurements());
+    this.previewResizeObserver.observe(this.previewArea.nativeElement);
+    this.previewResizeObserver.observe(this.previewCanvas.nativeElement);
+    window.setTimeout(() => this.updatePreviewMeasurements());
+  }
+
+  private updatePreviewMeasurements() {
+    const area = this.previewArea?.nativeElement;
+    const canvas = this.previewCanvas?.nativeElement;
+    if (!area || !canvas) return;
+    this.previewContentHeight = Math.max(this.a4Height, canvas.scrollHeight);
+    if (this.previewMode === 'fit') {
+      const availableWidth = Math.max(1, area.clientWidth - 16);
+      this.previewScale = this.clamp(availableWidth / this.a4Width, 0.25, 1.25);
+    }
+  }
+
+  private loadPreviewPreference() {
+    const saved = localStorage.getItem('nexus:resume-preview');
+    if (!saved) return;
+    try {
+      const preference = JSON.parse(saved) as { mode?: 'fit' | 'manual'; scale?: number };
+      if (preference.mode === 'manual' && typeof preference.scale === 'number') {
+        this.previewMode = 'manual';
+        this.previewScale = this.clamp(preference.scale, 0.5, 1.25);
+      }
+    } catch {
+      localStorage.removeItem('nexus:resume-preview');
+    }
+  }
+
+  private savePreviewPreference() {
+    localStorage.setItem(
+      'nexus:resume-preview',
+      JSON.stringify({ mode: this.previewMode, scale: this.previewScale }),
+    );
   }
 
   private clamp(value: number, minimum: number, maximum: number) {

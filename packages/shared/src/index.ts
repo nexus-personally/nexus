@@ -25,6 +25,17 @@ export interface ResumeColors {
   accent: string;
   heading: string;
   body: string;
+  name: string;
+  headline: string;
+  contact: string;
+  sectionTitle: string;
+  organization: string;
+  role: string;
+  meta: string;
+  description: string;
+  bullet: string;
+  skillLabel: string;
+  skillText: string;
 }
 
 export interface ResumePhotoCrop {
@@ -146,6 +157,7 @@ export interface ResumeRecord {
   templateId: ResumeTemplateId;
   themeId: string;
   colors?: ResumeColors;
+  fieldColors?: Record<string, string>;
   status: ResumeStatus;
   content: ResumeContent;
   sectionOrder: string[];
@@ -211,19 +223,75 @@ export const RESUME_THEMES: ResumeTheme[] = [
   { id: 'moss-green', name: 'Moss Green', accent: '#34785f' },
 ];
 
+function resumeColorDefaults(
+  accent: string,
+  heading: string,
+  body: string,
+  overrides: Partial<ResumeColors> = {},
+): ResumeColors {
+  return {
+    accent,
+    heading,
+    body,
+    name: heading,
+    headline: accent,
+    contact: body,
+    sectionTitle: accent,
+    organization: heading,
+    role: heading,
+    meta: body,
+    description: body,
+    bullet: body,
+    skillLabel: heading,
+    skillText: body,
+    ...overrides,
+  };
+}
+
 export const RESUME_TEMPLATE_COLOR_DEFAULTS: Record<ResumeTemplateId, ResumeColors> = {
-  'tech-core': { accent: '#0f9fb8', heading: '#20272a', body: '#30383b' },
-  'tech-modern': { accent: '#34b9c2', heading: '#17262b', body: '#30383b' },
-  'tech-minimal': { accent: '#356d72', heading: '#282c2e', body: '#373d3f' },
-  'tech-executive': { accent: '#8c6a35', heading: '#1d2427', body: '#303638' },
-  'tech-creative': { accent: '#d45a69', heading: '#20262a', body: '#30373a' },
+  'tech-core': resumeColorDefaults('#0f9fb8', '#20272a', '#30383b'),
+  'tech-modern': resumeColorDefaults('#34b9c2', '#17262b', '#30383b', {
+    name: '#ffffff',
+    headline: '#8ed8df',
+    contact: '#c2ced0',
+  }),
+  'tech-minimal': resumeColorDefaults('#356d72', '#282c2e', '#373d3f', {
+    contact: '#ffffff',
+  }),
+  'tech-executive': resumeColorDefaults('#8c6a35', '#1d2427', '#303638', {
+    role: '#8c6a35',
+    skillLabel: '#8c6a35',
+  }),
+  'tech-creative': resumeColorDefaults('#d45a69', '#20262a', '#30373a', {
+    name: '#ffffff',
+    headline: '#eda6af',
+    contact: '#cbd6d7',
+    sectionTitle: '#ffffff',
+  }),
 };
 
 export function resolveResumeColors(
   resume: Pick<ResumeRecord, 'templateId' | 'themeId' | 'colors'>,
 ) {
   const defaults = RESUME_TEMPLATE_COLOR_DEFAULTS[resume.templateId];
-  if (resume.colors) return { ...defaults, ...resume.colors };
+  if (resume.colors) {
+    const stored = resume.colors as Partial<ResumeColors>;
+    return {
+      ...defaults,
+      ...stored,
+      name: stored.name ?? stored.heading ?? defaults.name,
+      headline: stored.headline ?? stored.accent ?? defaults.headline,
+      contact: stored.contact ?? stored.body ?? defaults.contact,
+      sectionTitle: stored.sectionTitle ?? stored.accent ?? defaults.sectionTitle,
+      organization: stored.organization ?? stored.heading ?? defaults.organization,
+      role: stored.role ?? stored.heading ?? defaults.role,
+      meta: stored.meta ?? stored.body ?? defaults.meta,
+      description: stored.description ?? stored.body ?? defaults.description,
+      bullet: stored.bullet ?? stored.body ?? defaults.bullet,
+      skillLabel: stored.skillLabel ?? stored.heading ?? defaults.skillLabel,
+      skillText: stored.skillText ?? stored.body ?? defaults.skillText,
+    };
+  }
 
   const legacyAccent = RESUME_THEMES.find((theme) => theme.id === resume.themeId)?.accent;
   return { ...defaults, accent: legacyAccent ?? defaults.accent };

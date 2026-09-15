@@ -1,12 +1,33 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import type { ResumeRecord, ResumeSection } from '@nexus/shared';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnDestroy,
+  Output,
+  inject,
+} from '@angular/core';
+import { LucideLink, LucideMail, LucideMapPin, LucidePhone } from '@lucide/angular';
+import type { ResumeColors, ResumeRecord, ResumeSection } from '@nexus/shared';
 import { resolveResumeColors } from '@nexus/shared';
+
+export type ResumeColorRole = Exclude<keyof ResumeColors, 'accent' | 'heading' | 'body'>;
+
+export interface ResumeColorSelection {
+  key: string;
+  label: string;
+  role: ResumeColorRole;
+  background: string;
+  left: number;
+  top: number;
+}
 
 @Component({
   selector: 'nexus-resume-renderer',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideMail, LucidePhone, LucideMapPin, LucideLink],
   template: `
     @if (resume) {
       <article
@@ -17,7 +38,19 @@ import { resolveResumeColors } from '@nexus/shared';
         [style.--accent]="colors.accent"
         [style.--heading]="colors.heading"
         [style.--body]="colors.body"
+        [style.--name-color]="colors.name"
+        [style.--headline-color]="colors.headline"
+        [style.--contact-color]="colors.contact"
+        [style.--section-title-color]="colors.sectionTitle"
+        [style.--organization-color]="colors.organization"
+        [style.--role-color]="colors.role"
+        [style.--meta-color]="colors.meta"
+        [style.--description-color]="colors.description"
+        [style.--bullet-color]="colors.bullet"
+        [style.--skill-label-color]="colors.skillLabel"
+        [style.--skill-text-color]="colors.skillText"
         (paste)="pastePlainText($event)"
+        (focusin)="selectColorField($event)"
       >
         <header class="identity">
           @if (showPhoto) {
@@ -29,48 +62,104 @@ import { resolveResumeColors } from '@nexus/shared';
           }
           <div class="identity-main">
             <h1
+              data-color-key="profile.fullName"
+              data-color-label="Name"
+              data-color-role="name"
               [attr.contenteditable]="editable ? 'true' : null"
               [attr.tabindex]="editable ? 0 : null"
+              [style.color]="fieldColor('profile.fullName', 'name')"
               (keydown.enter)="singleLine($event)"
               (blur)="editField(resume.content.profile, 'fullName', $event)"
             >
               {{ resume.content.profile.fullName }}
             </h1>
             <p
+              data-color-key="profile.headline"
+              data-color-label="Headline"
+              data-color-role="headline"
               [attr.contenteditable]="editable ? 'true' : null"
               [attr.tabindex]="editable ? 0 : null"
+              [style.color]="fieldColor('profile.headline', 'headline')"
               (keydown.enter)="singleLine($event)"
               (blur)="editField(resume.content.profile, 'headline', $event)"
             >
               {{ resume.content.profile.headline }}
             </p>
+            @if (minimalSummarySection; as summarySection) {
+              @if (!summarySection.hidden) {
+                <section class="minimal-header-summary" data-section="summary">
+                  <p
+                    class="summary"
+                    data-paste-multiline="true"
+                    data-max-length="300"
+                    data-max-lines="4"
+                    [attr.data-color-key]="'section:' + summarySection.id + ':body'"
+                    [attr.data-color-label]="summarySection.title + ' text'"
+                    data-color-role="description"
+                    [attr.contenteditable]="editable ? 'true' : null"
+                    (beforeinput)="limitTextInput($event, 300)"
+                    (input)="enforceTextLayout($event, 300, 4)"
+                    [style.color]="
+                      fieldColor('section:' + summarySection.id + ':body', 'description')
+                    "
+                    (blur)="editLimitedField(summarySection, 'body', $event, 300)"
+                  >
+                    {{ summarySection.body.slice(0, 300) }}
+                  </p>
+                </section>
+              }
+            }
           </div>
           <address>
-            <span
-              [attr.contenteditable]="editable ? 'true' : null"
-              (keydown.enter)="singleLine($event)"
-              (blur)="editField(resume.content.profile, 'email', $event)"
-              >{{ resume.content.profile.email }}</span
-            >
-            <span
-              [attr.contenteditable]="editable ? 'true' : null"
-              (keydown.enter)="singleLine($event)"
-              (blur)="editField(resume.content.profile, 'phone', $event)"
-              >{{ resume.content.profile.phone }}</span
-            >
-            <span
-              [attr.contenteditable]="editable ? 'true' : null"
-              (keydown.enter)="singleLine($event)"
-              (blur)="editField(resume.content.profile, 'location', $event)"
-              >{{ resume.content.profile.location }}</span
-            >
-            @if (resume.content.profile.github) {
+            <span class="contact-item" [style.color]="fieldColor('profile.email', 'contact')">
+              <svg lucideMail aria-hidden="true"></svg>
               <span
+                data-color-key="profile.email"
+                data-color-label="Email"
+                data-color-role="contact"
                 [attr.contenteditable]="editable ? 'true' : null"
                 (keydown.enter)="singleLine($event)"
-                (blur)="editField(resume.content.profile, 'github', $event)"
-                >{{ resume.content.profile.github }}</span
+                (blur)="editField(resume.content.profile, 'email', $event)"
+                >{{ resume.content.profile.email }}</span
               >
+            </span>
+            <span class="contact-item" [style.color]="fieldColor('profile.phone', 'contact')">
+              <svg lucidePhone aria-hidden="true"></svg>
+              <span
+                data-color-key="profile.phone"
+                data-color-label="Phone"
+                data-color-role="contact"
+                [attr.contenteditable]="editable ? 'true' : null"
+                (keydown.enter)="singleLine($event)"
+                (blur)="editField(resume.content.profile, 'phone', $event)"
+                >{{ resume.content.profile.phone }}</span
+              >
+            </span>
+            <span class="contact-item" [style.color]="fieldColor('profile.location', 'contact')">
+              <svg lucideMapPin aria-hidden="true"></svg>
+              <span
+                data-color-key="profile.location"
+                data-color-label="Address"
+                data-color-role="contact"
+                [attr.contenteditable]="editable ? 'true' : null"
+                (keydown.enter)="singleLine($event)"
+                (blur)="editField(resume.content.profile, 'location', $event)"
+                >{{ resume.content.profile.location }}</span
+              >
+            </span>
+            @if (resume.content.profile.github) {
+              <span class="contact-item" [style.color]="fieldColor('profile.github', 'contact')">
+                <svg lucideLink aria-hidden="true"></svg>
+                <span
+                  data-color-key="profile.github"
+                  data-color-label="Website or profile link"
+                  data-color-role="contact"
+                  [attr.contenteditable]="editable ? 'true' : null"
+                  (keydown.enter)="singleLine($event)"
+                  (blur)="editField(resume.content.profile, 'github', $event)"
+                  >{{ resume.content.profile.github }}</span
+                >
+              </span>
             }
           </address>
         </header>
@@ -109,7 +198,11 @@ import { resolveResumeColors } from '@nexus/shared';
           @if (!section.hidden) {
             <section class="resume-section" [attr.data-section]="section.type">
               <h2
+                [attr.data-color-key]="'section:' + section.id + ':title'"
+                [attr.data-color-label]="section.title + ' section title'"
+                data-color-role="sectionTitle"
                 [attr.contenteditable]="editable ? 'true' : null"
+                [style.color]="fieldColor('section:' + section.id + ':title', 'sectionTitle')"
                 (keydown.enter)="singleLine($event)"
                 (blur)="editField(section, 'title', $event)"
               >
@@ -121,7 +214,11 @@ import { resolveResumeColors } from '@nexus/shared';
                   <p
                     class="summary"
                     data-paste-multiline="true"
+                    [attr.data-color-key]="'section:' + section.id + ':body'"
+                    [attr.data-color-label]="section.title + ' text'"
+                    data-color-role="description"
                     [attr.contenteditable]="editable ? 'true' : null"
+                    [style.color]="fieldColor('section:' + section.id + ':body', 'description')"
                     (blur)="editField(section, 'body', $event)"
                   >
                     {{ section.body }}
@@ -133,13 +230,35 @@ import { resolveResumeColors } from '@nexus/shared';
                       <h3>
                         <span
                           class="primary-field"
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':experience:' + item.id + ':company'
+                          "
+                          data-color-label="Company"
+                          data-color-role="organization"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':experience:' + item.id + ':company',
+                              'organization'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(item, 'company', $event)"
                           >{{ item.company }}</span
                         >
                         <span
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':experience:' + item.id + ':location'
+                          "
+                          data-color-label="Experience location"
+                          data-color-role="meta"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':experience:' + item.id + ':location',
+                              'meta'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(item, 'location', $event)"
                           >{{ item.location }}</span
@@ -149,34 +268,142 @@ import { resolveResumeColors } from '@nexus/shared';
                         <div class="position">
                           <div class="position-line">
                             <strong
+                              [attr.data-color-key]="
+                                'section:' + section.id + ':position:' + position.id + ':title'
+                              "
+                              data-color-label="Position title"
+                              data-color-role="role"
                               [attr.contenteditable]="editable ? 'true' : null"
+                              [style.color]="
+                                fieldColor(
+                                  'section:' + section.id + ':position:' + position.id + ':title',
+                                  'role'
+                                )
+                              "
                               (keydown.enter)="singleLine($event)"
                               (blur)="editField(position, 'title', $event)"
                               >{{ position.title }}</strong
                             >
                             <em>
                               <span
+                                [attr.data-color-key]="
+                                  'section:' +
+                                  section.id +
+                                  ':position:' +
+                                  position.id +
+                                  ':startDate'
+                                "
+                                data-color-label="Start date"
+                                data-color-role="meta"
                                 [attr.contenteditable]="editable ? 'true' : null"
+                                [style.color]="
+                                  fieldColor(
+                                    'section:' +
+                                      section.id +
+                                      ':position:' +
+                                      position.id +
+                                      ':startDate',
+                                    'meta'
+                                  )
+                                "
                                 (keydown.enter)="singleLine($event)"
                                 (blur)="editField(position, 'startDate', $event)"
                                 >{{ position.startDate }}</span
                               >
                               -
                               <span
+                                [attr.data-color-key]="
+                                  'section:' + section.id + ':position:' + position.id + ':endDate'
+                                "
+                                data-color-label="End date"
+                                data-color-role="meta"
                                 [attr.contenteditable]="editable ? 'true' : null"
+                                [style.color]="
+                                  fieldColor(
+                                    'section:' +
+                                      section.id +
+                                      ':position:' +
+                                      position.id +
+                                      ':endDate',
+                                    'meta'
+                                  )
+                                "
                                 (keydown.enter)="singleLine($event)"
                                 (blur)="editField(position, 'endDate', $event)"
                                 >{{ position.endDate }}</span
                               >
                             </em>
                           </div>
-                          <ul>
+                          <ul class="editable-list">
                             @for (bullet of position.bullets; track $index) {
                               <li
-                                [attr.contenteditable]="editable ? 'true' : null"
-                                (blur)="editArrayItem(position.bullets, $index, $event)"
+                                class="editable-list-item"
+                                [style.color]="
+                                  fieldColor(
+                                    bulletColorKey(section.id, position.id, $index),
+                                    'bullet'
+                                  )
+                                "
                               >
-                                {{ bullet }}
+                                <span
+                                  [attr.data-color-key]="
+                                    bulletColorKey(section.id, position.id, $index)
+                                  "
+                                  data-color-label="Experience bullet"
+                                  data-color-role="bullet"
+                                  [attr.contenteditable]="editable ? 'true' : null"
+                                  [style.color]="
+                                    fieldColor(
+                                      bulletColorKey(section.id, position.id, $index),
+                                      'bullet'
+                                    )
+                                  "
+                                  (keydown)="
+                                    listItemKeydown(
+                                      $event,
+                                      position.bullets,
+                                      $index,
+                                      bulletColorPrefix(section.id, position.id)
+                                    )
+                                  "
+                                  (blur)="editArrayItem(position.bullets, $index, $event)"
+                                  >{{ bullet }}</span
+                                >
+                                @if (editable) {
+                                  <span class="list-item-actions" contenteditable="false">
+                                    <button
+                                      type="button"
+                                      title="Add bullet below"
+                                      aria-label="Add bullet below"
+                                      (mousedown)="$event.preventDefault()"
+                                      (click)="
+                                        addListItem(
+                                          position.bullets,
+                                          $index + 1,
+                                          bulletColorPrefix(section.id, position.id)
+                                        )
+                                      "
+                                    >
+                                      +
+                                    </button>
+                                    <button
+                                      type="button"
+                                      title="Delete bullet"
+                                      aria-label="Delete bullet"
+                                      [disabled]="position.bullets.length === 1"
+                                      (mousedown)="$event.preventDefault()"
+                                      (click)="
+                                        removeListItem(
+                                          position.bullets,
+                                          $index,
+                                          bulletColorPrefix(section.id, position.id)
+                                        )
+                                      "
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                }
                               </li>
                             }
                           </ul>
@@ -191,13 +418,35 @@ import { resolveResumeColors } from '@nexus/shared';
                       <h3>
                         <span
                           class="primary-field"
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':education:' + item.id + ':school'
+                          "
+                          data-color-label="School"
+                          data-color-role="organization"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':education:' + item.id + ':school',
+                              'organization'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(item, 'school', $event)"
                           >{{ item.school }}</span
                         >
                         <span
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':education:' + item.id + ':dates'
+                          "
+                          data-color-label="Education dates"
+                          data-color-role="meta"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':education:' + item.id + ':dates',
+                              'meta'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(item, 'dates', $event)"
                           >{{ item.dates }}</span
@@ -205,14 +454,36 @@ import { resolveResumeColors } from '@nexus/shared';
                       </h3>
                       <p>
                         <span
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':education:' + item.id + ':degree'
+                          "
+                          data-color-label="Degree"
+                          data-color-role="role"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':education:' + item.id + ':degree',
+                              'role'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(item, 'degree', $event)"
                           >{{ item.degree }}</span
                         >
                         ·
                         <span
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':education:' + item.id + ':location'
+                          "
+                          data-color-label="Education location"
+                          data-color-role="meta"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':education:' + item.id + ':location',
+                              'meta'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(item, 'location', $event)"
                           >{{ item.location }}</span
@@ -227,13 +498,35 @@ import { resolveResumeColors } from '@nexus/shared';
                       <h3>
                         <span
                           class="primary-field"
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':project:' + project.id + ':name'
+                          "
+                          data-color-label="Project name"
+                          data-color-role="organization"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':project:' + project.id + ':name',
+                              'organization'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(project, 'name', $event)"
                           >{{ project.name }}</span
                         >
                         <span
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':project:' + project.id + ':dates'
+                          "
+                          data-color-label="Project dates"
+                          data-color-role="meta"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':project:' + project.id + ':dates',
+                              'meta'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(project, 'dates', $event)"
                           >{{ project.dates }}</span
@@ -241,21 +534,54 @@ import { resolveResumeColors } from '@nexus/shared';
                       </h3>
                       <p>
                         <strong
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':project:' + project.id + ':role'
+                          "
+                          data-color-label="Project role"
+                          data-color-role="role"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':project:' + project.id + ':role',
+                              'role'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(project, 'role', $event)"
                           >{{ project.role }}</strong
                         >
                         <span
                           data-paste-multiline="true"
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':project:' + project.id + ':description'
+                          "
+                          data-color-label="Project description"
+                          data-color-role="description"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':project:' + project.id + ':description',
+                              'description'
+                            )
+                          "
                           (blur)="editField(project, 'description', $event)"
                           >{{ project.description }}</span
                         >
                       </p>
                       <p
                         class="technologies"
+                        [attr.data-color-key]="
+                          'section:' + section.id + ':project:' + project.id + ':technologies'
+                        "
+                        data-color-label="Project technologies"
+                        data-color-role="skillText"
                         [attr.contenteditable]="editable ? 'true' : null"
+                        [style.color]="
+                          fieldColor(
+                            'section:' + section.id + ':project:' + project.id + ':technologies',
+                            'skillText'
+                          )
+                        "
                         (keydown.enter)="singleLine($event)"
                         (blur)="editStringList(project, 'technologies', $event)"
                       >
@@ -269,13 +595,35 @@ import { resolveResumeColors } from '@nexus/shared';
                     @for (group of section.groups; track group.id) {
                       <div class="skill-group">
                         <strong
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':skills:' + group.id + ':name'
+                          "
+                          data-color-label="Skill category"
+                          data-color-role="skillLabel"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':skills:' + group.id + ':name',
+                              'skillLabel'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(group, 'name', $event)"
                           >{{ group.name }}</strong
                         >
                         <p
+                          [attr.data-color-key]="
+                            'section:' + section.id + ':skills:' + group.id + ':items'
+                          "
+                          data-color-label="Skills"
+                          data-color-role="skillText"
                           [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(
+                              'section:' + section.id + ':skills:' + group.id + ':items',
+                              'skillText'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editStringList(group, 'skills', $event)"
                         >
@@ -286,13 +634,66 @@ import { resolveResumeColors } from '@nexus/shared';
                   </div>
                 }
                 @default {
-                  <ul>
+                  <ul class="editable-list">
                     @for (item of section.items; track $index) {
                       <li
-                        [attr.contenteditable]="editable ? 'true' : null"
-                        (blur)="editArrayItem(section.items, $index, $event)"
+                        class="editable-list-item"
+                        [style.color]="fieldColor(simpleItemColorKey(section.id, $index), 'bullet')"
                       >
-                        {{ item }}
+                        <span
+                          [attr.data-color-key]="simpleItemColorKey(section.id, $index)"
+                          [attr.data-color-label]="section.title + ' item'"
+                          data-color-role="bullet"
+                          [attr.contenteditable]="editable ? 'true' : null"
+                          [style.color]="
+                            fieldColor(simpleItemColorKey(section.id, $index), 'bullet')
+                          "
+                          (keydown)="
+                            listItemKeydown(
+                              $event,
+                              section.items,
+                              $index,
+                              simpleItemColorPrefix(section.id)
+                            )
+                          "
+                          (blur)="editArrayItem(section.items, $index, $event)"
+                          >{{ item }}</span
+                        >
+                        @if (editable) {
+                          <span class="list-item-actions" contenteditable="false">
+                            <button
+                              type="button"
+                              title="Add item below"
+                              aria-label="Add item below"
+                              (mousedown)="$event.preventDefault()"
+                              (click)="
+                                addListItem(
+                                  section.items,
+                                  $index + 1,
+                                  simpleItemColorPrefix(section.id)
+                                )
+                              "
+                            >
+                              +
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete item"
+                              aria-label="Delete item"
+                              [disabled]="section.items.length === 1"
+                              (mousedown)="$event.preventDefault()"
+                              (click)="
+                                removeListItem(
+                                  section.items,
+                                  $index,
+                                  simpleItemColorPrefix(section.id)
+                                )
+                              "
+                            >
+                              ×
+                            </button>
+                          </span>
+                        }
                       </li>
                     }
                   </ul>
@@ -313,6 +714,17 @@ import { resolveResumeColors } from '@nexus/shared';
         --accent: #0f9fb8;
         --heading: #20272a;
         --body: #30383b;
+        --name-color: var(--heading);
+        --headline-color: var(--accent);
+        --contact-color: var(--body);
+        --section-title-color: var(--accent);
+        --organization-color: var(--heading);
+        --role-color: var(--heading);
+        --meta-color: var(--body);
+        --description-color: var(--body);
+        --bullet-color: var(--body);
+        --skill-label-color: var(--heading);
+        --skill-text-color: var(--body);
         --template-inline-padding: 50px;
         --font-name: 2.15rem;
         --font-headline: 0.95rem;
@@ -325,13 +737,14 @@ import { resolveResumeColors } from '@nexus/shared';
         --font-skill-label: 0.72rem;
         width: 210mm;
         min-height: 297mm;
+        box-sizing: border-box;
         margin: 0 auto;
-        padding: 17mm var(--template-inline-padding);
-        overflow: hidden;
+        padding: 44px var(--template-inline-padding);
+        overflow: visible;
         background: #ffffff;
         color: var(--body);
         box-shadow: 0 22px 70px rgba(10, 18, 20, 0.18);
-        font-family: Arial, Helvetica, sans-serif;
+        font-family: Roboto, 'Helvetica Neue', sans-serif;
       }
       .identity {
         display: grid;
@@ -359,14 +772,14 @@ import { resolveResumeColors } from '@nexus/shared';
         margin: 0;
       }
       h1 {
-        color: var(--heading);
+        color: var(--name-color);
         font-size: var(--font-name);
         line-height: 1;
         font-weight: 720;
       }
       .identity-main > p {
         margin-top: 0.32rem;
-        color: var(--accent);
+        color: var(--headline-color);
         font-size: var(--font-headline);
         font-weight: 700;
       }
@@ -377,14 +790,38 @@ import { resolveResumeColors } from '@nexus/shared';
         font-size: var(--font-contact);
         font-style: normal;
         text-align: right;
+        color: var(--contact-color);
       }
-      h3,
-      .position-line strong,
+      .contact-item {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.42rem;
+        min-width: 0;
+      }
+      .contact-item svg {
+        width: 1em;
+        height: 1em;
+        flex: 0 0 auto;
+        stroke-width: 1.9;
+      }
+      h3 {
+        color: var(--organization-color);
+      }
+      .position-line strong {
+        color: var(--role-color);
+      }
       .skill-group strong {
-        color: var(--heading);
+        color: var(--skill-label-color);
       }
       .resume-section {
         margin-top: 0.95rem;
+        break-inside: avoid;
+      }
+      .block,
+      .position,
+      .skill-group,
+      .editable-list-item {
         break-inside: avoid;
       }
       .resume-column {
@@ -395,10 +832,11 @@ import { resolveResumeColors } from '@nexus/shared';
       h2 {
         padding-bottom: 0.2rem;
         border-bottom: 1px solid #d8ddde;
-        color: var(--accent);
+        color: var(--section-title-color);
         font-size: var(--font-section-title);
         font-weight: 800;
         text-transform: uppercase;
+        break-after: avoid;
       }
       h3,
       .position-line {
@@ -413,15 +851,20 @@ import { resolveResumeColors } from '@nexus/shared';
       }
       h3 > span:last-child,
       em {
-        color: color-mix(in srgb, var(--body), white 34%);
+        color: var(--meta-color);
         font-size: var(--font-meta);
         font-style: normal;
         font-weight: 500;
       }
       .summary,
-      li,
       .block p,
       .skill-grid p {
+        color: var(--description-color);
+        font-size: var(--font-body);
+        line-height: 1.45;
+      }
+      li {
+        color: var(--bullet-color);
         font-size: var(--font-body);
         line-height: 1.45;
       }
@@ -440,7 +883,7 @@ import { resolveResumeColors } from '@nexus/shared';
       }
       .technologies {
         margin-top: 0.15rem;
-        color: var(--accent);
+        color: var(--skill-text-color);
         font-weight: 700;
       }
       .skill-grid {
@@ -458,6 +901,67 @@ import { resolveResumeColors } from '@nexus/shared';
       .skill-group strong {
         font-size: var(--font-skill-label);
       }
+      .skill-group p {
+        color: var(--skill-text-color);
+      }
+      .editable-list-item {
+        position: relative;
+        list-style: none;
+      }
+      .editable-list-item::before {
+        content: '•';
+        position: absolute;
+        top: 50%;
+        left: -0.95rem;
+        color: inherit;
+        font-size: 1.8em;
+        line-height: 1;
+        transform: translateY(-50%);
+      }
+      .is-editable .editable-list-item {
+        padding-right: 3.2rem;
+      }
+      .editable-list-item > [contenteditable='true'] {
+        display: inline-block;
+        min-width: 2rem;
+        min-height: 1em;
+      }
+      .list-item-actions {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        display: inline-flex;
+        gap: 0.18rem;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(-50%);
+        transition: opacity 120ms ease;
+      }
+      .editable-list-item:hover .list-item-actions,
+      .editable-list-item:focus-within .list-item-actions {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .list-item-actions button {
+        display: inline-grid;
+        width: 1.35rem;
+        height: 1.35rem;
+        place-items: center;
+        padding: 0;
+        border: 1px solid color-mix(in srgb, var(--accent), white 55%);
+        border-radius: 50%;
+        background: #ffffff;
+        color: var(--heading);
+        font:
+          700 0.72rem/1 Roboto,
+          'Helvetica Neue',
+          sans-serif;
+        cursor: pointer;
+      }
+      .list-item-actions button:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
       [data-paste-multiline='true'] {
         white-space: pre-line;
       }
@@ -467,6 +971,13 @@ import { resolveResumeColors } from '@nexus/shared';
         transition:
           background 120ms ease,
           outline-color 120ms ease;
+      }
+      .is-editable [contenteditable='true']:empty::before {
+        content: 'Enter ' attr(data-color-label);
+        color: color-mix(in srgb, currentColor, transparent 48%);
+        font-style: italic;
+        font-weight: 400;
+        pointer-events: none;
       }
       .is-editable [contenteditable='true'] * {
         background: transparent !important;
@@ -500,7 +1011,7 @@ import { resolveResumeColors } from '@nexus/shared';
         min-height: 297mm;
         flex-direction: column;
         grid-column: 1;
-        padding: 18mm var(--template-inline-padding);
+        padding: 44px var(--template-inline-padding);
         border: 0;
         background: #17262b;
         color: #f4f8f7;
@@ -523,9 +1034,14 @@ import { resolveResumeColors } from '@nexus/shared';
         text-align: left;
         color: #c2ced0;
       }
+      .tech-modern .contact-item,
+      .tech-minimal .contact-item,
+      .tech-executive .contact-item {
+        justify-content: flex-start;
+      }
       .tech-modern .resume-body {
         grid-column: 2;
-        padding: 15mm var(--template-inline-padding);
+        padding: 44px var(--template-inline-padding);
       }
       .tech-modern .skill-grid {
         grid-template-columns: 1fr;
@@ -534,13 +1050,13 @@ import { resolveResumeColors } from '@nexus/shared';
         --font-name: 2.45rem;
         --font-headline: 1.05rem;
         --font-section-title: 0.82rem;
-        padding: 22mm var(--template-inline-padding);
+        padding: 44px var(--template-inline-padding);
       }
       .tech-minimal .identity,
       .tech-minimal .identity.has-photo,
       .tech-minimal.has-photo .identity {
-        grid-template-columns: 30mm minmax(0, 1fr);
-        align-items: center;
+        grid-template-columns: var(--minimal-photo-size, 28mm) minmax(0, 1fr);
+        align-items: start;
         gap: 7mm;
         padding-bottom: 0;
         border-bottom: 0;
@@ -554,9 +1070,22 @@ import { resolveResumeColors } from '@nexus/shared';
       .tech-minimal .identity-main > p {
         font-weight: 600;
       }
+      .tech-minimal .minimal-header-summary {
+        max-width: 34rem;
+        margin-top: 4mm;
+      }
+      .tech-minimal .minimal-header-summary .summary {
+        color: var(--description-color);
+        font-size: var(--font-body);
+        line-height: 1.45;
+        font-weight: 400;
+        max-height: calc(1.45em * 4);
+        overflow: hidden;
+      }
       .tech-minimal .profile-photo {
-        width: 28mm;
-        height: 28mm;
+        width: var(--minimal-photo-size, 28mm);
+        height: var(--minimal-photo-size, 28mm);
+        aspect-ratio: 1;
         border-width: 1px;
       }
       .tech-minimal address {
@@ -627,8 +1156,8 @@ import { resolveResumeColors } from '@nexus/shared';
         --font-body: 0.67rem;
         --font-role: 0.68rem;
         --font-skill-label: 0.67rem;
-        padding: 16mm var(--template-inline-padding);
-        font-family: Arial, Helvetica, sans-serif;
+        padding: 44px var(--template-inline-padding);
+        font-family: Roboto, 'Helvetica Neue', sans-serif;
       }
       .tech-executive .identity {
         grid-template-columns: minmax(0, 1fr);
@@ -735,11 +1264,11 @@ import { resolveResumeColors } from '@nexus/shared';
         border-bottom-color: var(--accent);
       }
       .tech-creative {
-        padding: 0 var(--template-inline-padding) 17mm;
+        padding: 0 var(--template-inline-padding) 44px;
       }
       .tech-creative .identity {
         margin: 0 calc(var(--template-inline-padding) * -1) 1.2rem;
-        padding: 17mm var(--template-inline-padding) 13mm;
+        padding: 44px var(--template-inline-padding);
         border: 0;
         background: #172126;
         color: #ffffff;
@@ -764,121 +1293,63 @@ import { resolveResumeColors } from '@nexus/shared';
         background: var(--accent);
         color: #ffffff;
       }
-      @media (max-width: 900px) {
-        .sheet {
-          width: min(100%, 210mm);
-          min-height: auto;
-          padding: 1.3rem;
-        }
-        .identity {
-          grid-template-columns: 1fr;
-        }
-        address {
-          text-align: left;
-        }
-        .tech-modern {
-          display: block;
-          padding: 0;
-        }
-        .tech-modern .identity {
-          min-height: auto;
-          padding: 1.4rem;
-        }
-        .tech-modern .resume-body {
-          padding: 1.4rem;
-        }
-        .tech-minimal {
-          padding: 1.3rem;
-        }
-        .tech-executive {
-          padding: 1.3rem;
-        }
-        .tech-executive.has-photo .identity {
-          grid-template-columns: minmax(0, 1fr) 4.5rem;
-          gap: 1rem;
-        }
-        .tech-executive .profile-photo {
-          width: 4.5rem;
-          height: 4.5rem;
-        }
-        .tech-executive .resume-body {
-          grid-template-columns: minmax(0, 1.55fr) minmax(0, 0.92fr);
-          gap: 1rem;
-        }
-        .tech-executive .resume-section[data-section='summary'],
-        .tech-executive .resume-section[data-section='experience'],
-        .tech-executive .resume-section[data-section='projects'],
-        .tech-executive .resume-section[data-section='languages'] {
-          grid-column: 1;
-        }
-        .tech-executive .resume-section[data-section='skills'],
-        .tech-executive .resume-section[data-section='education'],
-        .tech-executive .resume-section[data-section='certifications'],
-        .tech-executive .resume-section[data-section='awards'],
-        .tech-executive .resume-section[data-section='interests'],
-        .tech-executive .resume-section[data-section='custom'] {
-          grid-column: 2;
-        }
-        .tech-minimal .identity,
-        .tech-minimal .identity.has-photo,
-        .tech-minimal.has-photo .identity {
-          grid-template-columns: 1fr;
-          gap: 1rem;
-        }
-        .tech-minimal .profile-photo {
-          margin: 0 auto;
-        }
-        .tech-minimal address {
-          grid-template-columns: 1fr;
-          margin: 1rem -1.3rem 0;
-          padding: 1rem 1.3rem;
-        }
-        .tech-minimal .resume-body {
-          grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr);
-          gap: 1rem;
-        }
-        .tech-minimal .resume-section[data-section='summary'],
-        .tech-minimal .resume-section[data-section='experience'],
-        .tech-minimal .resume-section[data-section='projects'],
-        .tech-minimal .resume-section[data-section='education'] {
-          grid-column: 1;
-        }
-        .tech-minimal .resume-section[data-section='skills'],
-        .tech-minimal .resume-section[data-section='languages'],
-        .tech-minimal .resume-section[data-section='interests'],
-        .tech-minimal .resume-section[data-section='certifications'],
-        .tech-minimal .resume-section[data-section='awards'],
-        .tech-minimal .resume-section[data-section='custom'] {
-          grid-column: 2;
-        }
-        .tech-creative .identity {
-          margin: -1.3rem -1.3rem 1.2rem;
-          padding: 1.4rem;
-        }
+      @page {
+        size: A4;
+        margin: 44px 0;
       }
       @media print {
         .sheet {
           width: 210mm;
-          min-height: 297mm;
+          min-height: calc(297mm - 88px);
+          padding-top: 0;
+          padding-bottom: 0;
+          overflow: visible;
           box-shadow: none;
         }
         .is-editable [contenteditable='true'] {
           outline: 0;
           background: transparent;
         }
+        .list-item-actions {
+          display: none !important;
+        }
       }
     `,
   ],
 })
-export class ResumeRendererComponent {
+export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
+  private readonly host = inject(ElementRef) as ElementRef<HTMLElement>;
+  private readonly lastValidText = new WeakMap<HTMLElement, string>();
+  private identityResizeObserver?: ResizeObserver;
+
   @Input({ required: true }) resume?: ResumeRecord;
   @Input() editable = false;
   @Output() edited = new EventEmitter<void>();
+  @Output() colorSelected = new EventEmitter<ResumeColorSelection>();
+
+  ngAfterViewInit() {
+    if (typeof ResizeObserver === 'undefined') return;
+    const identityMain = this.host.nativeElement.querySelector<HTMLElement>('.identity-main');
+    if (!identityMain) return;
+    this.identityResizeObserver = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const pixelsPerMillimetre = 96 / 25.4;
+      const minimum = 28 * pixelsPerMillimetre;
+      const maximum = 42 * pixelsPerMillimetre;
+      const size = Math.min(maximum, Math.max(minimum, entry.contentRect.height));
+      this.host.nativeElement.style.setProperty('--minimal-photo-size', `${size}px`);
+    });
+    this.identityResizeObserver.observe(identityMain);
+  }
+
+  ngOnDestroy() {
+    this.identityResizeObserver?.disconnect();
+  }
 
   get colors() {
     return this.resume
       ? resolveResumeColors(this.resume)
-      : { accent: '#0f9fb8', heading: '#20272a', body: '#30383b' };
+      : resolveResumeColors({ templateId: 'tech-core', themeId: 'signal-cyan' });
   }
 
   get showPhoto() {
@@ -904,7 +1375,16 @@ export class ResumeRendererComponent {
   }
 
   get mainColumnSections() {
-    return this.orderedSections.filter((section) => !this.isSideColumnSection(section));
+    return this.orderedSections.filter(
+      (section) =>
+        !this.isSideColumnSection(section) &&
+        !(this.resume?.templateId === 'tech-minimal' && section.type === 'summary')
+    );
+  }
+
+  get minimalSummarySection() {
+    if (this.resume?.templateId !== 'tech-minimal') return undefined;
+    return this.orderedSections.find((section) => section.type === 'summary');
   }
 
   get sideColumnSections() {
@@ -917,10 +1397,142 @@ export class ResumeRendererComponent {
     this.edited.emit();
   }
 
+  protected editLimitedField(target: object, field: string, event: Event, maxLength: number) {
+    if (!this.editable) return;
+    const element = event.currentTarget as HTMLElement;
+    const value = this.readText(event).slice(0, maxLength);
+    if (element.innerText !== value) element.innerText = value;
+    (target as Record<string, unknown>)[field] = value;
+    this.edited.emit();
+  }
+
+  protected limitTextInput(event: InputEvent, maxLength: number) {
+    if (!this.editable) return;
+    const target = event.currentTarget as HTMLElement;
+    this.lastValidText.set(target, target.innerText);
+    if (event.inputType.startsWith('delete')) return;
+    const selection = window.getSelection();
+    const selectedLength =
+      selection?.rangeCount && target.contains(selection.anchorNode)
+        ? selection.getRangeAt(0).toString().length
+        : 0;
+    const insertedLength = event.data?.length ?? 0;
+    if (target.innerText.length - selectedLength + insertedLength > maxLength) {
+      event.preventDefault();
+    }
+  }
+
+  protected enforceTextLayout(event: Event, maxLength: number, maxLines: number) {
+    const target = event.currentTarget as HTMLElement;
+    if (target.innerText.length <= maxLength && this.renderedLineCount(target) <= maxLines) {
+      this.lastValidText.set(target, target.innerText);
+      return;
+    }
+    target.innerText = this.lastValidText.get(target) ?? target.innerText.slice(0, maxLength);
+    this.placeCaretAtEnd(target);
+  }
+
   protected editArrayItem(items: string[], index: number, event: Event) {
     if (!this.editable) return;
+    const target = event.currentTarget as HTMLElement;
+    if (target.dataset['skipBlur'] === 'true') {
+      delete target.dataset['skipBlur'];
+      return;
+    }
     items[index] = this.readText(event);
     this.edited.emit();
+  }
+
+  protected fieldColor(key: string, role: ResumeColorRole) {
+    return this.resume?.fieldColors?.[key] ?? this.colors[role];
+  }
+
+  protected selectColorField(event: FocusEvent) {
+    if (!this.editable) return;
+    const target = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-color-key]');
+    const key = target?.dataset['colorKey'];
+    const role = target?.dataset['colorRole'] as ResumeColorRole | undefined;
+    if (!target || !key || !role) return;
+    const rect = target.getBoundingClientRect();
+    this.colorSelected.emit({
+      key,
+      role,
+      label: target.dataset['colorLabel'] ?? 'Text',
+      background: this.findBackgroundColor(target),
+      left: rect.left,
+      top: rect.bottom + 8,
+    });
+  }
+
+  protected bulletColorPrefix(sectionId: string, positionId: string) {
+    return `section:${sectionId}:position:${positionId}:bullet`;
+  }
+
+  protected bulletColorKey(sectionId: string, positionId: string, index: number) {
+    return `${this.bulletColorPrefix(sectionId, positionId)}:${index}`;
+  }
+
+  protected simpleItemColorPrefix(sectionId: string) {
+    return `section:${sectionId}:item`;
+  }
+
+  protected simpleItemColorKey(sectionId: string, index: number) {
+    return `${this.simpleItemColorPrefix(sectionId)}:${index}`;
+  }
+
+  protected listItemKeydown(
+    event: KeyboardEvent,
+    items: string[],
+    index: number,
+    colorPrefix: string,
+  ) {
+    if (!this.editable) return;
+    const target = event.currentTarget as HTMLElement;
+    const value = target.innerText.replace(/\u00a0/g, ' ').trim();
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      target.dataset['skipBlur'] = 'true';
+      items[index] = value;
+      if (value) {
+        this.addListItem(items, index + 1, colorPrefix);
+      } else {
+        if (items.length > 1) {
+          items.splice(index, 1);
+          this.shiftIndexedFieldColors(colorPrefix, index, -1);
+        }
+        this.edited.emit();
+        this.focusOutsideList(target);
+      }
+      return;
+    }
+
+    if (event.key === 'Backspace' && !value && items.length > 1) {
+      event.preventDefault();
+      target.dataset['skipBlur'] = 'true';
+      this.removeListItem(items, index, colorPrefix, Math.max(0, index - 1));
+    }
+  }
+
+  protected addListItem(items: string[], index: number, colorPrefix: string) {
+    const insertionIndex = Math.min(index, items.length);
+    this.shiftIndexedFieldColors(colorPrefix, insertionIndex, 1);
+    items.splice(insertionIndex, 0, '');
+    this.edited.emit();
+    this.focusColorKey(`${colorPrefix}:${insertionIndex}`);
+  }
+
+  protected removeListItem(
+    items: string[],
+    index: number,
+    colorPrefix: string,
+    focusIndex = Math.max(0, index - 1),
+  ) {
+    if (items.length <= 1) return;
+    items.splice(index, 1);
+    this.shiftIndexedFieldColors(colorPrefix, index, -1);
+    this.edited.emit();
+    this.focusColorKey(`${colorPrefix}:${Math.min(focusIndex, items.length - 1)}`);
   }
 
   protected editStringList(target: object, field: string, event: Event) {
@@ -955,7 +1567,46 @@ export class ResumeRendererComponent {
     const text = allowsMultipleLines
       ? clipboardText.replace(/\r\n?/g, '\n').trim()
       : clipboardText.replace(/\s+/g, ' ').trim();
-    this.insertTextAtCaret(target, text);
+    const maxLength = Number(target.dataset['maxLength'] ?? 0);
+    const selection = window.getSelection();
+    const selectedLength =
+      selection?.rangeCount && target.contains(selection.anchorNode)
+        ? selection.getRangeAt(0).toString().length
+        : 0;
+    const availableLength = maxLength
+      ? Math.max(0, maxLength - target.innerText.length + selectedLength)
+      : text.length;
+    this.lastValidText.set(target, target.innerText);
+    this.insertTextAtCaret(target, text.slice(0, availableLength));
+    const maxLines = Number(target.dataset['maxLines'] ?? 0);
+    if (maxLines) {
+      this.enforceTextLayout(
+        { currentTarget: target } as unknown as Event,
+        maxLength,
+        maxLines
+      );
+    }
+  }
+
+  private renderedLineCount(target: HTMLElement) {
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    const lineTops = new Set(
+      [...range.getClientRects()]
+        .filter((rect) => rect.width > 0)
+        .map((rect) => Math.round(rect.top))
+    );
+    return Math.max(1, lineTops.size);
+  }
+
+  private placeCaretAtEnd(target: HTMLElement) {
+    const selection = window.getSelection();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
   }
 
   private readText(event: Event) {
@@ -977,6 +1628,49 @@ export class ResumeRendererComponent {
     range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
+  }
+
+  private shiftIndexedFieldColors(prefix: string, fromIndex: number, delta: -1 | 1) {
+    if (!this.resume?.fieldColors) return;
+    const next = { ...this.resume.fieldColors };
+    const entries = Object.entries(next)
+      .filter(([key]) => key.startsWith(`${prefix}:`))
+      .map(([key, value]) => ({ key, value, index: Number(key.slice(prefix.length + 1)) }))
+      .filter((entry) => Number.isInteger(entry.index) && entry.index >= fromIndex)
+      .sort((a, b) => (delta > 0 ? b.index - a.index : a.index - b.index));
+
+    if (delta < 0) delete next[`${prefix}:${fromIndex}`];
+    for (const entry of entries) {
+      if (delta < 0 && entry.index === fromIndex) continue;
+      delete next[entry.key];
+      next[`${prefix}:${entry.index + delta}`] = entry.value;
+    }
+    this.resume.fieldColors = next;
+  }
+
+  private focusColorKey(key: string) {
+    window.setTimeout(() => {
+      document.querySelector<HTMLElement>(`[data-color-key="${CSS.escape(key)}"]`)?.focus();
+    });
+  }
+
+  private focusOutsideList(target: HTMLElement) {
+    const editables = [...document.querySelectorAll<HTMLElement>('[contenteditable="true"]')];
+    const list = target.closest('ul');
+    const currentIndex = editables.indexOf(target);
+    const next = editables.slice(currentIndex + 1).find((item) => !list?.contains(item));
+    target.blur();
+    window.setTimeout(() => next?.focus());
+  }
+
+  private findBackgroundColor(target: HTMLElement) {
+    let current: HTMLElement | null = target;
+    while (current) {
+      const color = getComputedStyle(current).backgroundColor;
+      if (color && color !== 'rgba(0, 0, 0, 0)' && color !== 'transparent') return color;
+      current = current.parentElement;
+    }
+    return '#ffffff';
   }
 
   private isSideColumnSection(section: ResumeSection) {

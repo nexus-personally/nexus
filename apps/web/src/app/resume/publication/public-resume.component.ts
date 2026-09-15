@@ -27,6 +27,7 @@ import { ResumeRendererComponent } from '../renderer/resume-renderer.component';
         min-height: 100vh;
         padding: 2rem;
         background: #f4f7f8;
+        font-family: Roboto, 'Helvetica Neue', sans-serif;
       }
 
       .unavailable {

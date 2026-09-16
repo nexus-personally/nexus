@@ -395,12 +395,21 @@ type ColorTarget = keyof ResumeColors;
                         <button type="button" (click)="move(section.id, 1); sectionMenuId = ''">
                           Move down
                         </button>
-                        <button
-                          type="button"
-                          (click)="duplicateSection(section); sectionMenuId = ''"
-                        >
-                          Duplicate section
-                        </button>
+                        @if (section.type === 'experience') {
+                          <button
+                            type="button"
+                            (click)="addCompany(section); sectionMenuId = ''"
+                          >
+                            Add company
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            (click)="duplicateSection(section); sectionMenuId = ''"
+                          >
+                            Duplicate section
+                          </button>
+                        }
                         <button
                           class="danger"
                           type="button"
@@ -476,7 +485,7 @@ type ColorTarget = keyof ResumeColors;
               </label>
               <button type="button" class="add-section-button" (click)="addSection()">
                 <svg lucidePlus size="17"></svg>
-                Add section
+                {{ addSectionActionLabel }}
               </button>
             </div>
 
@@ -755,14 +764,20 @@ type ColorTarget = keyof ResumeColors;
                 <output>{{ cropDraft.zoom.toFixed(2) }}×</output>
               </label>
               <footer>
-                <button type="button" (click)="resetCrop()">
+                <button class="crop-action crop-action-reset" type="button" (click)="resetCrop()">
                   <svg lucideRotateCcw size="14"></svg>
                   Reset
                 </button>
                 <span></span>
-                <button type="button" (click)="closeCropEditor()">Cancel</button>
                 <button
-                  class="apply-crop"
+                  class="crop-action crop-action-cancel"
+                  type="button"
+                  (click)="closeCropEditor()"
+                >
+                  Cancel
+                </button>
+                <button
+                  class="crop-action apply-crop"
                   type="button"
                   [disabled]="cropApplying"
                   (click)="applyCrop()"
@@ -1463,15 +1478,62 @@ type ColorTarget = keyof ResumeColors;
       .crop-dialog footer {
         display: grid;
         grid-template-columns: auto 1fr auto auto;
-        gap: 0.5rem;
+        align-items: center;
+        gap: 0.65rem;
         margin-top: 1rem;
         padding-top: 1rem;
         border-top: 1px solid #dce2df;
       }
+      .crop-dialog footer .crop-action {
+        min-height: 2.5rem;
+        border-radius: var(--radius-button, 25px);
+        padding: 0.55rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 650;
+        line-height: 1;
+        transition:
+          border-color 120ms ease,
+          background 120ms ease,
+          color 120ms ease,
+          transform 120ms ease;
+      }
+      .crop-action-reset {
+        border-color: #9dc9ca;
+        background: #edf8f8;
+        color: #176b72;
+      }
+      .crop-action-reset:hover {
+        border-color: #278e97;
+        background: #dff2f3;
+      }
+      .crop-action-cancel {
+        border-color: #c9d2cf;
+        background: #ffffff;
+        color: #3f4947;
+      }
+      .crop-action-cancel:hover {
+        border-color: #8e9b97;
+        background: #f0f4f2;
+      }
       .apply-crop {
-        border-color: #171c1e;
-        background: #171c1e;
+        border-color: #237f87;
+        background: #278e97;
+        color: #ffffff;
         font-weight: 700;
+        box-shadow: 0 6px 16px rgba(39, 142, 151, 0.22);
+      }
+      .apply-crop:hover:not(:disabled) {
+        border-color: #176b72;
+        background: #207d85;
+      }
+      .crop-dialog footer .crop-action:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+      .crop-dialog footer .apply-crop:disabled {
+        border-color: #b9c7c4;
+        background: #dfe6e4;
+        color: #87928f;
+        box-shadow: none;
       }
       .loading-state {
         display: grid;
@@ -2862,15 +2924,21 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     const recovery = localStorage.getItem(this.recoveryKey(id));
     if (recovery) {
       this.resume = JSON.parse(recovery) as ResumeRecord;
+      this.consolidateExperienceSections(this.resume);
       this.selectedSectionId = this.resume.sectionOrder[0] ?? '';
       this.saveState = 'Recovered local draft';
       return;
     }
 
     this.api.getResume(id).subscribe((resume) => {
+      const consolidated = this.consolidateExperienceSections(resume);
       this.resume = resume;
       this.selectedSectionId = resume.sectionOrder[0] ?? '';
-      this.saveState = 'Saved';
+      if (consolidated) {
+        this.markDirty();
+      } else {
+        this.saveState = 'Saved';
+      }
     });
   }
 
@@ -2897,6 +2965,11 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
       this.sectionOptions.find((option) => option.type === this.newSectionType)?.label ??
       'section'
     );
+  }
+
+  protected get addSectionActionLabel() {
+    const hasExperience = this.orderedSections.some((section) => section.type === 'experience');
+    return this.newSectionType === 'experience' && hasExperience ? 'Add company' : 'Add section';
   }
 
   protected chooseSectionType(type: ResumeSectionType) {
@@ -3057,6 +3130,12 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     this.markDirty();
   }
 
+  protected addCompany(section: Extract<ResumeSection, { type: 'experience' }>) {
+    section.items.push(this.createExperienceItem());
+    this.selectedSectionId = section.id;
+    this.markDirty();
+  }
+
   protected deleteSection(section: ResumeSection) {
     if (!this.resume || !window.confirm('Delete the "' + section.title + '" section?')) return;
     this.resume.content.sections = this.resume.content.sections.filter(
@@ -3074,6 +3153,16 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   protected addSection() {
     if (!this.resume) return;
+    if (this.newSectionType === 'experience') {
+      const experience = this.orderedSections.find(
+        (section): section is Extract<ResumeSection, { type: 'experience' }> =>
+          section.type === 'experience',
+      );
+      if (experience) {
+        this.addCompany(experience);
+        return;
+      }
+    }
     const section = this.createSection(this.newSectionType);
     this.resume.content.sections.push(section);
     this.resume.sectionOrder.push(section.id);
@@ -3426,22 +3515,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
         type,
         title: 'Experience',
         hidden: false,
-        items: [
-          {
-            id: crypto.randomUUID(),
-            company: 'Company',
-            location: 'Location',
-            positions: [
-              {
-                id: crypto.randomUUID(),
-                title: 'Position',
-                startDate: 'Start',
-                endDate: 'End',
-                bullets: ['Describe your impact.'],
-              },
-            ],
-          },
-        ],
+        items: [this.createExperienceItem()],
       };
     if (type === 'education')
       return {
@@ -3492,6 +3566,51 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
       custom: 'Custom Section',
     };
     return { id, type, title: labels[type], hidden: false, items: ['Add an item.'] };
+  }
+
+  private createExperienceItem() {
+    return {
+      id: crypto.randomUUID(),
+      company: 'Company',
+      location: 'Location',
+      positions: [
+        {
+          id: crypto.randomUUID(),
+          title: 'Position',
+          startDate: 'Start',
+          endDate: 'End',
+          bullets: ['Describe your impact.'],
+        },
+      ],
+    };
+  }
+
+  private consolidateExperienceSections(resume: ResumeRecord) {
+    const sections = resume.content.sections.filter(
+      (section): section is Extract<ResumeSection, { type: 'experience' }> =>
+        section.type === 'experience',
+    );
+    if (sections.length <= 1) return false;
+
+    const [primary, ...duplicates] = sections;
+    const duplicateIds = new Set(duplicates.map((section) => section.id));
+    for (const duplicate of duplicates) {
+      primary.items.push(...duplicate.items);
+      const sourcePrefix = `section:${duplicate.id}:`;
+      const targetPrefix = `section:${primary.id}:`;
+      for (const [key, color] of Object.entries(resume.fieldColors ?? {})) {
+        if (key.startsWith(sourcePrefix)) {
+          resume.fieldColors ??= {};
+          resume.fieldColors[targetPrefix + key.slice(sourcePrefix.length)] = color;
+          delete resume.fieldColors[key];
+        }
+      }
+    }
+    resume.content.sections = resume.content.sections.filter(
+      (section) => !duplicateIds.has(section.id),
+    );
+    resume.sectionOrder = resume.sectionOrder.filter((id) => !duplicateIds.has(id));
+    return true;
   }
 
   private drawCropPreview() {

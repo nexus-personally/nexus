@@ -26,6 +26,7 @@ export interface ResumeColorSelection {
 
 @Component({
   selector: 'nexus-resume-renderer',
+  host: { '[class.reference-preview]': 'referencePreview' },
   standalone: true,
   imports: [CommonModule, LucideMail, LucidePhone, LucideMapPin, LucideLink],
   template: `
@@ -227,6 +228,29 @@ export interface ResumeColorSelection {
                 @case ('experience') {
                   @for (item of section.items; track item.id) {
                     <div class="block experience-block">
+                      @if (editable) {
+                        <span class="company-actions" contenteditable="false">
+                          <button
+                            type="button"
+                            title="Add company below"
+                            aria-label="Add company below"
+                            (mousedown)="$event.preventDefault()"
+                            (click)="addExperienceCompany(section, $index + 1)"
+                          >
+                            +
+                          </button>
+                          <button
+                            type="button"
+                            title="Delete company"
+                            aria-label="Delete company"
+                            [disabled]="section.items.length === 1"
+                            (mousedown)="$event.preventDefault()"
+                            (click)="removeExperienceCompany(section, $index)"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      }
                       <h3>
                         <span
                           class="primary-field"
@@ -284,8 +308,9 @@ export interface ResumeColorSelection {
                               (blur)="editField(position, 'title', $event)"
                               >{{ position.title }}</strong
                             >
-                            <em>
+                            <em class="date-field">
                               <span
+                                class="date-field"
                                 [attr.data-color-key]="
                                   'section:' +
                                   section.id +
@@ -312,6 +337,7 @@ export interface ResumeColorSelection {
                               >
                               -
                               <span
+                                class="date-field"
                                 [attr.data-color-key]="
                                   'section:' + section.id + ':position:' + position.id + ':endDate'
                                 "
@@ -351,6 +377,7 @@ export interface ResumeColorSelection {
                                   "
                                   data-color-label="Experience bullet"
                                   data-color-role="bullet"
+                                  data-paste-sync="true"
                                   [attr.contenteditable]="editable ? 'true' : null"
                                   [style.color]="
                                     fieldColor(
@@ -366,6 +393,7 @@ export interface ResumeColorSelection {
                                       bulletColorPrefix(section.id, position.id)
                                     )
                                   "
+                                  (input)="syncArrayItemInput(position.bullets, $index, $event)"
                                   (blur)="editArrayItem(position.bullets, $index, $event)"
                                   >{{ bullet }}</span
                                 >
@@ -435,6 +463,7 @@ export interface ResumeColorSelection {
                           >{{ item.school }}</span
                         >
                         <span
+                          class="date-field"
                           [attr.data-color-key]="
                             'section:' + section.id + ':education:' + item.id + ':dates'
                           "
@@ -515,6 +544,7 @@ export interface ResumeColorSelection {
                           >{{ project.name }}</span
                         >
                         <span
+                          class="date-field"
                           [attr.data-color-key]="
                             'section:' + section.id + ':project:' + project.id + ':dates'
                           "
@@ -644,6 +674,7 @@ export interface ResumeColorSelection {
                           [attr.data-color-key]="simpleItemColorKey(section.id, $index)"
                           [attr.data-color-label]="section.title + ' item'"
                           data-color-role="bullet"
+                          data-paste-sync="true"
                           [attr.contenteditable]="editable ? 'true' : null"
                           [style.color]="
                             fieldColor(simpleItemColorKey(section.id, $index), 'bullet')
@@ -656,6 +687,7 @@ export interface ResumeColorSelection {
                               simpleItemColorPrefix(section.id)
                             )
                           "
+                          (input)="syncArrayItemInput(section.items, $index, $event)"
                           (blur)="editArrayItem(section.items, $index, $event)"
                           >{{ item }}</span
                         >
@@ -726,15 +758,15 @@ export interface ResumeColorSelection {
         --skill-label-color: var(--heading);
         --skill-text-color: var(--body);
         --template-inline-padding: 50px;
-        --font-name: 2.15rem;
+        --font-name: 2rem;
         --font-headline: 0.95rem;
-        --font-contact: 0.72rem;
-        --font-section-title: 0.74rem;
+        --font-contact: 0.75rem;
+        --font-section-title: 0.82rem;
         --font-organization: 0.9rem;
-        --font-meta: 0.7rem;
-        --font-body: 0.78rem;
-        --font-role: 0.78rem;
-        --font-skill-label: 0.72rem;
+        --font-meta: 0.72rem;
+        --font-body: 0.82rem;
+        --font-role: 0.82rem;
+        --font-skill-label: 0.78rem;
         width: 210mm;
         min-height: 297mm;
         box-sizing: border-box;
@@ -796,7 +828,7 @@ export interface ResumeColorSelection {
         display: inline-flex;
         align-items: center;
         justify-content: flex-end;
-        gap: 0.42rem;
+        gap: 0.82rem;
         min-width: 0;
       }
       .contact-item svg {
@@ -823,6 +855,47 @@ export interface ResumeColorSelection {
       .skill-group,
       .editable-list-item {
         break-inside: avoid;
+      }
+      .experience-block {
+        position: relative;
+      }
+      .experience-block + .experience-block {
+        margin-top: 1.4rem;
+      }
+      .is-editable .experience-block {
+        padding-right: 3.2rem;
+      }
+      .company-actions {
+        position: absolute;
+        top: 0.35rem;
+        right: 0;
+        display: inline-flex;
+        gap: 0.18rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 120ms ease;
+      }
+      .experience-block:hover > .company-actions,
+      .experience-block:focus-within > .company-actions {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .company-actions button {
+        display: inline-grid;
+        width: 1.35rem;
+        height: 1.35rem;
+        place-items: center;
+        padding: 0;
+        border: 1px solid color-mix(in srgb, var(--accent), white 55%);
+        border-radius: 50%;
+        background: #ffffff;
+        color: var(--heading);
+        font: 700 0.72rem/1 Roboto, 'Helvetica Neue', sans-serif;
+        cursor: pointer;
+      }
+      .company-actions button:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
       }
       .resume-column {
         display: flex;
@@ -855,6 +928,9 @@ export interface ResumeColorSelection {
         font-size: var(--font-meta);
         font-style: normal;
         font-weight: 500;
+      }
+      .date-field {
+        font-style: italic;
       }
       .summary,
       .block p,
@@ -911,15 +987,11 @@ export interface ResumeColorSelection {
       .editable-list-item::before {
         content: '•';
         position: absolute;
-        top: 50%;
+        top: 0;
         left: -0.95rem;
         color: inherit;
         font-size: 1.8em;
         line-height: 1;
-        transform: translateY(-50%);
-      }
-      .is-editable .editable-list-item {
-        padding-right: 3.2rem;
       }
       .editable-list-item > [contenteditable='true'] {
         display: inline-block;
@@ -1001,7 +1073,7 @@ export interface ResumeColorSelection {
         outline-offset: 2px;
       }
       .tech-modern {
-        --font-name: 1.65rem;
+        --font-name: 1.75rem;
         display: grid;
         grid-template-columns: 46mm 1fr;
         padding: 0;
@@ -1047,8 +1119,14 @@ export interface ResumeColorSelection {
         grid-template-columns: 1fr;
       }
       .tech-minimal {
-        --font-name: 2.45rem;
-        --font-headline: 1.05rem;
+        --font-name: 2.15rem;
+        --font-headline: 1rem;
+        --font-contact: 0.75rem;
+        --font-organization: 0.88rem;
+        --font-meta: 0.72rem;
+        --font-body: 0.82rem;
+        --font-role: 0.82rem;
+        --font-skill-label: 0.78rem;
         --font-section-title: 0.82rem;
         padding: 44px var(--template-inline-padding);
       }
@@ -1071,7 +1149,6 @@ export interface ResumeColorSelection {
         font-weight: 600;
       }
       .tech-minimal .minimal-header-summary {
-        max-width: 34rem;
         margin-top: 4mm;
       }
       .tech-minimal .minimal-header-summary .summary {
@@ -1147,15 +1224,15 @@ export interface ResumeColorSelection {
         color: var(--heading);
       }
       .tech-executive {
-        --font-name: 2.2rem;
-        --font-headline: 0.82rem;
-        --font-contact: 0.59rem;
-        --font-section-title: 0.76rem;
-        --font-organization: 0.75rem;
-        --font-meta: 0.6rem;
-        --font-body: 0.67rem;
-        --font-role: 0.68rem;
-        --font-skill-label: 0.67rem;
+        --font-name: 2rem;
+        --font-headline: 0.88rem;
+        --font-contact: 0.68rem;
+        --font-section-title: 0.78rem;
+        --font-organization: 0.82rem;
+        --font-meta: 0.68rem;
+        --font-body: 0.75rem;
+        --font-role: 0.76rem;
+        --font-skill-label: 0.74rem;
         padding: 44px var(--template-inline-padding);
         font-family: Roboto, 'Helvetica Neue', sans-serif;
       }
@@ -1310,12 +1387,17 @@ export interface ResumeColorSelection {
           outline: 0;
           background: transparent;
         }
-        .list-item-actions {
+        .list-item-actions,
+        .company-actions {
           display: none !important;
+        }
+        .is-editable .experience-block {
+          padding-right: 0;
         }
       }
     `,
   ],
+  styleUrls: ['./resume-renderer.reference.scss'],
 })
 export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
   private readonly host = inject(ElementRef) as ElementRef<HTMLElement>;
@@ -1324,6 +1406,7 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
 
   @Input({ required: true }) resume?: ResumeRecord;
   @Input() editable = false;
+  @Input() referencePreview = false;
   @Output() edited = new EventEmitter<void>();
   @Output() colorSelected = new EventEmitter<ResumeColorSelection>();
 
@@ -1364,14 +1447,12 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
     const byId = new Map(this.resume.content.sections.map((section) => [section.id, section]));
     return this.resume.sectionOrder.flatMap((id) => {
       const section = byId.get(id);
-      return section ? [section] : [];
+      return section && !(this.referencePreview && this.resume?.templateId === 'tech-minimal' && section.type === 'summary') ? [section] : [];
     });
   }
 
   get usesIndependentColumns() {
-    return (
-      this.resume?.templateId === 'tech-minimal' || this.resume?.templateId === 'tech-executive'
-    );
+    return !this.referencePreview && (this.resume?.templateId === 'tech-minimal' || this.resume?.templateId === 'tech-executive');
   }
 
   get mainColumnSections() {
@@ -1393,7 +1474,9 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
 
   protected editField(target: object, field: string, event: Event) {
     if (!this.editable) return;
-    (target as Record<string, unknown>)[field] = this.readText(event);
+    const value = this.readText(event);
+    this.syncEditableText(event.currentTarget as HTMLElement, value);
+    (target as Record<string, unknown>)[field] = value;
     this.edited.emit();
   }
 
@@ -1401,7 +1484,7 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
     if (!this.editable) return;
     const element = event.currentTarget as HTMLElement;
     const value = this.readText(event).slice(0, maxLength);
-    if (element.innerText !== value) element.innerText = value;
+    this.syncEditableText(element, value);
     (target as Record<string, unknown>)[field] = value;
     this.edited.emit();
   }
@@ -1439,8 +1522,20 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
       delete target.dataset['skipBlur'];
       return;
     }
-    items[index] = this.readText(event);
+    const value = this.readText(event);
+    this.syncEditableText(target, value);
+    items[index] = value;
     this.edited.emit();
+  }
+
+  protected syncArrayItemInput(items: string[], index: number, event: Event) {
+    // Native contenteditable input must remain DOM-owned while typing. Updating
+    // the Angular interpolation on every keypress rewrites its text node and
+    // moves the browser caret back to the beginning. The paste handler emits an
+    // untrusted input event specifically to synchronize its manual DOM change.
+    if (!this.editable || event.isTrusted) return;
+    const target = event.currentTarget as HTMLElement;
+    items[index] = target.innerText.replace(/\u00a0/g, ' ');
   }
 
   protected fieldColor(key: string, role: ResumeColorRole) {
@@ -1522,6 +1617,52 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
     this.focusColorKey(`${colorPrefix}:${insertionIndex}`);
   }
 
+  protected addExperienceCompany(
+    section: Extract<ResumeSection, { type: 'experience' }>,
+    index: number,
+  ) {
+    const item = {
+      id: crypto.randomUUID(),
+      company: 'Company',
+      location: 'Location',
+      positions: [
+        {
+          id: crypto.randomUUID(),
+          title: 'Position',
+          startDate: 'Start',
+          endDate: 'End',
+          bullets: ['Describe your impact.'],
+        },
+      ],
+    };
+    section.items.splice(Math.min(index, section.items.length), 0, item);
+    this.edited.emit();
+    this.focusColorKey(`section:${section.id}:experience:${item.id}:company`);
+  }
+
+  protected removeExperienceCompany(
+    section: Extract<ResumeSection, { type: 'experience' }>,
+    index: number,
+  ) {
+    if (section.items.length <= 1) return;
+    const [removed] = section.items.splice(index, 1);
+    if (!removed) return;
+    const removedPrefixes = [
+      `section:${section.id}:experience:${removed.id}:`,
+      ...removed.positions.flatMap((position) => [
+        `section:${section.id}:position:${position.id}:`,
+      ]),
+    ];
+    if (this.resume?.fieldColors) {
+      this.resume.fieldColors = Object.fromEntries(
+        Object.entries(this.resume.fieldColors).filter(
+          ([key]) => !removedPrefixes.some((prefix) => key.startsWith(prefix)),
+        ),
+      );
+    }
+    this.edited.emit();
+  }
+
   protected removeListItem(
     items: string[],
     index: number,
@@ -1537,7 +1678,9 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
 
   protected editStringList(target: object, field: string, event: Event) {
     if (!this.editable) return;
-    (target as Record<string, unknown>)[field] = this.readText(event)
+    const value = this.readText(event);
+    this.syncEditableText(event.currentTarget as HTMLElement, value);
+    (target as Record<string, unknown>)[field] = value
       .split(/[·,]/)
       .map((item) => item.trim())
       .filter(Boolean);
@@ -1552,13 +1695,13 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
   protected pastePlainText(event: ClipboardEvent) {
     if (!this.editable) return;
 
-    const target = event.target;
+    const eventTarget = event.target;
+    const target =
+      eventTarget instanceof Element
+        ? eventTarget.closest<HTMLElement>('[contenteditable="true"]')
+        : null;
     const clipboardText = event.clipboardData?.getData('text/plain');
-    if (
-      !(target instanceof HTMLElement) ||
-      target.contentEditable !== 'true' ||
-      clipboardText == null
-    ) {
+    if (!target || clipboardText == null) {
       return;
     }
 
@@ -1586,6 +1729,22 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
         maxLines
       );
     }
+    // The paste operation splits Angular's interpolation text node. Merge the
+    // result immediately, before the paste event finishes and change detection
+    // can reconcile the old interpolation with the manually inserted node.
+    const pastedValue = target.innerText.replace(/\u00a0/g, ' ');
+    const caretOffset = this.caretOffsetWithin(target);
+    this.syncEditableText(target, pastedValue);
+    this.placeCaretAtOffset(target, caretOffset);
+    if (target.dataset['pasteSync'] === 'true') {
+      target.dispatchEvent(
+        new InputEvent('input', {
+          bubbles: true,
+          inputType: 'insertText',
+          data: text.slice(0, availableLength),
+        }),
+      );
+    }
   }
 
   private renderedLineCount(target: HTMLElement) {
@@ -1609,8 +1768,45 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
     selection.addRange(range);
   }
 
+  private caretOffsetWithin(target: HTMLElement) {
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || !target.contains(selection.anchorNode)) {
+      return target.textContent?.length ?? 0;
+    }
+    const range = selection.getRangeAt(0).cloneRange();
+    range.selectNodeContents(target);
+    range.setEnd(selection.anchorNode!, selection.anchorOffset);
+    return range.toString().length;
+  }
+
+  private placeCaretAtOffset(target: HTMLElement, offset: number) {
+    const selection = window.getSelection();
+    if (!selection) return;
+    const textNode = target.firstChild;
+    if (!(textNode instanceof Text)) {
+      this.placeCaretAtEnd(target);
+      return;
+    }
+    const range = document.createRange();
+    range.setStart(textNode, Math.min(offset, textNode.length));
+    range.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
   private readText(event: Event) {
     return (event.currentTarget as HTMLElement).innerText.replace(/\u00a0/g, ' ').trim();
+  }
+
+  /**
+   * Angular renders editable values as interpolation text nodes. Manual paste
+   * can split that node and add another one, so collapse the DOM before the
+   * model update causes Angular to refresh the interpolation.
+   */
+  private syncEditableText(target: HTMLElement, value: string) {
+    // Assign even when the string is unchanged: paste can split Angular's
+    // interpolation node into several nodes whose combined text is identical.
+    target.textContent = value;
   }
 
   private insertTextAtCaret(target: HTMLElement, text: string) {

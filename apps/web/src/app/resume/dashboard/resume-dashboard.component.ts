@@ -4,7 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
   LucideArrowRight,
+  LucideChartNoAxesColumnIncreasing,
   LucideCopy,
+  LucideCheck,
   LucideFileText,
   LucidePlus,
   LucideSearch,
@@ -12,6 +14,7 @@ import {
   LucideUpload,
   LucideUserRound,
   LucideX,
+  LucideZap,
 } from '@lucide/angular';
 import type { ResumeRecord, ResumeTemplateId, ResumeTemplateMeta } from '@nexus/shared';
 import { RESUME_TEMPLATES, createStarterResume } from '@nexus/shared';
@@ -30,7 +33,9 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
     RouterLink,
     ResumeRendererComponent,
     LucideArrowRight,
+    LucideChartNoAxesColumnIncreasing,
     LucideCopy,
+    LucideCheck,
     LucideFileText,
     LucidePlus,
     LucideSearch,
@@ -38,6 +43,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
     LucideUpload,
     LucideUserRound,
     LucideX,
+    LucideZap,
   ],
   template: `
     <main class="dashboard-shell" [class.panel-closed]="!createOpen">
@@ -53,14 +59,42 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
           </div>
         </div>
         <nav class="topbar-nav" aria-label="Resume sections">
-          <a class="active" href="#templates-title">Templates</a>
-          <a href="#library-title">My resumes</a>
+          <a class="active" href="/resume#templates-title">Templates</a>
+          <a href="/resume#library-title">My resumes</a>
         </nav>
         <button class="primary topbar-action" type="button" (click)="openCreate()">
           <svg lucidePlus size="16"></svg>
           New resume
         </button>
+        <a routerLink="/" class="profile-badge" aria-label="Back to NEXUS">N</a>
       </header>
+
+      <section class="studio-hero" aria-labelledby="studio-hero-title">
+        <div class="hero-copy">
+          <span class="eyebrow">RESUME STUDIO</span>
+          <h1 id="studio-hero-title">Choose your starting point</h1>
+          <p>Professional templates. Your story. A stronger tomorrow.</p>
+          <div class="hero-benefits" aria-label="Resume Studio benefits">
+            <div class="hero-benefit">
+              <span><svg lucideFileText size="20"></svg></span>
+              <p><strong>Professional templates</strong><small>Designed for real opportunities</small></p>
+            </div>
+            <div class="hero-benefit">
+              <span><svg lucideZap size="20"></svg></span>
+              <p><strong>Easy to customize</strong><small>Make it yours in minutes</small></p>
+            </div>
+            <div class="hero-benefit">
+              <span><svg lucideChartNoAxesColumnIncreasing size="20"></svg></span>
+              <p><strong>Get noticed</strong><small>ATS-friendly and recruiter ready</small></p>
+            </div>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <p>A stronger you<br />starts here.</p>
+          <img src="/assets/resume/resume-studio-mountain.png" alt="" />
+          <span>Better opportunities<br />start with a<br />great resume.<i></i></span>
+        </div>
+      </section>
 
       <section class="workspace">
         <section class="template-section" aria-labelledby="templates-title">
@@ -122,15 +156,18 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
                 >
                   <span class="preview-document">
                     <span class="preview-scale">
-                      <nexus-resume-renderer [resume]="previewFor(template.id)" />
+                      <nexus-resume-renderer [resume]="previewFor(template.id)" [referencePreview]="true" />
                     </span>
                   </span>
+                  @if (newTemplate === template.id) {
+                    <span class="selection-check"><svg lucideCheck size="19"></svg></span>
+                  }
                 </button>
 
                 <div class="template-summary">
                   <div class="template-line">
                     <h2>{{ template.name }}</h2>
-                    <span [class]="'tag ' + template.id">{{ templateTag(template.id) }}</span>
+                    <span [class]="'tag ' + template.id">{{ templateGalleryTag(template.id) }}</span>
                   </div>
                   <p>{{ template.description }}</p>
                   <button
@@ -231,7 +268,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
           </header>
 
           <div class="selected-preview">
-            <span><nexus-resume-renderer [resume]="selectedPreview" /></span>
+            <span><nexus-resume-renderer [resume]="selectedPreview" [referencePreview]="true" /></span>
           </div>
 
           <div class="panel-form">
@@ -326,6 +363,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
           </footer>
         </aside>
       }
+
     </main>
   `,
   styles: [
@@ -334,7 +372,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         display: block;
         color: #172231;
         background: #fbfaf8;
-        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-family: Arial, sans-serif;
       }
       .dashboard-shell {
         display: grid;
@@ -526,7 +564,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       .template-heading h1 {
         margin-top: 0.35rem;
         color: #172231;
-        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-family: Arial, sans-serif;
         font-size: clamp(2.45rem, 4vw, 3.2rem);
         line-height: 1.04;
         font-weight: 700;
@@ -1249,6 +1287,455 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         .template-card {
           flex-basis: 100%;
         }
+      }
+      .profile-badge {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border: 1px solid #dde5ec;
+        border-radius: 50%;
+        color: #122033;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .studio-hero {
+        position: relative;
+        grid-column: 1 / -1;
+        grid-row: 2;
+        min-height: 258px;
+        overflow: hidden;
+        padding: 34px clamp(32px, 4vw, 58px) 32px;
+        background: #edfaff;
+      }
+      .hero-copy {
+        position: relative;
+        z-index: 2;
+        max-width: 820px;
+      }
+      .studio-hero h1 {
+        margin: 10px 0 4px;
+        color: #050b16;
+        font-size: clamp(2.75rem, 4vw, 3.45rem);
+        font-weight: 800;
+        letter-spacing: -0.055em;
+        line-height: 1.02;
+      }
+      .studio-hero > .hero-copy > p {
+        margin: 0;
+        color: #66768f;
+        font-size: 1.23rem;
+        line-height: 1.5;
+      }
+      .hero-benefits {
+        display: flex;
+        gap: clamp(42px, 6vw, 86px);
+        margin-top: 27px;
+      }
+      .hero-benefit {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+      }
+      .hero-benefit > span {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        flex: 0 0 48px;
+        place-items: center;
+        border: 1px solid #c8edf6;
+        border-radius: 50%;
+        background: rgba(226, 248, 253, 0.9);
+        color: #0695c2;
+      }
+      .hero-benefit p {
+        display: grid;
+        gap: 3px;
+        margin: 0;
+        color: #33445c;
+        font-size: 0.83rem;
+      }
+      .hero-benefit small {
+        color: #728198;
+        font-size: 0.75rem;
+      }
+      .hero-art {
+        position: absolute;
+        inset: 0 0 0 auto;
+        width: min(47%, 700px);
+      }
+      .hero-art > p {
+        position: absolute;
+        z-index: 2;
+        top: 33px;
+        left: 16px;
+        margin: 0;
+        color: #42698b;
+        font-family: 'Segoe Print', 'Bradley Hand', cursive;
+        font-size: 1.55rem;
+        font-style: italic;
+        line-height: 1.12;
+        transform: rotate(-8deg);
+      }
+      .hero-art > p::after {
+        display: block;
+        width: 42px;
+        height: 2px;
+        margin: 13px 0 0 54px;
+        background: #04a5d2;
+        content: '';
+        transform: rotate(-6deg);
+      }
+      .hero-art img {
+        position: absolute;
+        right: 66px;
+        bottom: -1px;
+        width: 355px;
+        height: 170px;
+        border-radius: 66px 66px 0 0;
+        object-fit: cover;
+      }
+      .hero-art > span {
+        position: absolute;
+        z-index: 3;
+        right: 28px;
+        bottom: 20px;
+        min-width: 155px;
+        padding: 20px 22px 17px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 12px 30px rgba(54, 91, 114, 0.11);
+        color: #3d4f69;
+        font-size: 0.93rem;
+        line-height: 1.28;
+      }
+      .hero-art > span i {
+        display: block;
+        width: 24px;
+        height: 2px;
+        margin-top: 13px;
+        background: #05a9d5;
+      }
+      .dashboard-shell,
+      .dashboard-shell.panel-closed {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 60px auto auto;
+        min-height: 100svh;
+        background: #f9fbfc;
+      }
+      .dashboard-shell:not(.panel-closed) {
+        grid-template-columns: minmax(0, 1fr) 22rem;
+      }
+      .topbar {
+        grid-column: 1 / -1;
+        min-height: 60px;
+        padding: 0 44px 0 54px;
+        border-bottom: 1px solid #e6ebef;
+        background: rgba(255, 255, 255, 0.96);
+      }
+      .nexus-mark {
+        display: none;
+      }
+      .topbar-identity {
+        gap: 20px;
+      }
+      .product-title {
+        display: flex;
+        align-items: baseline;
+        gap: 19px;
+      }
+      .product-title strong {
+        font-size: 1.45rem;
+        letter-spacing: -0.04em;
+      }
+      .product-title span {
+        color: #52617a;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .topbar-nav {
+        margin-left: auto;
+      }
+      .topbar-nav a {
+        padding: 21px 0 18px;
+        color: #2c394d;
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+      .topbar-nav a.active::after {
+        height: 3px;
+        background: #08a7d4;
+      }
+      .topbar-action {
+        min-height: 44px;
+        margin-left: 26px;
+        padding: 0 26px;
+        border: 0;
+        background: #08a9d2;
+        box-shadow: 0 8px 18px rgba(0, 153, 199, 0.15);
+        font-size: 0.9rem;
+      }
+      .profile-badge {
+        margin-left: 10px;
+      }
+      .workspace {
+        display: flex;
+        flex-direction: column;
+        grid-column: 1;
+        grid-row: 3;
+        min-width: 0;
+        padding: 18px clamp(32px, 4vw, 58px) 34px;
+        background: #fff;
+        border-radius: 46px 46px 0 0;
+        box-shadow: 0 -10px 34px rgba(22, 77, 105, 0.04);
+      }
+      .resume-library {
+        order: -1;
+        padding: 0 0 26px;
+        border-bottom: 1px solid #e3eaee;
+        background: transparent;
+      }
+      .resume-library > header {
+        margin-bottom: 11px;
+      }
+      .resume-library .eyebrow {
+        display: none;
+      }
+      .resume-library h2 {
+        margin: 0 0 2px;
+        color: #0c1421;
+        font-size: 1.65rem;
+        letter-spacing: -0.035em;
+      }
+      .resume-library p {
+        font-size: 1rem;
+      }
+      .resume-library > header > span {
+        color: #697890;
+        font-size: 0.8rem;
+      }
+      .resume-row {
+        display: block;
+      }
+      .resume-item {
+        grid-template-columns: 88px minmax(0, 1fr) auto;
+        width: min(100%, 795px);
+        min-height: 128px;
+        padding: 12px 20px;
+        border: 1px solid #d9e6ec;
+        border-radius: 14px;
+        background: #f9fdff;
+        box-shadow: none;
+      }
+      .resume-thumbnail {
+        width: 72px;
+        height: 98px;
+        border: 0;
+        border-radius: 3px;
+        box-shadow: 0 3px 10px rgba(31, 52, 71, 0.12);
+      }
+      .resume-details > a {
+        color: #101923;
+        font-size: 1rem;
+      }
+      .resume-details small {
+        color: #6c7c92;
+      }
+      .resume-actions button {
+        width: 44px;
+        height: 44px;
+        border: 1px solid #d7e2e8;
+        background: #fff;
+      }
+      .resume-actions .danger {
+        border-color: #ffdadd;
+        background: #fff7f7;
+        color: #ff3640;
+      }
+      .template-section {
+        padding-top: 22px;
+      }
+      .template-heading {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 24px;
+        margin-bottom: 18px;
+      }
+      .template-heading .eyebrow {
+        margin-bottom: 6px;
+      }
+      .template-heading h1 {
+        margin: 0 0 2px;
+        color: #08101b;
+        font-size: 2.1rem;
+        letter-spacing: -0.045em;
+      }
+      .template-heading p {
+        margin: 0;
+        color: #6c7b91;
+        font-size: 0.98rem;
+      }
+      .template-tools {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .search-field {
+        width: 280px;
+        height: 46px;
+        border-color: #d5e0e6;
+        border-radius: 25px;
+        background: #fff;
+      }
+      .filter-tabs {
+        gap: 8px;
+        padding: 0;
+        background: transparent;
+      }
+      .filter-tabs button {
+        min-width: 62px;
+        height: 44px;
+        border: 1px solid #d9e3e9;
+        border-radius: 25px;
+        background: #fff;
+        color: #334159;
+      }
+      .filter-tabs button.active {
+        border-color: #c9f0f8;
+        background: #d9f7fd;
+        color: #078db7;
+      }
+      .template-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 18px;
+        max-width: none;
+        padding: 0;
+      }
+      .template-card {
+        display: flex;
+        min-width: 0;
+        height: 338px;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid #dee7eb;
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 6px 18px rgba(32, 62, 80, 0.035);
+      }
+      .template-card.selected {
+        border: 2px solid #08b4dc;
+        box-shadow: 0 8px 22px rgba(3, 177, 218, 0.12);
+      }
+      .template-preview {
+        height: 284px;
+        min-height: 0;
+        padding: 12px 10px 0;
+        border: 0;
+        border-radius: 0;
+        background: #fbfcfc;
+      }
+      .preview-document {
+        height: 100%;
+        border-radius: 3px 3px 0 0;
+        box-shadow: none;
+      }
+      .preview-scale {
+        transform: translateX(-50%) scale(0.34);
+        transform-origin: top center;
+      }
+      .template-summary {
+        padding: 12px 13px;
+        border-top: 1px solid #edf1f3;
+      }
+      .template-summary p,
+      .template-use {
+        display: none;
+      }
+      .template-line h2 {
+        font-size: 0.96rem;
+        letter-spacing: -0.02em;
+      }
+      .tag {
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: #dff7fb;
+        color: #078ab1;
+        font-size: 0.7rem;
+        font-weight: 600;
+      }
+      .create-panel {
+        grid-column: 2;
+        grid-row: 3;
+        height: calc(100svh - 60px);
+        top: 60px;
+      }
+      @media (max-width: 1180px) {
+        .hero-art { opacity: 0.5; }
+        .template-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .template-card:nth-child(n + 4) { transform: translateX(50%); }
+      }
+      @media (max-width: 900px) {
+        .studio-hero { min-height: 300px; }
+        .hero-art { display: none; }
+        .template-heading { grid-template-columns: 1fr; align-items: start; }
+        .template-tools { flex-wrap: wrap; }
+        .template-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .template-card:nth-child(n + 4) { transform: none; }
+        .dashboard-shell:not(.panel-closed) { grid-template-columns: 1fr; }
+        .create-panel { grid-column: 1; grid-row: auto; position: relative; top: auto; height: auto; }
+      }
+      @media (max-width: 700px) {
+        .topbar { padding: 0 16px; }
+        .topbar-nav { display: none; }
+        .product-title span { display: none; }
+        .topbar-action { margin-left: auto; padding-inline: 18px; }
+        .profile-badge { display: none; }
+        .studio-hero { min-height: auto; padding: 30px 20px; }
+        .studio-hero h1 { font-size: 2.35rem; }
+        .hero-benefits { display: grid; gap: 14px; }
+        .workspace { padding: 20px; border-radius: 28px 28px 0 0; }
+        .resume-item { grid-template-columns: 72px minmax(0, 1fr); width: 100%; }
+        .resume-actions { grid-column: 2; }
+        .template-tools, .search-field { width: 100%; }
+        .filter-tabs { width: 100%; overflow-x: auto; }
+        .template-grid { grid-template-columns: 1fr; }
+        .template-card { height: 390px; }
+        .template-preview { height: 336px; }
+        .preview-scale { transform: translateX(-50%) scale(0.41); }
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+      }
+      .template-section,
+      .resume-library {
+        width: 100%;
+        max-width: none;
+        margin-inline: 0;
+      }
+      .workspace {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+      }
+      .template-grid {
+        width: 100%;
+        max-width: none;
+        margin-inline: 0;
+        padding-inline: 0;
+      }
+      .resume-item {
+        max-width: 795px;
+      }
+      .template-heading,
+      .template-heading > div {
+        text-align: left;
+      }
+      @media (max-width: 560px) {
         .resume-row {
           grid-template-columns: 1fr;
         }
@@ -1271,6 +1758,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       }
     `,
   ],
+  styleUrls: ['./resume-dashboard.reference.scss'],
 })
 export class ResumeDashboardComponent implements OnInit {
   protected readonly templates = RESUME_TEMPLATES;
@@ -1313,9 +1801,7 @@ export class ResumeDashboardComponent implements OnInit {
         template.description.toLowerCase().includes(query);
       const matchesFilter =
         this.activeFilter === 'all' ||
-        (this.activeFilter === 'ats' && template.atsFriendly) ||
-        (this.activeFilter === 'modern' && template.id === 'tech-modern') ||
-        (this.activeFilter === 'creative' && template.id === 'tech-creative');
+        this.templateGalleryTag(template.id).toLowerCase() === this.activeFilter;
       return matchesSearch && matchesFilter;
     });
   }
@@ -1383,6 +1869,17 @@ export class ResumeDashboardComponent implements OnInit {
       'tech-modern': 'Photo',
       'tech-minimal': 'One page',
       'tech-executive': 'Popular',
+      'tech-creative': 'Creative',
+    };
+    return labels[id];
+  }
+
+  protected templateGalleryTag(id: ResumeTemplateId) {
+    const labels: Record<ResumeTemplateId, string> = {
+      'tech-core': 'ATS',
+      'tech-modern': 'Modern',
+      'tech-minimal': 'Creative',
+      'tech-executive': 'Modern',
       'tech-creative': 'Creative',
     };
     return labels[id];
@@ -1498,8 +1995,8 @@ export class ResumeDashboardComponent implements OnInit {
       'tech-core': { name: 'Alex Morgan', headline: 'Software Engineer' },
       'tech-modern': { name: 'Taylor Kim', headline: 'Product Manager' },
       'tech-minimal': { name: 'Jordan Ellis', headline: 'Data Analyst' },
-      'tech-executive': { name: 'Morgan White', headline: 'Senior Consultant' },
-      'tech-creative': { name: 'Casey Patel', headline: 'UX/UI Designer' },
+      'tech-executive': { name: 'Morgan Lee', headline: 'Senior Product Manager' },
+      'tech-creative': { name: 'Casey Park', headline: 'UX Designer' },
     };
     const preview = createStarterResume(
       'preview-' + templateId,
@@ -1511,13 +2008,30 @@ export class ResumeDashboardComponent implements OnInit {
     preview.content.profile.email =
       names[templateId].name.toLowerCase().replace(' ', '.') + '@example.com';
     preview.content.profile.location = 'San Francisco, CA';
+    preview.content.profile.github = 'linkedin.com/in/' + names[templateId].name.toLowerCase().replace(' ', '');
+    preview.colors = { ...preview.colors!, accent: '#009ec4', sectionTitle: '#009ec4',
+      name: templateId === 'tech-modern' ? '#ffffff' : '#0a1020',
+      headline: templateId === 'tech-modern' ? '#7fdaf1' : '#607087',
+      contact: templateId === 'tech-modern' ? '#dce8ec' : '#607087',
+      role: '#35415b', skillLabel: '#172137' };
     if (
       templateId === 'tech-modern' ||
-      templateId === 'tech-minimal' ||
-      templateId === 'tech-creative'
+      templateId === 'tech-minimal'
     ) {
       preview.content.profile.photoDataUrl = '/assets/resume/template-profile.png';
       preview.content.profile.photoVisible = true;
+    }
+    for (const section of preview.content.sections) {
+      if (section.type === 'summary') section.body = 'Product-minded software engineer focused on reliable, full stack software, elegant interfaces, and measurable delivery.';
+      if (section.type === 'experience') for (const item of section.items) {
+        item.location = '';
+        item.positions[0].bullets = ['Built TypeScript applications across Angular, NestJS, and PostgreSQL.', 'Improved product workflows through focused UX polish and reliable APIs.'];
+      }
+      if (section.type === 'projects') for (const item of section.items) {
+        item.role = '';
+        item.description = 'Designed and shipped an inline AI resume editor with template-controlled typography.';
+        item.dates = '2024';
+      }
     }
     return preview;
   }

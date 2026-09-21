@@ -1,0 +1,88 @@
+.typography-anchor {
+  position: relative;
+  flex: none;
+}
+.command-bar .typography-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid #dbe4e2;
+  border-radius: 8px;
+  color: #315f61;
+  font-weight: 600;
+  background: #fff;
+}
+.command-bar .typography-trigger[aria-expanded='true'] {
+  background: #e5f3f2;
+  border-color: #82b9b9;
+}
+nexus-typography-panel {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  z-index: 60;
+  width: 354px;
+  max-height: calc(100dvh - 150px);
+  overflow-y: auto;
+  border-radius: 16px;
+}
+@media (max-width: 1500px) {
+  :host .command-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    height: auto;
+    padding: 12px 20px;
+  }
+  :host .document-identity {
+    flex: 1 1 240px;
+    min-width: 0;
+  }
+  :host .document-controls {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+  :host .save-controls {
+    flex: 0 1 auto;
+  }
+}
+@media (max-width: 760px) {
+  nexus-typography-panel {
+    position: fixed;
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    max-height: 80dvh;
+  }
+  :host .command-bar {
+    padding: 12px;
+  }
+  :host .save-controls {
+    flex-wrap: wrap;
+  }
+}
+@media print {
+  nexus-typography-panel {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1500px) {
+  :host .save-controls {
+    position: static;
+    margin-left: auto;
+  }
+  :host .document-name-control {
+    min-width: 0;
+    flex: 1;
+  }
+  :host .document-name-control input {
+    width: 100%;
+    min-width: 0;
+  }
+}

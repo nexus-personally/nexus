@@ -158,12 +158,26 @@ export interface ResumeRecord {
   themeId: string;
   colors?: ResumeColors;
   fieldColors?: Record<string, string>;
+  typography?: ResumeTypography;
+  fieldTypography?: Record<string, ResumeTypography>;
+  /** Sanitized inline emphasis for contenteditable fields, keyed like fieldTypography. */
+  richText?: Record<string, string>;
   status: ResumeStatus;
   content: ResumeContent;
   sectionOrder: string[];
   createdAt: string;
   updatedAt: string;
   lastSavedAt?: string;
+}
+
+/** Optional overrides; missing values preserve the chosen template's typography. */
+export interface ResumeTypography {
+  fontFamily?: string;
+  fontScale?: number;
+  fontSize?: number;
+  fontWeight?: number;
+  fontStyle?: 'normal' | 'italic';
+  letterSpacing?: number;
 }
 
 export interface ResumePublication {

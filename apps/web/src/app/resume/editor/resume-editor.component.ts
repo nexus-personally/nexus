@@ -11,6 +11,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
+  LucideType,
   LucideArrowLeft,
   LucideBriefcaseBusiness,
   LucideChartNoAxesColumnIncreasing,
@@ -55,6 +56,8 @@ import {
   type ResumeColorSelection,
 } from '../renderer/resume-renderer.component';
 
+import { TypographyPanelComponent } from './typography-panel.component';
+
 type ColorTarget = keyof ResumeColors;
 
 @Component({
@@ -65,6 +68,8 @@ type ColorTarget = keyof ResumeColors;
     FormsModule,
     RouterLink,
     ResumeRendererComponent,
+    TypographyPanelComponent,
+    LucideType,
     LucideArrowLeft,
     LucideBriefcaseBusiness,
     LucideChartNoAxesColumnIncreasing,
@@ -103,6 +108,30 @@ type ColorTarget = keyof ResumeColors;
           </div>
 
           <div class="document-controls">
+            <div class="typography-anchor">
+              <button
+                #typographyTrigger
+                class="typography-trigger"
+                type="button"
+                aria-controls="typography-popover"
+                [attr.aria-expanded]="typographyOpen"
+                (click)="
+                  typographyOpen = !typographyOpen; colorsOpen = false; fieldColorOpen = false
+                "
+              >
+                <svg lucideType size="17"></svg> Fonts <svg lucideChevronDown size="14"></svg>
+              </button>
+              @if (typographyOpen) {
+                <nexus-typography-panel
+                  id="typography-popover"
+                  [resume]="resume"
+                  [selection]="selectedColorField ?? undefined"
+                  (changed)="markDirty()"
+                  (inlineStyle)="applyInlineStyle($event)"
+                  (closed)="typographyOpen = false; typographyTrigger.focus()"
+                />
+              }
+            </div>
             <label>
               <span>Template</span>
               <span class="template-picker template-picker-compact">
@@ -273,7 +302,9 @@ type ColorTarget = keyof ResumeColors;
               </div>
               <small>{{ visibleSectionCount }}/{{ orderedSections.length }}</small>
             </header>
-            <p class="sections-help">Drag to reorder sections. Toggle visibility and customize each section.</p>
+            <p class="sections-help">
+              Drag to reorder sections. Toggle visibility and customize each section.
+            </p>
 
             <section class="profile-photo-control" aria-labelledby="profile-photo-title">
               <div class="profile-photo-heading">
@@ -348,11 +379,7 @@ type ColorTarget = keyof ResumeColors;
                   (dragover)="allowDrop($event)"
                   (drop)="dropOn(section.id)"
                 >
-                  <button
-                    class="section-main"
-                    type="button"
-                    (click)="selectSection(section.id)"
-                  >
+                  <button class="section-main" type="button" (click)="selectSection(section.id)">
                     <svg class="drag-handle" lucideGripVertical size="16" aria-hidden="true"></svg>
                     @switch (section.type) {
                       @case ('experience') {
@@ -368,7 +395,9 @@ type ColorTarget = keyof ResumeColors;
                         <svg lucideFileText size="17" aria-hidden="true"></svg>
                       }
                     }
-                    <span><strong>{{ section.title }}</strong></span>
+                    <span
+                      ><strong>{{ section.title }}</strong></span
+                    >
                   </button>
                   <div class="section-actions">
                     <input
@@ -396,10 +425,7 @@ type ColorTarget = keyof ResumeColors;
                           Move down
                         </button>
                         @if (section.type === 'experience') {
-                          <button
-                            type="button"
-                            (click)="addCompany(section); sectionMenuId = ''"
-                          >
+                          <button type="button" (click)="addCompany(section); sectionMenuId = ''">
                             Add company
                           </button>
                         } @else {
@@ -511,6 +537,7 @@ type ColorTarget = keyof ResumeColors;
                   [style.transform]="'scale(' + previewScale + ')'"
                 >
                   <nexus-resume-renderer
+                    #resumeRenderer
                     [resume]="resume"
                     [editable]="true"
                     (edited)="markDirty()"
@@ -560,7 +587,10 @@ type ColorTarget = keyof ResumeColors;
                     aria-haspopup="listbox"
                     [attr.aria-expanded]="inspectorTemplateMenuOpen"
                     [attr.aria-label]="'Template. Selected: ' + templateName(resume.templateId)"
-                    (click)="inspectorTemplateMenuOpen = !inspectorTemplateMenuOpen; templateMenuOpen = false"
+                    (click)="
+                      inspectorTemplateMenuOpen = !inspectorTemplateMenuOpen;
+                      templateMenuOpen = false
+                    "
                   >
                     <span class="template-thumbnail" aria-hidden="true">
                       <span class="template-thumbnail-canvas">
@@ -571,7 +601,12 @@ type ColorTarget = keyof ResumeColors;
                       <strong>{{ templateName(resume.templateId) }}</strong>
                       <small>Clean and professional layout with a focus on content.</small>
                     </span>
-                    <svg class="template-chevron" lucideChevronDown size="15" [class.open]="inspectorTemplateMenuOpen"></svg>
+                    <svg
+                      class="template-chevron"
+                      lucideChevronDown
+                      size="15"
+                      [class.open]="inspectorTemplateMenuOpen"
+                    ></svg>
                   </button>
                   @if (inspectorTemplateMenuOpen) {
                     <span class="template-options template-options-rich" role="listbox">
@@ -583,8 +618,13 @@ type ColorTarget = keyof ResumeColors;
                           [attr.aria-selected]="resume.templateId === template.id"
                           (click)="chooseTemplate(template.id)"
                         >
-                          <span class="section-option-icon"><svg lucideFileText size="16"></svg></span>
-                          <span><strong>{{ template.name }}</strong><small>{{ template.description }}</small></span>
+                          <span class="section-option-icon"
+                            ><svg lucideFileText size="16"></svg
+                          ></span>
+                          <span
+                            ><strong>{{ template.name }}</strong
+                            ><small>{{ template.description }}</small></span
+                          >
                           @if (resume.templateId === template.id) {
                             <svg class="section-option-check" lucideCheck size="15"></svg>
                           }
@@ -672,7 +712,11 @@ type ColorTarget = keyof ResumeColors;
                   <span>TEXT COLOR</span>
                   <strong>{{ activeColorField?.label ?? 'Text' }}</strong>
                 </div>
-                <button type="button" aria-label="Close text color" (click)="fieldColorOpen = false">
+                <button
+                  type="button"
+                  aria-label="Close text color"
+                  (click)="fieldColorOpen = false"
+                >
                   ×
                 </button>
               </header>
@@ -710,7 +754,11 @@ type ColorTarget = keyof ResumeColors;
                 />
               </div>
               <div class="field-color-footer">
-                <span>{{ contrastRatio(selectedFieldColor, activeColorField?.background ?? '#ffffff') }}:1 contrast</span>
+                <span
+                  >{{
+                    contrastRatio(selectedFieldColor, activeColorField?.background ?? '#ffffff')
+                  }}:1 contrast</span
+                >
                 <button type="button" (click)="clearFieldColor()" class="restore-color">
                   <i [style.background]="selectedRoleColor"></i> Reset to default
                 </button>
@@ -797,6 +845,7 @@ type ColorTarget = keyof ResumeColors;
       </main>
     }
   `,
+  styleUrls: ['./typography-editor.scss'],
   styles: [
     `
       :host {
@@ -2788,9 +2837,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     key: ColorTarget;
     label: string;
     minimum: number;
-  }> = [
-    { key: 'accent', label: 'Accent', minimum: 3 },
-  ];
+  }> = [{ key: 'accent', label: 'Accent', minimum: 3 }];
   protected readonly accentPresets = [
     '#0F9FB8',
     '#167D8D',
@@ -2871,6 +2918,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   protected templateMenuOpen = false;
   protected inspectorTemplateMenuOpen = false;
   protected photoError = '';
+  protected typographyOpen = false;
   protected colorsOpen = false;
   protected fieldColorOpen = false;
   protected moreOpen = false;
@@ -2910,12 +2958,15 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
   private saveTimer?: number;
+  private saveInFlight = false;
+  private editRevision = 0;
   private draggedSectionId = '';
   private pendingPhotoSource = '';
   private cropImage?: HTMLImageElement;
   private cropPointer?: { id: number; x: number; y: number };
   private previewArea?: ElementRef<HTMLElement>;
   private previewCanvas?: ElementRef<HTMLElement>;
+  @ViewChild('resumeRenderer') private resumeRenderer?: ResumeRendererComponent;
   private previewResizeObserver?: ResizeObserver;
 
   ngOnInit() {
@@ -2962,8 +3013,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   protected get selectedSectionTypeLabel() {
     return (
-      this.sectionOptions.find((option) => option.type === this.newSectionType)?.label ??
-      'section'
+      this.sectionOptions.find((option) => option.type === this.newSectionType)?.label ?? 'section'
     );
   }
 
@@ -3054,22 +3104,38 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   protected markDirty() {
     if (!this.resume) return;
+    this.editRevision++;
     localStorage.setItem(this.recoveryKey(this.resume.id), JSON.stringify(this.resume));
     this.saveState = 'Unsaved local draft';
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => this.save(), 900);
   }
 
+  protected applyInlineStyle(command: { kind: 'weight' | 'italic'; value: number | boolean }) {
+    this.resumeRenderer?.applyInlineStyle(command);
+  }
+
   protected save() {
-    if (!this.resume) return;
+    if (!this.resume || this.saveInFlight) return;
+    window.clearTimeout(this.saveTimer);
+    const revision = this.editRevision;
+    this.saveInFlight = true;
     this.saveState = 'Saving';
-    this.api.saveResume(this.resume).subscribe({
+    this.api.saveResume(structuredClone(this.resume)).subscribe({
       next: (saved) => {
+        this.saveInFlight = false;
+        // Sliders can change while a request is in flight. Save the newer draft
+        // before replacing local state with a server response.
+        if (revision !== this.editRevision) {
+          this.save();
+          return;
+        }
         this.resume = saved;
         localStorage.removeItem(this.recoveryKey(saved.id));
         this.saveState = 'Saved';
       },
       error: () => {
+        this.saveInFlight = false;
         this.saveState = 'Unable to save. Changes are stored locally.';
       },
     });
@@ -3123,6 +3189,18 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
         .map(([key, color]) => [duplicatePrefix + key.slice(sourcePrefix.length), color]),
     );
     this.resume.fieldColors = { ...this.resume.fieldColors, ...copiedColors };
+    const copiedTypography = Object.fromEntries(
+      Object.entries(this.resume.fieldTypography ?? {})
+        .filter(([key]) => key.startsWith(sourcePrefix))
+        .map(([key, color]) => [duplicatePrefix + key.slice(sourcePrefix.length), color]),
+    );
+    this.resume.fieldTypography = { ...this.resume.fieldTypography, ...copiedTypography };
+    const copiedRichText = Object.fromEntries(
+      Object.entries(this.resume.richText ?? {})
+        .filter(([key]) => key.startsWith(sourcePrefix))
+        .map(([key, html]) => [duplicatePrefix + key.slice(sourcePrefix.length), html]),
+    );
+    this.resume.richText = { ...this.resume.richText, ...copiedRichText };
     this.resume.content.sections.push(duplicate);
     const index = this.resume.sectionOrder.indexOf(section.id);
     this.resume.sectionOrder.splice(index + 1, 0, duplicate.id);
@@ -3143,6 +3221,16 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     );
     this.resume.fieldColors = Object.fromEntries(
       Object.entries(this.resume.fieldColors ?? {}).filter(
+        ([key]) => !key.startsWith(`section:${section.id}:`),
+      ),
+    );
+    this.resume.fieldTypography = Object.fromEntries(
+      Object.entries(this.resume.fieldTypography ?? {}).filter(
+        ([key]) => !key.startsWith(`section:${section.id}:`),
+      ),
+    );
+    this.resume.richText = Object.fromEntries(
+      Object.entries(this.resume.richText ?? {}).filter(
         ([key]) => !key.startsWith(`section:${section.id}:`),
       ),
     );
@@ -3446,6 +3534,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   protected closeFloatingPanels() {
+    this.typographyOpen = false;
     this.fieldColorOpen = false;
     this.moreOpen = false;
     this.colorsOpen = false;
@@ -3456,6 +3545,8 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   @HostListener('document:mousedown', ['$event'])
   protected closeFieldColorOnOutsideClick(event: MouseEvent) {
     const target = event.target as HTMLElement | null;
+    if (!target?.closest('.typography-anchor') && !target?.closest('[data-color-key]'))
+      this.typographyOpen = false;
     if (
       target?.closest('.field-color-panel') ||
       target?.closest('.text-toolbar') ||
@@ -3603,6 +3694,20 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
           resume.fieldColors ??= {};
           resume.fieldColors[targetPrefix + key.slice(sourcePrefix.length)] = color;
           delete resume.fieldColors[key];
+        }
+      }
+      for (const [key, color] of Object.entries(resume.fieldTypography ?? {})) {
+        if (key.startsWith(sourcePrefix)) {
+          resume.fieldTypography ??= {};
+          resume.fieldTypography[targetPrefix + key.slice(sourcePrefix.length)] = color;
+          delete resume.fieldTypography[key];
+        }
+      }
+      for (const [key, html] of Object.entries(resume.richText ?? {})) {
+        if (key.startsWith(sourcePrefix)) {
+          resume.richText ??= {};
+          resume.richText[targetPrefix + key.slice(sourcePrefix.length)] = html;
+          delete resume.richText[key];
         }
       }
     }

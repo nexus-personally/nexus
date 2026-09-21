@@ -1,9 +1,11 @@
 import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
+  AfterViewChecked,
   Component,
   ElementRef,
   EventEmitter,
+  HostListener,
   Input,
   OnDestroy,
   Output,
@@ -22,6 +24,7 @@ export interface ResumeColorSelection {
   background: string;
   left: number;
   top: number;
+  textSelected?: boolean;
 }
 
 @Component({
@@ -52,6 +55,9 @@ export interface ResumeColorSelection {
         [style.--skill-text-color]="colors.skillText"
         (paste)="pastePlainText($event)"
         (focusin)="selectColorField($event)"
+        (mouseup)="captureTextSelection()"
+        (keyup)="captureTextSelection()"
+        (input)="syncRichTextFromInput($event)"
       >
         <header class="identity">
           @if (showPhoto) {
@@ -69,6 +75,7 @@ export interface ResumeColorSelection {
               [attr.contenteditable]="editable ? 'true' : null"
               [attr.tabindex]="editable ? 0 : null"
               [style.color]="fieldColor('profile.fullName', 'name')"
+              [ngStyle]="textStyle('profile.fullName', 'name')"
               (keydown.enter)="singleLine($event)"
               (blur)="editField(resume.content.profile, 'fullName', $event)"
             >
@@ -81,6 +88,7 @@ export interface ResumeColorSelection {
               [attr.contenteditable]="editable ? 'true' : null"
               [attr.tabindex]="editable ? 0 : null"
               [style.color]="fieldColor('profile.headline', 'headline')"
+              [ngStyle]="textStyle('profile.headline', 'headline')"
               (keydown.enter)="singleLine($event)"
               (blur)="editField(resume.content.profile, 'headline', $event)"
             >
@@ -103,6 +111,7 @@ export interface ResumeColorSelection {
                     [style.color]="
                       fieldColor('section:' + summarySection.id + ':body', 'description')
                     "
+                    [ngStyle]="textStyle('section:' + summarySection.id + ':body', 'description')"
                     (blur)="editLimitedField(summarySection, 'body', $event, 300)"
                   >
                     {{ summarySection.body.slice(0, 300) }}
@@ -112,7 +121,11 @@ export interface ResumeColorSelection {
             }
           </div>
           <address>
-            <span class="contact-item" [style.color]="fieldColor('profile.email', 'contact')">
+            <span
+              class="contact-item"
+              [style.color]="fieldColor('profile.email', 'contact')"
+              [ngStyle]="textStyle('profile.email', 'contact')"
+            >
               <svg lucideMail aria-hidden="true"></svg>
               <span
                 data-color-key="profile.email"
@@ -124,7 +137,11 @@ export interface ResumeColorSelection {
                 >{{ resume.content.profile.email }}</span
               >
             </span>
-            <span class="contact-item" [style.color]="fieldColor('profile.phone', 'contact')">
+            <span
+              class="contact-item"
+              [style.color]="fieldColor('profile.phone', 'contact')"
+              [ngStyle]="textStyle('profile.phone', 'contact')"
+            >
               <svg lucidePhone aria-hidden="true"></svg>
               <span
                 data-color-key="profile.phone"
@@ -136,7 +153,11 @@ export interface ResumeColorSelection {
                 >{{ resume.content.profile.phone }}</span
               >
             </span>
-            <span class="contact-item" [style.color]="fieldColor('profile.location', 'contact')">
+            <span
+              class="contact-item"
+              [style.color]="fieldColor('profile.location', 'contact')"
+              [ngStyle]="textStyle('profile.location', 'contact')"
+            >
               <svg lucideMapPin aria-hidden="true"></svg>
               <span
                 data-color-key="profile.location"
@@ -149,7 +170,11 @@ export interface ResumeColorSelection {
               >
             </span>
             @if (resume.content.profile.github) {
-              <span class="contact-item" [style.color]="fieldColor('profile.github', 'contact')">
+              <span
+                class="contact-item"
+                [style.color]="fieldColor('profile.github', 'contact')"
+                [ngStyle]="textStyle('profile.github', 'contact')"
+              >
                 <svg lucideLink aria-hidden="true"></svg>
                 <span
                   data-color-key="profile.github"
@@ -204,6 +229,7 @@ export interface ResumeColorSelection {
                 data-color-role="sectionTitle"
                 [attr.contenteditable]="editable ? 'true' : null"
                 [style.color]="fieldColor('section:' + section.id + ':title', 'sectionTitle')"
+                [ngStyle]="textStyle('section:' + section.id + ':title', 'sectionTitle')"
                 (keydown.enter)="singleLine($event)"
                 (blur)="editField(section, 'title', $event)"
               >
@@ -220,6 +246,7 @@ export interface ResumeColorSelection {
                     data-color-role="description"
                     [attr.contenteditable]="editable ? 'true' : null"
                     [style.color]="fieldColor('section:' + section.id + ':body', 'description')"
+                    [ngStyle]="textStyle('section:' + section.id + ':body', 'description')"
                     (blur)="editField(section, 'body', $event)"
                   >
                     {{ section.body }}
@@ -266,6 +293,12 @@ export interface ResumeColorSelection {
                               'organization'
                             )
                           "
+                          [ngStyle]="
+                            textStyle(
+                              'section:' + section.id + ':experience:' + item.id + ':company',
+                              'organization'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(item, 'company', $event)"
                           >{{ item.company }}</span
@@ -279,6 +312,12 @@ export interface ResumeColorSelection {
                           [attr.contenteditable]="editable ? 'true' : null"
                           [style.color]="
                             fieldColor(
+                              'section:' + section.id + ':experience:' + item.id + ':location',
+                              'meta'
+                            )
+                          "
+                          [ngStyle]="
+                            textStyle(
                               'section:' + section.id + ':experience:' + item.id + ':location',
                               'meta'
                             )
@@ -300,6 +339,12 @@ export interface ResumeColorSelection {
                               [attr.contenteditable]="editable ? 'true' : null"
                               [style.color]="
                                 fieldColor(
+                                  'section:' + section.id + ':position:' + position.id + ':title',
+                                  'role'
+                                )
+                              "
+                              [ngStyle]="
+                                textStyle(
                                   'section:' + section.id + ':position:' + position.id + ':title',
                                   'role'
                                 )
@@ -331,6 +376,16 @@ export interface ResumeColorSelection {
                                     'meta'
                                   )
                                 "
+                                [ngStyle]="
+                                  textStyle(
+                                    'section:' +
+                                      section.id +
+                                      ':position:' +
+                                      position.id +
+                                      ':startDate',
+                                    'meta'
+                                  )
+                                "
                                 (keydown.enter)="singleLine($event)"
                                 (blur)="editField(position, 'startDate', $event)"
                                 >{{ position.startDate }}</span
@@ -346,6 +401,16 @@ export interface ResumeColorSelection {
                                 [attr.contenteditable]="editable ? 'true' : null"
                                 [style.color]="
                                   fieldColor(
+                                    'section:' +
+                                      section.id +
+                                      ':position:' +
+                                      position.id +
+                                      ':endDate',
+                                    'meta'
+                                  )
+                                "
+                                [ngStyle]="
+                                  textStyle(
                                     'section:' +
                                       section.id +
                                       ':position:' +
@@ -370,6 +435,12 @@ export interface ResumeColorSelection {
                                     'bullet'
                                   )
                                 "
+                                [ngStyle]="
+                                  textStyle(
+                                    bulletColorKey(section.id, position.id, $index),
+                                    'bullet'
+                                  )
+                                "
                               >
                                 <span
                                   [attr.data-color-key]="
@@ -381,6 +452,12 @@ export interface ResumeColorSelection {
                                   [attr.contenteditable]="editable ? 'true' : null"
                                   [style.color]="
                                     fieldColor(
+                                      bulletColorKey(section.id, position.id, $index),
+                                      'bullet'
+                                    )
+                                  "
+                                  [ngStyle]="
+                                    textStyle(
                                       bulletColorKey(section.id, position.id, $index),
                                       'bullet'
                                     )
@@ -458,6 +535,12 @@ export interface ResumeColorSelection {
                               'organization'
                             )
                           "
+                          [ngStyle]="
+                            textStyle(
+                              'section:' + section.id + ':education:' + item.id + ':school',
+                              'organization'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(item, 'school', $event)"
                           >{{ item.school }}</span
@@ -472,6 +555,12 @@ export interface ResumeColorSelection {
                           [attr.contenteditable]="editable ? 'true' : null"
                           [style.color]="
                             fieldColor(
+                              'section:' + section.id + ':education:' + item.id + ':dates',
+                              'meta'
+                            )
+                          "
+                          [ngStyle]="
+                            textStyle(
                               'section:' + section.id + ':education:' + item.id + ':dates',
                               'meta'
                             )
@@ -495,6 +584,12 @@ export interface ResumeColorSelection {
                               'role'
                             )
                           "
+                          [ngStyle]="
+                            textStyle(
+                              'section:' + section.id + ':education:' + item.id + ':degree',
+                              'role'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(item, 'degree', $event)"
                           >{{ item.degree }}</span
@@ -509,6 +604,12 @@ export interface ResumeColorSelection {
                           [attr.contenteditable]="editable ? 'true' : null"
                           [style.color]="
                             fieldColor(
+                              'section:' + section.id + ':education:' + item.id + ':location',
+                              'meta'
+                            )
+                          "
+                          [ngStyle]="
+                            textStyle(
                               'section:' + section.id + ':education:' + item.id + ':location',
                               'meta'
                             )
@@ -539,6 +640,12 @@ export interface ResumeColorSelection {
                               'organization'
                             )
                           "
+                          [ngStyle]="
+                            textStyle(
+                              'section:' + section.id + ':project:' + project.id + ':name',
+                              'organization'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(project, 'name', $event)"
                           >{{ project.name }}</span
@@ -553,6 +660,12 @@ export interface ResumeColorSelection {
                           [attr.contenteditable]="editable ? 'true' : null"
                           [style.color]="
                             fieldColor(
+                              'section:' + section.id + ':project:' + project.id + ':dates',
+                              'meta'
+                            )
+                          "
+                          [ngStyle]="
+                            textStyle(
                               'section:' + section.id + ':project:' + project.id + ':dates',
                               'meta'
                             )
@@ -576,6 +689,12 @@ export interface ResumeColorSelection {
                               'role'
                             )
                           "
+                          [ngStyle]="
+                            textStyle(
+                              'section:' + section.id + ':project:' + project.id + ':role',
+                              'role'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(project, 'role', $event)"
                           >{{ project.role }}</strong
@@ -594,6 +713,12 @@ export interface ResumeColorSelection {
                               'description'
                             )
                           "
+                          [ngStyle]="
+                            textStyle(
+                              'section:' + section.id + ':project:' + project.id + ':description',
+                              'description'
+                            )
+                          "
                           (blur)="editField(project, 'description', $event)"
                           >{{ project.description }}</span
                         >
@@ -608,6 +733,12 @@ export interface ResumeColorSelection {
                         [attr.contenteditable]="editable ? 'true' : null"
                         [style.color]="
                           fieldColor(
+                            'section:' + section.id + ':project:' + project.id + ':technologies',
+                            'skillText'
+                          )
+                        "
+                        [ngStyle]="
+                          textStyle(
                             'section:' + section.id + ':project:' + project.id + ':technologies',
                             'skillText'
                           )
@@ -637,6 +768,12 @@ export interface ResumeColorSelection {
                               'skillLabel'
                             )
                           "
+                          [ngStyle]="
+                            textStyle(
+                              'section:' + section.id + ':skills:' + group.id + ':name',
+                              'skillLabel'
+                            )
+                          "
                           (keydown.enter)="singleLine($event)"
                           (blur)="editField(group, 'name', $event)"
                           >{{ group.name }}</strong
@@ -650,6 +787,12 @@ export interface ResumeColorSelection {
                           [attr.contenteditable]="editable ? 'true' : null"
                           [style.color]="
                             fieldColor(
+                              'section:' + section.id + ':skills:' + group.id + ':items',
+                              'skillText'
+                            )
+                          "
+                          [ngStyle]="
+                            textStyle(
                               'section:' + section.id + ':skills:' + group.id + ':items',
                               'skillText'
                             )
@@ -669,6 +812,7 @@ export interface ResumeColorSelection {
                       <li
                         class="editable-list-item"
                         [style.color]="fieldColor(simpleItemColorKey(section.id, $index), 'bullet')"
+                        [ngStyle]="textStyle(simpleItemColorKey(section.id, $index), 'bullet')"
                       >
                         <span
                           [attr.data-color-key]="simpleItemColorKey(section.id, $index)"
@@ -679,6 +823,7 @@ export interface ResumeColorSelection {
                           [style.color]="
                             fieldColor(simpleItemColorKey(section.id, $index), 'bullet')
                           "
+                          [ngStyle]="textStyle(simpleItemColorKey(section.id, $index), 'bullet')"
                           (keydown)="
                             listItemKeydown(
                               $event,
@@ -890,7 +1035,10 @@ export interface ResumeColorSelection {
         border-radius: 50%;
         background: #ffffff;
         color: var(--heading);
-        font: 700 0.72rem/1 Roboto, 'Helvetica Neue', sans-serif;
+        font:
+          700 0.72rem/1 Roboto,
+          'Helvetica Neue',
+          sans-serif;
         cursor: pointer;
       }
       .company-actions button:disabled {
@@ -1399,10 +1547,12 @@ export interface ResumeColorSelection {
   ],
   styleUrls: ['./resume-renderer.reference.scss'],
 })
-export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
+export class ResumeRendererComponent implements AfterViewInit, AfterViewChecked, OnDestroy {
   private readonly host = inject(ElementRef) as ElementRef<HTMLElement>;
   private readonly lastValidText = new WeakMap<HTMLElement, string>();
   private identityResizeObserver?: ResizeObserver;
+  private selectedTextKey = '';
+  private selectedTextOffsets?: { start: number; end: number };
 
   @Input({ required: true }) resume?: ResumeRecord;
   @Input() editable = false;
@@ -1411,6 +1561,7 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
   @Output() colorSelected = new EventEmitter<ResumeColorSelection>();
 
   ngAfterViewInit() {
+    this.hydrateRichText();
     if (typeof ResizeObserver === 'undefined') return;
     const identityMain = this.host.nativeElement.querySelector<HTMLElement>('.identity-main');
     if (!identityMain) return;
@@ -1423,6 +1574,10 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
       this.host.nativeElement.style.setProperty('--minimal-photo-size', `${size}px`);
     });
     this.identityResizeObserver.observe(identityMain);
+  }
+
+  ngAfterViewChecked() {
+    this.hydrateRichText();
   }
 
   ngOnDestroy() {
@@ -1447,19 +1602,29 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
     const byId = new Map(this.resume.content.sections.map((section) => [section.id, section]));
     return this.resume.sectionOrder.flatMap((id) => {
       const section = byId.get(id);
-      return section && !(this.referencePreview && this.resume?.templateId === 'tech-minimal' && section.type === 'summary') ? [section] : [];
+      return section &&
+        !(
+          this.referencePreview &&
+          this.resume?.templateId === 'tech-minimal' &&
+          section.type === 'summary'
+        )
+        ? [section]
+        : [];
     });
   }
 
   get usesIndependentColumns() {
-    return !this.referencePreview && (this.resume?.templateId === 'tech-minimal' || this.resume?.templateId === 'tech-executive');
+    return (
+      !this.referencePreview &&
+      (this.resume?.templateId === 'tech-minimal' || this.resume?.templateId === 'tech-executive')
+    );
   }
 
   get mainColumnSections() {
     return this.orderedSections.filter(
       (section) =>
         !this.isSideColumnSection(section) &&
-        !(this.resume?.templateId === 'tech-minimal' && section.type === 'summary')
+        !(this.resume?.templateId === 'tech-minimal' && section.type === 'summary'),
     );
   }
 
@@ -1538,6 +1703,37 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
     items[index] = target.innerText.replace(/\u00a0/g, ' ');
   }
 
+  protected textStyle(key: string, role: ResumeColorRole) {
+    const typography = this.resume?.typography ?? {};
+    const field = this.resume?.fieldTypography?.[key] ?? {};
+    const value = { ...typography, ...field };
+    const sizes: Record<ResumeColorRole, string> = {
+      name: 'name',
+      headline: 'headline',
+      contact: 'contact',
+      sectionTitle: 'section-title',
+      organization: 'organization',
+      role: 'role',
+      meta: 'meta',
+      description: 'body',
+      bullet: 'body',
+      skillLabel: 'skill-label',
+      skillText: 'body',
+    };
+    return {
+      'font-family': value.fontFamily ?? null,
+      'font-size':
+        field.fontSize != null
+          ? `${field.fontSize}pt`
+          : typography.fontScale != null
+            ? `calc(var(--font-${sizes[role]}) * ${typography.fontScale})`
+            : null,
+      'font-weight': value.fontWeight ?? null,
+      'font-style': value.fontStyle ?? null,
+      'letter-spacing': value.letterSpacing != null ? `${value.letterSpacing}px` : null,
+    };
+  }
+
   protected fieldColor(key: string, role: ResumeColorRole) {
     return this.resume?.fieldColors?.[key] ?? this.colors[role];
   }
@@ -1556,7 +1752,100 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
       background: this.findBackgroundColor(target),
       left: rect.left,
       top: rect.bottom + 8,
+      textSelected: false,
     });
+  }
+
+  @HostListener('document:selectionchange')
+  protected captureTextSelection() {
+    if (!this.editable) return;
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || selection.isCollapsed) return;
+    const range = selection.getRangeAt(0);
+    const ancestor =
+      range.commonAncestorContainer instanceof Element
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer.parentElement;
+    const target = ancestor?.closest<HTMLElement>('[data-color-key][contenteditable="true"]');
+    const key = target?.dataset['colorKey'];
+    const role = target?.dataset['colorRole'] as ResumeColorRole | undefined;
+    if (
+      !target ||
+      !key ||
+      !role ||
+      !target.contains(range.startContainer) ||
+      !target.contains(range.endContainer)
+    ) {
+      return;
+    }
+    const before = document.createRange();
+    before.selectNodeContents(target);
+    before.setEnd(range.startContainer, range.startOffset);
+    this.selectedTextOffsets = {
+      start: before.toString().length,
+      end: before.toString().length + range.toString().length,
+    };
+    this.selectedTextKey = key;
+    const rect = target.getBoundingClientRect();
+    this.colorSelected.emit({
+      key,
+      role,
+      label: target.dataset['colorLabel'] ?? 'Text',
+      background: this.findBackgroundColor(target),
+      left: rect.left,
+      top: rect.bottom + 8,
+      textSelected: true,
+    });
+  }
+
+  applyInlineStyle(command: { kind: 'weight' | 'italic'; value: number | boolean }) {
+    const key = this.selectedTextKey;
+    const target = key
+      ? this.host.nativeElement.querySelector<HTMLElement>(
+          `[data-color-key="${CSS.escape(key)}"][contenteditable="true"]`,
+        )
+      : null;
+    const range =
+      target && this.selectedTextOffsets
+        ? this.rangeFromOffsets(
+            target,
+            this.selectedTextOffsets.start,
+            this.selectedTextOffsets.end,
+          )
+        : undefined;
+    if (!range || !target || range.collapsed) return;
+
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    if (command.kind === 'italic') {
+      document.execCommand('italic', false);
+    } else {
+      const span = document.createElement('span');
+      span.style.fontWeight = String(command.value);
+      try {
+        range.surroundContents(span);
+      } catch {
+        span.append(range.extractContents());
+        range.insertNode(span);
+      }
+      range.selectNodeContents(span);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+    this.selectedTextOffsets = {
+      start: this.selectedTextOffsets?.start ?? 0,
+      end: (this.selectedTextOffsets?.start ?? 0) + range.toString().length,
+    };
+    this.storeRichText(target);
+    this.edited.emit();
+  }
+
+  protected syncRichTextFromInput(event: Event) {
+    const target = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+      '[data-color-key][contenteditable="true"]',
+    );
+    if (target) this.storeRichText(target);
   }
 
   protected bulletColorPrefix(sectionId: string, positionId: string) {
@@ -1660,6 +1949,20 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
         ),
       );
     }
+    if (this.resume?.fieldTypography) {
+      this.resume.fieldTypography = Object.fromEntries(
+        Object.entries(this.resume.fieldTypography).filter(
+          ([key]) => !removedPrefixes.some((prefix) => key.startsWith(prefix)),
+        ),
+      );
+    }
+    if (this.resume?.richText) {
+      this.resume.richText = Object.fromEntries(
+        Object.entries(this.resume.richText).filter(
+          ([key]) => !removedPrefixes.some((prefix) => key.startsWith(prefix)),
+        ),
+      );
+    }
     this.edited.emit();
   }
 
@@ -1723,11 +2026,7 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
     this.insertTextAtCaret(target, text.slice(0, availableLength));
     const maxLines = Number(target.dataset['maxLines'] ?? 0);
     if (maxLines) {
-      this.enforceTextLayout(
-        { currentTarget: target } as unknown as Event,
-        maxLength,
-        maxLines
-      );
+      this.enforceTextLayout({ currentTarget: target } as unknown as Event, maxLength, maxLines);
     }
     // The paste operation splits Angular's interpolation text node. Merge the
     // result immediately, before the paste event finishes and change detection
@@ -1753,7 +2052,7 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
     const lineTops = new Set(
       [...range.getClientRects()]
         .filter((rect) => rect.width > 0)
-        .map((rect) => Math.round(rect.top))
+        .map((rect) => Math.round(rect.top)),
     );
     return Math.max(1, lineTops.size);
   }
@@ -1804,9 +2103,78 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
    * model update causes Angular to refresh the interpolation.
    */
   private syncEditableText(target: HTMLElement, value: string) {
+    this.storeRichText(target);
     // Assign even when the string is unchanged: paste can split Angular's
     // interpolation node into several nodes whose combined text is identical.
     target.textContent = value;
+  }
+
+  private hydrateRichText() {
+    if (!this.resume?.richText) return;
+    for (const [key, html] of Object.entries(this.resume.richText)) {
+      const target = this.host.nativeElement.querySelector<HTMLElement>(
+        `[data-color-key="${CSS.escape(key)}"][contenteditable="true"]`,
+      );
+      if (target && target.innerHTML !== html && document.activeElement !== target) {
+        target.innerHTML = html;
+      }
+    }
+  }
+
+  private storeRichText(target: HTMLElement) {
+    const key = target.dataset['colorKey'];
+    if (!this.resume || !key) return;
+    const html = this.sanitizeRichText(target.innerHTML);
+    const plain = target.innerText.replace(/\u00a0/g, ' ');
+    const unformatted = document.createElement('div');
+    unformatted.textContent = plain;
+    const next = { ...this.resume.richText };
+    if (html === unformatted.innerHTML || !/<(?:b|strong|i|em|span)\b/i.test(html))
+      delete next[key];
+    else next[key] = html;
+    this.resume.richText = next;
+  }
+
+  private sanitizeRichText(html: string) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    const allowed = new Set(['B', 'STRONG', 'I', 'EM', 'SPAN', 'BR']);
+    for (const element of [...wrapper.querySelectorAll('*')]) {
+      if (!allowed.has(element.tagName)) {
+        element.replaceWith(...element.childNodes);
+        continue;
+      }
+      const weight = element instanceof HTMLElement ? element.style.fontWeight : '';
+      const style = element instanceof HTMLElement ? element.style.fontStyle : '';
+      for (const attribute of [...element.attributes]) element.removeAttribute(attribute.name);
+      if (element.tagName === 'SPAN' && element instanceof HTMLElement) {
+        if (/^(?:[1-9]00|normal|bold)$/.test(weight)) element.style.fontWeight = weight;
+        if (/^(?:normal|italic)$/.test(style)) element.style.fontStyle = style;
+        if (!element.getAttribute('style')) element.replaceWith(...element.childNodes);
+      }
+    }
+    return wrapper.innerHTML;
+  }
+
+  private rangeFromOffsets(target: HTMLElement, start: number, end: number) {
+    const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+    const range = document.createRange();
+    let offset = 0;
+    let startSet = false;
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      const length = node.textContent?.length ?? 0;
+      if (!startSet && start <= offset + length) {
+        range.setStart(node, Math.max(0, start - offset));
+        startSet = true;
+      }
+      if (startSet && end <= offset + length) {
+        range.setEnd(node, Math.max(0, end - offset));
+        return range;
+      }
+      offset += length;
+    }
+    return undefined;
   }
 
   private insertTextAtCaret(target: HTMLElement, text: string) {
@@ -1827,6 +2195,8 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
   }
 
   private shiftIndexedFieldColors(prefix: string, fromIndex: number, delta: -1 | 1) {
+    this.shiftIndexedFieldTypography(prefix, fromIndex, delta);
+    this.shiftIndexedRichText(prefix, fromIndex, delta);
     if (!this.resume?.fieldColors) return;
     const next = { ...this.resume.fieldColors };
     const entries = Object.entries(next)
@@ -1842,6 +2212,41 @@ export class ResumeRendererComponent implements AfterViewInit, OnDestroy {
       next[`${prefix}:${entry.index + delta}`] = entry.value;
     }
     this.resume.fieldColors = next;
+  }
+
+  private shiftIndexedFieldTypography(prefix: string, fromIndex: number, delta: -1 | 1) {
+    if (!this.resume?.fieldTypography) return;
+    const next = { ...this.resume.fieldTypography };
+    const entries = Object.entries(next)
+      .filter(([key]) => key.startsWith(`${prefix}:`))
+      .map(([key, value]) => ({ key, value, index: Number(key.slice(prefix.length + 1)) }))
+      .filter((entry) => Number.isInteger(entry.index) && entry.index >= fromIndex)
+      .sort((a, b) => (delta > 0 ? b.index - a.index : a.index - b.index));
+
+    if (delta < 0) delete next[`${prefix}:${fromIndex}`];
+    for (const entry of entries) {
+      if (delta < 0 && entry.index === fromIndex) continue;
+      delete next[entry.key];
+      next[`${prefix}:${entry.index + delta}`] = entry.value;
+    }
+    this.resume.fieldTypography = next;
+  }
+
+  private shiftIndexedRichText(prefix: string, fromIndex: number, delta: -1 | 1) {
+    if (!this.resume?.richText) return;
+    const next = { ...this.resume.richText };
+    const entries = Object.entries(next)
+      .filter(([key]) => key.startsWith(`${prefix}:`))
+      .map(([key, value]) => ({ key, value, index: Number(key.slice(prefix.length + 1)) }))
+      .filter((entry) => Number.isInteger(entry.index) && entry.index >= fromIndex)
+      .sort((a, b) => (delta > 0 ? b.index - a.index : a.index - b.index));
+    if (delta < 0) delete next[`${prefix}:${fromIndex}`];
+    for (const entry of entries) {
+      if (delta < 0 && entry.index === fromIndex) continue;
+      delete next[entry.key];
+      next[`${prefix}:${entry.index + delta}`] = entry.value;
+    }
+    this.resume.richText = next;
   }
 
   private focusColorKey(key: string) {

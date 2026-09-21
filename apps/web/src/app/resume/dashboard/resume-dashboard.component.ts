@@ -46,7 +46,11 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
     LucideZap,
   ],
   template: `
-    <main class="dashboard-shell" [class.panel-closed]="!createOpen">
+    <main
+      class="dashboard-shell"
+      [class.panel-closed]="!createOpen"
+      (document:keydown.escape)="closeCreate()"
+    >
       <header class="topbar">
         <div class="topbar-identity">
           <a routerLink="/" class="nexus-mark" aria-label="Back to NEXUS">
@@ -77,7 +81,10 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
           <div class="hero-benefits" aria-label="Resume Studio benefits">
             <div class="hero-benefit">
               <span><svg lucideFileText size="20"></svg></span>
-              <p><strong>Professional templates</strong><small>Designed for real opportunities</small></p>
+              <p>
+                <strong>Professional templates</strong
+                ><small>Designed for real opportunities</small>
+              </p>
             </div>
             <div class="hero-benefit">
               <span><svg lucideZap size="20"></svg></span>
@@ -156,7 +163,10 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
                 >
                   <span class="preview-document">
                     <span class="preview-scale">
-                      <nexus-resume-renderer [resume]="previewFor(template.id)" [referencePreview]="true" />
+                      <nexus-resume-renderer
+                        [resume]="previewFor(template.id)"
+                        [referencePreview]="true"
+                      />
                     </span>
                   </span>
                   @if (newTemplate === template.id) {
@@ -167,7 +177,9 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
                 <div class="template-summary">
                   <div class="template-line">
                     <h2>{{ template.name }}</h2>
-                    <span [class]="'tag ' + template.id">{{ templateGalleryTag(template.id) }}</span>
+                    <span [class]="'tag ' + template.id">{{
+                      templateGalleryTag(template.id)
+                    }}</span>
                   </div>
                   <p>{{ template.description }}</p>
                   <button
@@ -251,119 +263,131 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
       </section>
 
       @if (createOpen) {
-        <aside class="create-panel" aria-labelledby="create-title">
-          <header>
-            <div>
-              <h2 id="create-title">Create resume</h2>
-              <p>Using {{ selectedTemplate.name }} template</p>
-            </div>
-            <button
-              type="button"
-              class="icon-button"
-              aria-label="Close panel"
-              (click)="closeCreate()"
-            >
-              <svg lucideX size="20"></svg>
-            </button>
-          </header>
-
-          <div class="selected-preview">
-            <span><nexus-resume-renderer [resume]="selectedPreview" [referencePreview]="true" /></span>
-          </div>
-
-          <div class="panel-form">
-            <label for="resume-name">Resume name</label>
-            <input
-              id="resume-name"
-              [(ngModel)]="newName"
-              placeholder="e.g. Product Manager Resume"
-            />
-
-            <fieldset>
-              <legend>Profile photo <span>(optional)</span></legend>
-              <div
-                class="photo-uploader"
-                [class.has-photo]="photoPreviewDataUrl"
-                (dragover)="allowPhotoDrop($event)"
-                (drop)="onPhotoDrop($event)"
-              >
-                @if (photoPreviewDataUrl) {
-                  <img [src]="photoPreviewDataUrl" alt="Uploaded profile preview" />
-                } @else {
-                  <span class="photo-placeholder"><svg lucideUserRound size="25"></svg></span>
-                }
-                <div>
-                  <input
-                    #photoInput
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    (change)="onPhotoSelected($event)"
-                  />
-                  <button type="button" class="upload-button" (click)="photoInput.click()">
-                    <svg lucideUpload size="17"></svg>
-                    {{ photoPreviewDataUrl ? 'Replace photo' : 'Upload photo' }}
-                  </button>
-                  <small>{{ photoFileName || 'Or drag and drop an image here' }}</small>
-                  <small>JPG, PNG or WebP. Max 5 MB.</small>
-                </div>
-                @if (photoPreviewDataUrl) {
-                  <button
-                    type="button"
-                    class="remove-photo"
-                    aria-label="Remove profile photo"
-                    title="Remove profile photo"
-                    (click)="removePhoto()"
-                  >
-                    <svg lucideX size="15"></svg>
-                  </button>
-                }
+        <div class="create-dialog-backdrop" (click)="closeCreate()">
+          <section
+            class="create-panel create-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-title"
+            aria-describedby="create-description"
+            (click)="$event.stopPropagation()"
+          >
+            <header>
+              <div>
+                <h2 id="create-title">Create resume</h2>
+                <p id="create-description">Using {{ selectedTemplate.name }} template</p>
               </div>
-              @if (photoError) {
-                <p class="field-error" role="alert">{{ photoError }}</p>
-              }
-            </fieldset>
+              <button
+                type="button"
+                class="icon-button"
+                aria-label="Close panel"
+                (click)="closeCreate()"
+              >
+                <svg lucideX size="20"></svg>
+              </button>
+            </header>
 
-            <label class="toggle-row">
-              <span>
-                <strong>Include photo in resume</strong>
-                <small>{{ photoSupportMessage }}</small>
-              </span>
+            <div class="selected-preview">
+              <span
+                ><nexus-resume-renderer [resume]="selectedPreview" [referencePreview]="true"
+              /></span>
+            </div>
+
+            <div class="panel-form">
+              <label for="resume-name">Resume name</label>
               <input
-                type="checkbox"
-                [(ngModel)]="includePhoto"
-                [disabled]="!selectedTemplateSupportsPhoto"
+                id="resume-name"
+                [(ngModel)]="newName"
+                autofocus
+                placeholder="e.g. Product Manager Resume"
               />
-              <i aria-hidden="true"></i>
-            </label>
 
-            @if (selectedTemplateSupportsPhoto) {
-              <p class="photo-note">
-                This template supports a profile photo, but it is completely optional.
-              </p>
-            } @else {
-              <p class="photo-note neutral">
-                {{ selectedTemplate.name }} is optimized without a photo. Choose Modern Profile or
-                Creative to include one.
-              </p>
-            }
-          </div>
+              <fieldset>
+                <legend>Profile photo <span>(optional)</span></legend>
+                <div
+                  class="photo-uploader"
+                  [class.has-photo]="photoPreviewDataUrl"
+                  (dragover)="allowPhotoDrop($event)"
+                  (drop)="onPhotoDrop($event)"
+                >
+                  @if (photoPreviewDataUrl) {
+                    <img [src]="photoPreviewDataUrl" alt="Uploaded profile preview" />
+                  } @else {
+                    <span class="photo-placeholder"><svg lucideUserRound size="25"></svg></span>
+                  }
+                  <div>
+                    <input
+                      #photoInput
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      (change)="onPhotoSelected($event)"
+                    />
+                    <button type="button" class="upload-button" (click)="photoInput.click()">
+                      <svg lucideUpload size="17"></svg>
+                      {{ photoPreviewDataUrl ? 'Replace photo' : 'Upload photo' }}
+                    </button>
+                    <small>{{ photoFileName || 'Or drag and drop an image here' }}</small>
+                    <small>JPG, PNG or WebP. Max 5 MB.</small>
+                  </div>
+                  @if (photoPreviewDataUrl) {
+                    <button
+                      type="button"
+                      class="remove-photo"
+                      aria-label="Remove profile photo"
+                      title="Remove profile photo"
+                      (click)="removePhoto()"
+                    >
+                      <svg lucideX size="15"></svg>
+                    </button>
+                  }
+                </div>
+                @if (photoError) {
+                  <p class="field-error" role="alert">{{ photoError }}</p>
+                }
+              </fieldset>
 
-          <footer>
-            <button
-              type="button"
-              class="primary create-action"
-              [disabled]="!newName.trim() || creating"
-              (click)="create()"
-            >
-              {{ creating ? 'Creating...' : 'Create resume' }}
-              @if (!creating) {
-                <svg lucideArrowRight size="17"></svg>
+              <label class="toggle-row">
+                <span>
+                  <strong>Include photo in resume</strong>
+                  <small>{{ photoSupportMessage }}</small>
+                </span>
+                <input
+                  type="checkbox"
+                  [(ngModel)]="includePhoto"
+                  [disabled]="!selectedTemplateSupportsPhoto"
+                />
+                <i aria-hidden="true"></i>
+              </label>
+
+              @if (selectedTemplateSupportsPhoto) {
+                <p class="photo-note">
+                  This template supports a profile photo, but it is completely optional.
+                </p>
+              } @else {
+                <p class="photo-note neutral">
+                  {{ selectedTemplate.name }} is optimized without a photo. Choose Modern Profile or
+                  Creative to include one.
+                </p>
               }
-            </button>
-          </footer>
-        </aside>
-      }
+            </div>
 
+            <footer>
+              <button type="button" class="dialog-cancel" (click)="closeCreate()">Cancel</button>
+              <button
+                type="button"
+                class="primary create-action"
+                [disabled]="!newName.trim() || creating"
+                (click)="create()"
+              >
+                {{ creating ? 'Creating...' : 'Create resume' }}
+                @if (!creating) {
+                  <svg lucideArrowRight size="17"></svg>
+                }
+              </button>
+            </footer>
+          </section>
+        </div>
+      }
     </main>
   `,
   styles: [
@@ -1673,38 +1697,106 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         top: 60px;
       }
       @media (max-width: 1180px) {
-        .hero-art { opacity: 0.5; }
-        .template-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-        .template-card:nth-child(n + 4) { transform: translateX(50%); }
+        .hero-art {
+          opacity: 0.5;
+        }
+        .template-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .template-card:nth-child(n + 4) {
+          transform: translateX(50%);
+        }
       }
       @media (max-width: 900px) {
-        .studio-hero { min-height: 300px; }
-        .hero-art { display: none; }
-        .template-heading { grid-template-columns: 1fr; align-items: start; }
-        .template-tools { flex-wrap: wrap; }
-        .template-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .template-card:nth-child(n + 4) { transform: none; }
-        .dashboard-shell:not(.panel-closed) { grid-template-columns: 1fr; }
-        .create-panel { grid-column: 1; grid-row: auto; position: relative; top: auto; height: auto; }
+        .studio-hero {
+          min-height: 300px;
+        }
+        .hero-art {
+          display: none;
+        }
+        .template-heading {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+        .template-tools {
+          flex-wrap: wrap;
+        }
+        .template-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .template-card:nth-child(n + 4) {
+          transform: none;
+        }
+        .dashboard-shell:not(.panel-closed) {
+          grid-template-columns: 1fr;
+        }
+        .create-panel {
+          grid-column: 1;
+          grid-row: auto;
+          position: relative;
+          top: auto;
+          height: auto;
+        }
       }
       @media (max-width: 700px) {
-        .topbar { padding: 0 16px; }
-        .topbar-nav { display: none; }
-        .product-title span { display: none; }
-        .topbar-action { margin-left: auto; padding-inline: 18px; }
-        .profile-badge { display: none; }
-        .studio-hero { min-height: auto; padding: 30px 20px; }
-        .studio-hero h1 { font-size: 2.35rem; }
-        .hero-benefits { display: grid; gap: 14px; }
-        .workspace { padding: 20px; border-radius: 28px 28px 0 0; }
-        .resume-item { grid-template-columns: 72px minmax(0, 1fr); width: 100%; }
-        .resume-actions { grid-column: 2; }
-        .template-tools, .search-field { width: 100%; }
-        .filter-tabs { width: 100%; overflow-x: auto; }
-        .template-grid { grid-template-columns: 1fr; }
-        .template-card { height: 390px; }
-        .template-preview { height: 336px; }
-        .preview-scale { transform: translateX(-50%) scale(0.41); }
+        .topbar {
+          padding: 0 16px;
+        }
+        .topbar-nav {
+          display: none;
+        }
+        .product-title span {
+          display: none;
+        }
+        .topbar-action {
+          margin-left: auto;
+          padding-inline: 18px;
+        }
+        .profile-badge {
+          display: none;
+        }
+        .studio-hero {
+          min-height: auto;
+          padding: 30px 20px;
+        }
+        .studio-hero h1 {
+          font-size: 2.35rem;
+        }
+        .hero-benefits {
+          display: grid;
+          gap: 14px;
+        }
+        .workspace {
+          padding: 20px;
+          border-radius: 28px 28px 0 0;
+        }
+        .resume-item {
+          grid-template-columns: 72px minmax(0, 1fr);
+          width: 100%;
+        }
+        .resume-actions {
+          grid-column: 2;
+        }
+        .template-tools,
+        .search-field {
+          width: 100%;
+        }
+        .filter-tabs {
+          width: 100%;
+          overflow-x: auto;
+        }
+        .template-grid {
+          grid-template-columns: 1fr;
+        }
+        .template-card {
+          height: 390px;
+        }
+        .template-preview {
+          height: 336px;
+        }
+        .preview-scale {
+          transform: translateX(-50%) scale(0.41);
+        }
       }
 
       .topbar {
@@ -2008,30 +2100,41 @@ export class ResumeDashboardComponent implements OnInit {
     preview.content.profile.email =
       names[templateId].name.toLowerCase().replace(' ', '.') + '@example.com';
     preview.content.profile.location = 'San Francisco, CA';
-    preview.content.profile.github = 'linkedin.com/in/' + names[templateId].name.toLowerCase().replace(' ', '');
-    preview.colors = { ...preview.colors!, accent: '#009ec4', sectionTitle: '#009ec4',
+    preview.content.profile.github =
+      'linkedin.com/in/' + names[templateId].name.toLowerCase().replace(' ', '');
+    preview.colors = {
+      ...preview.colors!,
+      accent: '#009ec4',
+      sectionTitle: '#009ec4',
       name: templateId === 'tech-modern' ? '#ffffff' : '#0a1020',
       headline: templateId === 'tech-modern' ? '#7fdaf1' : '#607087',
       contact: templateId === 'tech-modern' ? '#dce8ec' : '#607087',
-      role: '#35415b', skillLabel: '#172137' };
-    if (
-      templateId === 'tech-modern' ||
-      templateId === 'tech-minimal'
-    ) {
+      role: '#35415b',
+      skillLabel: '#172137',
+    };
+    if (templateId === 'tech-modern' || templateId === 'tech-minimal') {
       preview.content.profile.photoDataUrl = '/assets/resume/template-profile.png';
       preview.content.profile.photoVisible = true;
     }
     for (const section of preview.content.sections) {
-      if (section.type === 'summary') section.body = 'Product-minded software engineer focused on reliable, full stack software, elegant interfaces, and measurable delivery.';
-      if (section.type === 'experience') for (const item of section.items) {
-        item.location = '';
-        item.positions[0].bullets = ['Built TypeScript applications across Angular, NestJS, and PostgreSQL.', 'Improved product workflows through focused UX polish and reliable APIs.'];
-      }
-      if (section.type === 'projects') for (const item of section.items) {
-        item.role = '';
-        item.description = 'Designed and shipped an inline AI resume editor with template-controlled typography.';
-        item.dates = '2024';
-      }
+      if (section.type === 'summary')
+        section.body =
+          'Product-minded software engineer focused on reliable, full stack software, elegant interfaces, and measurable delivery.';
+      if (section.type === 'experience')
+        for (const item of section.items) {
+          item.location = '';
+          item.positions[0].bullets = [
+            'Built TypeScript applications across Angular, NestJS, and PostgreSQL.',
+            'Improved product workflows through focused UX polish and reliable APIs.',
+          ];
+        }
+      if (section.type === 'projects')
+        for (const item of section.items) {
+          item.role = '';
+          item.description =
+            'Designed and shipped an inline AI resume editor with template-controlled typography.';
+          item.dates = '2024';
+        }
     }
     return preview;
   }

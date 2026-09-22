@@ -25,6 +25,7 @@ export interface ResumeColorSelection {
   left: number;
   top: number;
   textSelected?: boolean;
+  fontWeight?: number;
 }
 
 @Component({
@@ -169,7 +170,7 @@ export interface ResumeColorSelection {
                 >{{ resume.content.profile.location }}</span
               >
             </span>
-            @if (resume.content.profile.github) {
+            @if (editable || resume.content.profile.github) {
               <span
                 class="contact-item"
                 [style.color]="fieldColor('profile.github', 'contact')"
@@ -921,7 +922,8 @@ export interface ResumeColorSelection {
         background: #ffffff;
         color: var(--body);
         box-shadow: 0 22px 70px rgba(10, 18, 20, 0.18);
-        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+          'PingFang SC', 'Microsoft YaHei', sans-serif;
       }
       .identity {
         display: grid;
@@ -1187,10 +1189,9 @@ export interface ResumeColorSelection {
       }
       .is-editable [contenteditable='true'] {
         border-radius: 2px;
+        background: transparent;
         outline: 1px solid transparent;
-        transition:
-          background 120ms ease,
-          outline-color 120ms ease;
+        transition: outline-color 120ms ease;
       }
       .is-editable [contenteditable='true']:empty::before {
         content: 'Enter ' attr(data-color-label);
@@ -1204,19 +1205,16 @@ export interface ResumeColorSelection {
         color: inherit !important;
         font-family: inherit !important;
         font-size: inherit !important;
-        font-style: inherit !important;
-        font-weight: inherit !important;
         letter-spacing: inherit !important;
         line-height: inherit !important;
-        text-decoration: none !important;
         -webkit-text-fill-color: currentColor !important;
       }
       .is-editable [contenteditable='true']:hover {
-        background: color-mix(in srgb, var(--accent), white 93%);
+        background: transparent;
         outline-color: color-mix(in srgb, var(--accent), white 60%);
       }
       .is-editable [contenteditable='true']:focus {
-        background: color-mix(in srgb, var(--accent), white 89%);
+        background: transparent;
         outline: 2px solid color-mix(in srgb, var(--accent), white 28%);
         outline-offset: 2px;
       }
@@ -1229,9 +1227,11 @@ export interface ResumeColorSelection {
       .tech-modern .identity {
         display: flex;
         min-height: 297mm;
+        min-width: 0;
+        box-sizing: border-box;
         flex-direction: column;
         grid-column: 1;
-        padding: 44px var(--template-inline-padding);
+        padding: 44px 20px;
         border: 0;
         background: #17262b;
         color: #f4f8f7;
@@ -1250,11 +1250,25 @@ export interface ResumeColorSelection {
         line-height: 1.35;
       }
       .tech-modern address {
+        width: 100%;
+        min-width: 0;
         margin-top: auto;
         text-align: left;
         color: #c2ced0;
       }
-      .tech-modern .contact-item,
+      .tech-modern .contact-item {
+        display: grid;
+        grid-template-columns: 1em minmax(0, 1fr);
+        align-items: start;
+        width: 100%;
+        gap: 0.65rem;
+      }
+      .tech-modern .contact-item > span {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
       .tech-minimal .contact-item,
       .tech-executive .contact-item {
         justify-content: flex-start;
@@ -1382,7 +1396,8 @@ export interface ResumeColorSelection {
         --font-role: 0.76rem;
         --font-skill-label: 0.74rem;
         padding: 44px var(--template-inline-padding);
-        font-family: Roboto, 'Helvetica Neue', sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+          'PingFang SC', 'Microsoft YaHei', sans-serif;
       }
       .tech-executive .identity {
         grid-template-columns: minmax(0, 1fr);
@@ -1786,15 +1801,24 @@ export class ResumeRendererComponent implements AfterViewInit, AfterViewChecked,
       end: before.toString().length + range.toString().length,
     };
     this.selectedTextKey = key;
-    const rect = target.getBoundingClientRect();
+    const rect = range.getBoundingClientRect();
+    const selectionElement =
+      range.startContainer instanceof HTMLElement
+        ? range.startContainer
+        : range.startContainer.parentElement;
+    const computedWeight = Number.parseInt(
+      selectionElement ? window.getComputedStyle(selectionElement).fontWeight : '400',
+      10,
+    );
     this.colorSelected.emit({
       key,
       role,
       label: target.dataset['colorLabel'] ?? 'Text',
       background: this.findBackgroundColor(target),
-      left: rect.left,
-      top: rect.bottom + 8,
+      left: rect.left + rect.width / 2,
+      top: rect.top,
       textSelected: true,
+      fontWeight: Number.isFinite(computedWeight) ? computedWeight : 400,
     });
   }
 
@@ -1805,17 +1829,25 @@ export class ResumeRendererComponent implements AfterViewInit, AfterViewChecked,
           `[data-color-key="${CSS.escape(key)}"][contenteditable="true"]`,
         )
       : null;
+    const liveSelection = window.getSelection();
+    const liveRange = liveSelection?.rangeCount ? liveSelection.getRangeAt(0) : undefined;
     const range =
-      target && this.selectedTextOffsets
-        ? this.rangeFromOffsets(
-            target,
-            this.selectedTextOffsets.start,
-            this.selectedTextOffsets.end,
-          )
-        : undefined;
+      target &&
+      liveRange &&
+      !liveRange.collapsed &&
+      target.contains(liveRange.startContainer) &&
+      target.contains(liveRange.endContainer)
+        ? liveRange.cloneRange()
+        : target && this.selectedTextOffsets
+          ? this.rangeFromOffsets(
+              target,
+              this.selectedTextOffsets.start,
+              this.selectedTextOffsets.end,
+            )
+          : undefined;
     if (!range || !target || range.collapsed) return;
 
-    const selection = window.getSelection();
+    const selection = liveSelection;
     selection?.removeAllRanges();
     selection?.addRange(range);
     if (command.kind === 'italic') {
@@ -1823,11 +1855,25 @@ export class ResumeRendererComponent implements AfterViewInit, AfterViewChecked,
     } else {
       const span = document.createElement('span');
       span.style.fontWeight = String(command.value);
-      try {
-        range.surroundContents(span);
-      } catch {
-        span.append(range.extractContents());
-        range.insertNode(span);
+      const contents = range.extractContents();
+      for (const element of [...contents.querySelectorAll('b, strong, span')]) {
+        if (element instanceof HTMLElement && element.tagName === 'SPAN') {
+          element.style.removeProperty('font-weight');
+          if (element.getAttribute('style')) continue;
+        }
+        element.replaceWith(...element.childNodes);
+      }
+      span.append(contents);
+      range.insertNode(span);
+      for (const emptySpan of [...target.querySelectorAll('span:empty')]) emptySpan.remove();
+      const parent = span.parentElement;
+      if (
+        parent &&
+        parent !== target &&
+        ['B', 'STRONG', 'SPAN'].includes(parent.tagName) &&
+        parent.textContent === span.textContent
+      ) {
+        parent.replaceWith(span);
       }
       range.selectNodeContents(span);
       selection?.removeAllRanges();
@@ -1875,8 +1921,19 @@ export class ResumeRendererComponent implements AfterViewInit, AfterViewChecked,
     const value = target.innerText.replace(/\u00a0/g, ' ').trim();
 
     if (event.key === 'Enter') {
+      // IMEs use Enter to confirm composed text. Treating that confirmation as
+      // list navigation creates an extra item and can replay the committed text.
+      if (event.isComposing || event.keyCode === 229) return;
       event.preventDefault();
+      // The new editable is focused on the next task so Angular can render it
+      // first. Ignore another Enter received by the old node in that short gap.
+      if (event.repeat || target.dataset['listInsertPending'] === 'true') return;
+      target.dataset['listInsertPending'] = 'true';
       target.dataset['skipBlur'] = 'true';
+      // Native typing adds a text node beside Angular's interpolation node.
+      // Collapse both into one node before changing the bound array value, or
+      // Angular updates its old node too and visibly duplicates the bullet.
+      this.syncEditableText(target, value);
       items[index] = value;
       if (value) {
         this.addListItem(items, index + 1, colorPrefix);
@@ -1888,6 +1945,7 @@ export class ResumeRendererComponent implements AfterViewInit, AfterViewChecked,
         this.edited.emit();
         this.focusOutsideList(target);
       }
+      window.setTimeout(() => delete target.dataset['listInsertPending']);
       return;
     }
 

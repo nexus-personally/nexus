@@ -113,24 +113,17 @@ type ColorTarget = keyof ResumeColors;
                 #typographyTrigger
                 class="typography-trigger"
                 type="button"
-                aria-controls="typography-popover"
+                aria-controls="typography-inspector"
                 [attr.aria-expanded]="typographyOpen"
                 (click)="
-                  typographyOpen = !typographyOpen; colorsOpen = false; fieldColorOpen = false
+                  typographyOpen = true;
+                  inspectorTab = 'typography';
+                  colorsOpen = false;
+                  fieldColorOpen = false
                 "
               >
                 <svg lucideType size="17"></svg> Fonts <svg lucideChevronDown size="14"></svg>
               </button>
-              @if (typographyOpen) {
-                <nexus-typography-panel
-                  id="typography-popover"
-                  [resume]="resume"
-                  [selection]="selectedColorField ?? undefined"
-                  (changed)="markDirty()"
-                  (inlineStyle)="applyInlineStyle($event)"
-                  (closed)="typographyOpen = false; typographyTrigger.focus()"
-                />
-              }
             </div>
             <label>
               <span>Template</span>
@@ -558,19 +551,30 @@ type ColorTarget = keyof ResumeColors;
             </div>
           </section>
 
-          <aside class="design-panel" aria-label="Resume inspector">
+          <aside
+            class="design-panel"
+            [class.typography-active]="inspectorTab === 'typography'"
+            aria-label="Resume inspector"
+          >
             <nav class="inspector-tabs" aria-label="Inspector view">
               <button
                 type="button"
                 [class.active]="inspectorTab === 'design'"
-                (click)="inspectorTab = 'design'"
+                (click)="inspectorTab = 'design'; typographyOpen = false"
               >
                 Design
               </button>
               <button
                 type="button"
+                [class.active]="inspectorTab === 'typography'"
+                (click)="inspectorTab = 'typography'; typographyOpen = true"
+              >
+                Typography
+              </button>
+              <button
+                type="button"
                 [class.active]="inspectorTab === 'section'"
-                (click)="inspectorTab = 'section'"
+                (click)="inspectorTab = 'section'; typographyOpen = false"
               >
                 Section
               </button>
@@ -681,6 +685,18 @@ type ColorTarget = keyof ResumeColors;
                   Reset to default
                 </button>
               </section>
+            } @else if (inspectorTab === 'typography') {
+              <section id="typography-inspector" class="typography-inspector">
+                <nexus-typography-panel
+                  [embedded]="true"
+                  [resume]="resume"
+                  [selection]="selectedColorField ?? undefined"
+                  (changed)="markDirty()"
+                  (closed)="
+                    typographyOpen = false; inspectorTab = 'design'; typographyTrigger.focus()
+                  "
+                />
+              </section>
             } @else {
               <section class="inspector-group section-inspector">
                 <label>Selected section</label>
@@ -689,13 +705,15 @@ type ColorTarget = keyof ResumeColors;
               </section>
             }
 
-            <section class="page-size-card">
-              <label for="page-size">Page size</label>
-              <select id="page-size" aria-label="Page size">
-                <option>A4 (210 × 297 mm)</option>
-              </select>
-              <small>Optimized for job applications worldwide.</small>
-            </section>
+            @if (inspectorTab !== 'typography') {
+              <section class="page-size-card">
+                <label for="page-size">Page size</label>
+                <select id="page-size" aria-label="Page size">
+                  <option>A4 (210 × 297 mm)</option>
+                </select>
+                <small>Optimized for job applications worldwide.</small>
+              </section>
+            }
           </aside>
 
           @if (fieldColorOpen) {
@@ -764,6 +782,68 @@ type ColorTarget = keyof ResumeColors;
                 </button>
               </div>
             </section>
+          }
+          @if (inlineToolbarOpen) {
+            <div
+              class="inline-text-toolbar"
+              [class.weight-menu-left]="inlineWeightMenuAlignLeft"
+              role="toolbar"
+              aria-label="Format selected text"
+              [style.left.px]="inlineToolbarLeft"
+              [style.top.px]="inlineToolbarTop"
+              (mousedown)="$event.preventDefault(); $event.stopPropagation()"
+            >
+              <span class="inline-toolbar-accent" aria-hidden="true"></span>
+              <div class="inline-weight-action">
+                <button
+                  type="button"
+                  class="inline-format-button inline-bold-button"
+                  [class.is-active]="inlineWeight >= 600"
+                  aria-label="Bold selected text"
+                  title="Bold"
+                  (click)="setInlineWeight(inlineWeight >= 600 ? 400 : 700)"
+                >
+                  <span aria-hidden="true">B</span>
+                </button>
+                <button
+                  type="button"
+                  class="inline-weight-menu-trigger"
+                  aria-label="Choose font weight"
+                  title="Font weight"
+                  [attr.aria-expanded]="inlineWeightMenuOpen"
+                  (click)="inlineWeightMenuOpen = !inlineWeightMenuOpen"
+                >
+                  <span>{{ inlineWeight }}</span>
+                  <svg lucideChevronDown size="12"></svg>
+                </button>
+                @if (inlineWeightMenuOpen) {
+                  <div class="inline-weight-menu" role="menu" aria-label="Font weight">
+                    @for (option of inlineWeightOptions; track option.value) {
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        [attr.aria-checked]="inlineWeight === option.value"
+                        [class.is-selected]="inlineWeight === option.value"
+                        [style.font-weight]="option.value"
+                        (click)="setInlineWeight(option.value); inlineWeightMenuOpen = false"
+                      >
+                        <span>{{ option.label }}</span>
+                        <small>{{ option.value }}</small>
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+              <button
+                type="button"
+                class="inline-format-button inline-italic-button"
+                aria-label="Italicize selected text"
+                title="Italic"
+                (click)="applyInlineStyle({ kind: 'italic', value: true })"
+              >
+                <span aria-hidden="true">I</span>
+              </button>
+            </div>
           }
         </div>
         @if (cropOpen) {
@@ -2135,7 +2215,7 @@ type ColorTarget = keyof ResumeColors;
       }
       .inspector-tabs {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(3, 1fr);
         border-bottom: 1px solid var(--editor-border);
       }
       .inspector-tabs button {
@@ -2243,6 +2323,10 @@ type ColorTarget = keyof ResumeColors;
       .section-inspector > strong {
         color: var(--editor-text);
         font-size: 0.9rem;
+      }
+      .typography-inspector {
+        min-height: 0;
+        background: #ffffff;
       }
       .page-size-card {
         margin: auto 1rem 1rem;
@@ -2737,6 +2821,20 @@ type ColorTarget = keyof ResumeColors;
         .design-panel {
           display: none;
         }
+        .design-panel.typography-active {
+          position: fixed;
+          right: 0;
+          bottom: 0;
+          left: 0;
+          z-index: 70;
+          display: flex;
+          width: 100%;
+          height: min(72dvh, 42rem);
+          border-top: 1px solid var(--editor-border);
+          border-left: 0;
+          border-radius: 16px 16px 0 0;
+          box-shadow: 0 -12px 32px rgba(31, 35, 41, 0.16);
+        }
         .preview-controls {
           right: auto;
         }
@@ -2912,7 +3010,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   protected saveState = 'Loading';
   protected selectedSectionId = '';
   protected sectionMenuId = '';
-  protected inspectorTab: 'design' | 'section' = 'design';
+  protected inspectorTab: 'design' | 'typography' | 'section' = 'design';
   protected newSectionType: ResumeSectionType = 'education';
   protected addSectionMenuOpen = false;
   protected templateMenuOpen = false;
@@ -2921,6 +3019,21 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   protected typographyOpen = false;
   protected colorsOpen = false;
   protected fieldColorOpen = false;
+  protected inlineToolbarOpen = false;
+  protected inlineToolbarLeft = 0;
+  protected inlineToolbarTop = 0;
+  protected inlineWeight = 400;
+  protected inlineWeightMenuOpen = false;
+  protected inlineWeightMenuAlignLeft = false;
+  protected readonly inlineWeightOptions = [
+    { value: 300, label: 'Light' },
+    { value: 400, label: 'Regular' },
+    { value: 500, label: 'Medium' },
+    { value: 600, label: 'Semibold' },
+    { value: 700, label: 'Bold' },
+    { value: 800, label: 'Extra bold' },
+    { value: 900, label: 'Black' },
+  ];
   protected moreOpen = false;
   protected recentFieldColors: string[] = [];
   protected get fieldPaletteGroups() {
@@ -3115,15 +3228,34 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     this.resumeRenderer?.applyInlineStyle(command);
   }
 
+  protected setInlineWeight(weight: number) {
+    this.inlineWeight = weight;
+    this.applyInlineStyle({ kind: 'weight', value: weight });
+  }
+
   protected save() {
     if (!this.resume || this.saveInFlight) return;
     window.clearTimeout(this.saveTimer);
+    // The renderer intentionally keeps native contenteditable input DOM-owned
+    // until Enter or blur. Saving while one is focused can replace the resume
+    // with a server response that predates the text currently being typed.
+    if (this.hasFocusedEditable()) {
+      this.saveTimer = window.setTimeout(() => this.save(), 900);
+      return;
+    }
     const revision = this.editRevision;
     this.saveInFlight = true;
     this.saveState = 'Saving';
     this.api.saveResume(structuredClone(this.resume)).subscribe({
       next: (saved) => {
         this.saveInFlight = false;
+        // The user may have focused and started typing after this request was
+        // sent. Keep that DOM intact and save its committed value after blur.
+        if (this.hasFocusedEditable()) {
+          this.saveState = 'Unsaved local draft';
+          this.saveTimer = window.setTimeout(() => this.save(), 900);
+          return;
+        }
         // Sliders can change while a request is in flight. Save the newer draft
         // before replacing local state with a server response.
         if (revision !== this.editRevision) {
@@ -3139,6 +3271,11 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
         this.saveState = 'Unable to save. Changes are stored locally.';
       },
     });
+  }
+
+  private hasFocusedEditable() {
+    return document.activeElement instanceof HTMLElement &&
+      document.activeElement.matches('[contenteditable="true"]');
   }
 
   protected move(sectionId: string, direction: -1 | 1) {
@@ -3288,6 +3425,20 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   }
 
   protected openFieldColor(selection: ResumeColorSelection) {
+    this.inlineToolbarOpen = selection.textSelected === true;
+    this.inlineWeightMenuOpen = false;
+    if (this.inlineToolbarOpen) {
+      this.inlineWeight = selection.fontWeight ?? 400;
+      const halfWidth = Math.min(156, Math.max(120, window.innerWidth / 2 - 8));
+      this.inlineToolbarLeft = this.clamp(
+        selection.left,
+        halfWidth,
+        Math.max(halfWidth, window.innerWidth - halfWidth),
+      );
+      this.inlineToolbarTop = Math.max(72, selection.top - 10);
+      this.inlineWeightMenuAlignLeft = selection.left > window.innerWidth - 300;
+      this.fieldColorOpen = false;
+    }
     const panelWidth = 304;
     const panelHeight = Math.min(580, window.innerHeight * 0.65);
     this.selectedColorField = {
@@ -3535,6 +3686,10 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   @HostListener('document:keydown.escape')
   protected closeFloatingPanels() {
     this.typographyOpen = false;
+    if (this.inspectorTab === 'typography') this.inspectorTab = 'design';
+    this.inlineToolbarOpen = false;
+    this.inlineWeightMenuOpen = false;
+    window.getSelection()?.removeAllRanges();
     this.fieldColorOpen = false;
     this.moreOpen = false;
     this.colorsOpen = false;
@@ -3545,8 +3700,11 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   @HostListener('document:mousedown', ['$event'])
   protected closeFieldColorOnOutsideClick(event: MouseEvent) {
     const target = event.target as HTMLElement | null;
-    if (!target?.closest('.typography-anchor') && !target?.closest('[data-color-key]'))
-      this.typographyOpen = false;
+    if (target?.closest('.inline-text-toolbar')) return;
+    if (!target?.closest('[data-color-key]')) {
+      this.inlineToolbarOpen = false;
+      this.inlineWeightMenuOpen = false;
+    }
     if (
       target?.closest('.field-color-panel') ||
       target?.closest('.text-toolbar') ||

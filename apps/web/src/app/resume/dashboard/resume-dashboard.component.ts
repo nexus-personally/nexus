@@ -49,7 +49,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
     <main
       class="dashboard-shell"
       [class.panel-closed]="!createOpen"
-      (document:keydown.escape)="closeCreate()"
+      (document:keydown.escape)="closeOverlays()"
     >
       <header class="topbar">
         <div class="topbar-identity">
@@ -165,7 +165,6 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
                     <span class="preview-scale">
                       <nexus-resume-renderer
                         [resume]="previewFor(template.id)"
-                        [referencePreview]="true"
                       />
                     </span>
                   </span>
@@ -241,7 +240,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
                       type="button"
                       title="Duplicate resume"
                       [attr.aria-label]="'Duplicate ' + resume.name"
-                      (click)="duplicate(resume.id)"
+                      (click)="openConfirmation('duplicate', resume)"
                     >
                       <svg lucideCopy size="15"></svg>
                     </button>
@@ -250,7 +249,7 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
                       type="button"
                       title="Delete resume"
                       [attr.aria-label]="'Delete ' + resume.name"
-                      (click)="delete(resume)"
+                      (click)="openConfirmation('delete', resume)"
                     >
                       <svg lucideTrash2 size="15"></svg>
                     </button>
@@ -289,7 +288,8 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
 
             <div class="selected-preview">
               <span
-                ><nexus-resume-renderer [resume]="selectedPreview" [referencePreview]="true"
+                ><nexus-resume-renderer
+                  [resume]="selectedPreview"
               /></span>
             </div>
 
@@ -383,6 +383,76 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
                 @if (!creating) {
                   <svg lucideArrowRight size="17"></svg>
                 }
+              </button>
+            </footer>
+          </section>
+        </div>
+      }
+
+      @if (confirmation; as confirmation) {
+        <div class="confirmation-backdrop" (click)="closeConfirmation()">
+          <section
+            [class]="'confirmation-dialog ' + confirmation.action"
+            role="alertdialog"
+            aria-modal="true"
+            [attr.aria-labelledby]="confirmation.action + '-confirmation-title'"
+            [attr.aria-describedby]="confirmation.action + '-confirmation-description'"
+            (click)="$event.stopPropagation()"
+          >
+            <div class="confirmation-icon" aria-hidden="true">
+              @if (confirmation.action === 'delete') {
+                <svg lucideTrash2 size="24"></svg>
+              } @else {
+                <svg lucideCopy size="24"></svg>
+              }
+            </div>
+            <div class="confirmation-copy">
+              <span>{{ confirmation.action === 'delete' ? 'Permanent action' : 'Create a copy' }}</span>
+              <h2 [id]="confirmation.action + '-confirmation-title'">
+                {{ confirmation.action === 'delete' ? 'Delete this resume?' : 'Duplicate this resume?' }}
+              </h2>
+              <p [id]="confirmation.action + '-confirmation-description'">
+                @if (confirmation.action === 'delete') {
+                  <strong>“{{ confirmation.resume.name }}”</strong> will be permanently removed. This
+                  action cannot be undone.
+                } @else {
+                  A separate copy of <strong>“{{ confirmation.resume.name }}”</strong> will be added
+                  to My resumes. You can edit it independently.
+                }
+              </p>
+            </div>
+            <footer>
+              <button
+                type="button"
+                class="confirmation-cancel"
+                autofocus
+                [disabled]="confirmation.busy"
+                (click)="closeConfirmation()"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="confirmation-action"
+                [disabled]="confirmation.busy"
+                (click)="confirmResumeAction()"
+              >
+                @if (!confirmation.busy) {
+                  @if (confirmation.action === 'delete') {
+                    <svg lucideTrash2 size="17"></svg>
+                  } @else {
+                    <svg lucideCopy size="17"></svg>
+                  }
+                }
+                {{
+                  confirmation.busy
+                    ? confirmation.action === 'delete'
+                      ? 'Deleting...'
+                      : 'Duplicating...'
+                    : confirmation.action === 'delete'
+                      ? 'Delete resume'
+                      : 'Duplicate resume'
+                }}
               </button>
             </footer>
           </section>
@@ -1877,6 +1947,11 @@ export class ResumeDashboardComponent implements OnInit {
   protected includePhoto = true;
   protected activeFilter: TemplateFilter = 'all';
   protected searchQuery = '';
+  protected confirmation?: {
+    action: 'duplicate' | 'delete';
+    resume: ResumeRecord;
+    busy: boolean;
+  };
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
 
@@ -2035,19 +2110,40 @@ export class ResumeDashboardComponent implements OnInit {
     });
   }
 
-  protected duplicate(id: string) {
-    this.api.duplicateResume(id).subscribe({
-      next: () => this.load(),
-      error: () => (this.errorMessage = 'The resume could not be duplicated. Please retry.'),
-    });
+  protected openConfirmation(action: 'duplicate' | 'delete', resume: ResumeRecord) {
+    this.confirmation = { action, resume, busy: false };
   }
 
-  protected delete(resume: ResumeRecord) {
-    if (!window.confirm('Delete "' + resume.name + '"? This cannot be undone.')) return;
-    this.api.deleteResume(resume.id).subscribe({
-      next: () => this.load(),
-      error: () => (this.errorMessage = 'The resume could not be deleted. Please retry.'),
-    });
+  protected closeConfirmation() {
+    if (!this.confirmation?.busy) this.confirmation = undefined;
+  }
+
+  protected closeOverlays() {
+    this.closeCreate();
+    this.closeConfirmation();
+  }
+
+  protected confirmResumeAction() {
+    const confirmation = this.confirmation;
+    if (!confirmation || confirmation.busy) return;
+    confirmation.busy = true;
+    this.errorMessage = '';
+    const next = () => {
+      this.confirmation = undefined;
+      this.load();
+    };
+    const error = () => {
+      confirmation.busy = false;
+      this.errorMessage =
+        confirmation.action === 'delete'
+          ? 'The resume could not be deleted. Please retry.'
+          : 'The resume could not be duplicated. Please retry.';
+    };
+    if (confirmation.action === 'delete') {
+      this.api.deleteResume(confirmation.resume.id).subscribe({ next, error });
+    } else {
+      this.api.duplicateResume(confirmation.resume.id).subscribe({ next, error });
+    }
   }
 
   private readPhoto(file: File) {
@@ -2102,16 +2198,6 @@ export class ResumeDashboardComponent implements OnInit {
     preview.content.profile.location = 'San Francisco, CA';
     preview.content.profile.github =
       'linkedin.com/in/' + names[templateId].name.toLowerCase().replace(' ', '');
-    preview.colors = {
-      ...preview.colors!,
-      accent: '#009ec4',
-      sectionTitle: '#009ec4',
-      name: templateId === 'tech-modern' ? '#ffffff' : '#0a1020',
-      headline: templateId === 'tech-modern' ? '#7fdaf1' : '#607087',
-      contact: templateId === 'tech-modern' ? '#dce8ec' : '#607087',
-      role: '#35415b',
-      skillLabel: '#172137',
-    };
     if (templateId === 'tech-modern' || templateId === 'tech-minimal') {
       preview.content.profile.photoDataUrl = '/assets/resume/template-profile.png';
       preview.content.profile.photoVisible = true;

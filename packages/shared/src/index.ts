@@ -263,8 +263,8 @@ function resumeColorDefaults(
 }
 
 export const RESUME_TEMPLATE_COLOR_DEFAULTS: Record<ResumeTemplateId, ResumeColors> = {
-  'tech-core': resumeColorDefaults('#0f9fb8', '#20272a', '#30383b'),
-  'tech-modern': resumeColorDefaults('#34b9c2', '#17262b', '#30383b', {
+  'tech-core': resumeColorDefaults('#006d85', '#1d1d1f', '#3c4043', { meta: '#59636e' }),
+  'tech-modern': resumeColorDefaults('#007782', '#1d1d1f', '#3c4043', {
     name: '#ffffff',
     headline: '#8ed8df',
     contact: '#c2ced0',
@@ -276,7 +276,7 @@ export const RESUME_TEMPLATE_COLOR_DEFAULTS: Record<ResumeTemplateId, ResumeColo
     role: '#8c6a35',
     skillLabel: '#8c6a35',
   }),
-  'tech-creative': resumeColorDefaults('#d45a69', '#20262a', '#30373a', {
+  'tech-creative': resumeColorDefaults('#a8324a', '#1d1d1f', '#3c4043', {
     name: '#ffffff',
     headline: '#eda6af',
     contact: '#cbd6d7',

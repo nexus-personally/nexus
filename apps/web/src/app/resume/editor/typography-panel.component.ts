@@ -1,14 +1,14 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LucideBold, LucideItalic, LucideRotateCcw, LucideX } from '@lucide/angular';
+import { LucideRotateCcw, LucideX } from '@lucide/angular';
 import type { ResumeRecord, ResumeTypography } from '@nexus/shared';
 
 @Component({
   selector: 'nexus-typography-panel',
   standalone: true,
-  imports: [FormsModule, LucideBold, LucideItalic, LucideRotateCcw, LucideX],
+  imports: [FormsModule, LucideRotateCcw, LucideX],
   template: `
-    <section aria-label="Typography" class="typography-panel">
+    <section aria-label="Typography" class="typography-panel" [class.embedded]="embedded">
       <header>
         <div>
           <span>APPEARANCE</span>
@@ -90,54 +90,6 @@ import type { ResumeRecord, ResumeTypography } from '@nexus/shared';
         ><span>{{ fieldScope ? '72 pt' : 'Larger' }}</span>
       </div>
       <div class="control-heading">
-        <label class="control-label" for="resume-font-weight">Weight & style</label>
-      </div>
-      <p class="selection-hint" [class.ready]="selection?.textSelected">
-        {{
-          selection?.textSelected
-            ? 'Formatting applies only to the highlighted text.'
-            : 'Highlight text in the resume first.'
-        }}
-      </p>
-      <div class="weight-row">
-        <select
-          id="resume-font-weight"
-          aria-label="Selected text weight"
-          [disabled]="!selection?.textSelected"
-          [ngModel]="''"
-          (ngModelChange)="$event !== '' && inlineStyle.emit({ kind: 'weight', value: +$event })"
-        >
-          <option value="">Selected text weight</option>
-          <option [ngValue]="300">Light · 300</option>
-          <option [ngValue]="400">Regular · 400</option>
-          <option [ngValue]="500">Medium · 500</option>
-          <option [ngValue]="600">Semibold · 600</option>
-          <option [ngValue]="700">Bold · 700</option>
-          <option [ngValue]="800">Extra bold · 800</option>
-          <option [ngValue]="900">Black · 900</option>
-        </select>
-        <button
-          type="button"
-          class="style-button"
-          aria-label="Bold"
-          title="Bold"
-          [disabled]="!selection?.textSelected"
-          (click)="inlineStyle.emit({ kind: 'weight', value: 700 })"
-        >
-          <svg lucideBold size="18"></svg>
-        </button>
-        <button
-          type="button"
-          class="style-button"
-          aria-label="Italic"
-          title="Italic"
-          [disabled]="!selection?.textSelected"
-          (click)="inlineStyle.emit({ kind: 'italic', value: true })"
-        >
-          <svg lucideItalic size="18"></svg>
-        </button>
-      </div>
-      <div class="control-heading">
         <label class="control-label" for="resume-letter-spacing">Letter spacing</label>
         <div class="number-input">
           <input
@@ -205,6 +157,15 @@ import type { ResumeRecord, ResumeTypography } from '@nexus/shared';
         border: 1px solid #dce6e5;
         border-radius: 16px;
         box-shadow: 0 16px 48px #183b3b24;
+      }
+      .typography-panel.embedded {
+        padding: 18px 16px 24px;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .typography-panel.embedded header {
+        margin-bottom: 16px;
       }
       header {
         display: flex;
@@ -334,35 +295,6 @@ import type { ResumeRecord, ResumeTypography } from '@nexus/shared';
         justify-content: space-between;
         margin-top: 2px;
       }
-      .weight-row {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-      }
-      .selection-hint {
-        margin: -4px 0 10px;
-        color: #8a6660;
-        font-size: 11px;
-      }
-      .selection-hint.ready {
-        color: #267e83;
-      }
-      .weight-row select {
-        margin: 0;
-        flex: 1;
-        min-width: 0;
-      }
-      .style-button {
-        width: 40px;
-        height: 40px;
-        border-color: #dbe4e2;
-        flex: none;
-      }
-      .style-button.active {
-        background: #e3f2f1;
-        color: #216e73;
-        border-color: #83b5b6;
-      }
       .sample {
         display: flex;
         align-items: center;
@@ -404,14 +336,11 @@ import type { ResumeRecord, ResumeTypography } from '@nexus/shared';
   ],
 })
 export class TypographyPanelComponent {
+  @Input() embedded = false;
   @Input({ required: true }) resume!: ResumeRecord;
   @Input() selection?: { key: string; label: string; textSelected?: boolean };
   @Output() changed = new EventEmitter<void>();
   @Output() closed = new EventEmitter<void>();
-  @Output() inlineStyle = new EventEmitter<{
-    kind: 'weight' | 'italic';
-    value: number | boolean;
-  }>();
   protected fieldScope = false;
 
   protected get value(): ResumeTypography {

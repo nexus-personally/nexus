@@ -18,15 +18,12 @@
   background: #e5f3f2;
   border-color: #82b9b9;
 }
-nexus-typography-panel {
-  position: absolute;
-  top: calc(100% + 12px);
-  left: 0;
-  z-index: 60;
-  width: 354px;
-  max-height: calc(100dvh - 150px);
-  overflow-y: auto;
-  border-radius: 16px;
+.typography-inspector nexus-typography-panel {
+  position: static;
+  display: block;
+  width: 100%;
+  max-height: none;
+  overflow: visible;
 }
 @media (max-width: 1500px) {
   :host .command-bar {
@@ -49,16 +46,183 @@ nexus-typography-panel {
     flex: 0 1 auto;
   }
 }
-@media (max-width: 760px) {
-  nexus-typography-panel {
-    position: fixed;
-    top: auto;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    width: auto;
-    max-height: 80dvh;
+
+.inline-text-toolbar {
+  position: fixed;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 48px;
+  padding: 6px 7px 6px 8px;
+  border: 1px solid #d6e2e0;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow:
+    0 16px 36px rgb(36 62 59 / 18%),
+    0 3px 9px rgb(36 62 59 / 9%);
+  transform: translate(-50%, -100%);
+  backdrop-filter: blur(12px);
+}
+
+.inline-text-toolbar::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-right: 1px solid #d6e2e0;
+  border-bottom: 1px solid #d6e2e0;
+  background: #ffffff;
+  content: '';
+  transform: translate(-50%, -5px) rotate(45deg);
+}
+
+.inline-toolbar-accent {
+  width: 4px;
+  height: 24px;
+  margin-right: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #18a6a0, #58c9bb);
+}
+
+.inline-weight-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.inline-format-button,
+.inline-weight-menu-trigger {
+  display: grid;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #314744;
+  cursor: pointer;
+}
+
+.inline-format-button {
+  width: 34px;
+  border-radius: 9px;
+}
+
+.inline-format-button > span {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.inline-bold-button > span {
+  font-weight: 700;
+}
+
+.inline-italic-button > span {
+  font-style: italic;
+}
+
+.inline-weight-menu-trigger {
+  grid-auto-flow: column;
+  gap: 4px;
+  width: 52px;
+  padding: 0 6px;
+  border: 1px solid #dce6e4;
+  border-radius: 9px;
+  background: #f3f7f6;
+  color: #5c706d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.inline-format-button:hover,
+.inline-format-button:focus-visible,
+.inline-format-button.is-active,
+.inline-weight-menu-trigger:hover,
+.inline-weight-menu-trigger:focus-visible {
+  background: #e3f3f1;
+  color: #176f70;
+}
+
+.inline-format-button.is-active {
+  box-shadow: inset 0 0 0 1px #b8dcda;
+}
+
+.inline-format-button:focus-visible,
+.inline-weight-menu-trigger:focus-visible,
+.inline-weight-menu button:focus-visible {
+  outline: 2px solid #baf3e9;
+  outline-offset: 2px;
+}
+
+.inline-weight-menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 53px);
+  display: grid;
+  width: 178px;
+  padding: 6px;
+  border: 1px solid #dce5e8;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgb(21 31 43 / 22%);
+}
+
+.inline-text-toolbar.weight-menu-left .inline-weight-menu {
+  right: calc(100% + 12px);
+  left: auto;
+}
+
+.inline-weight-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #283b45;
+  cursor: pointer;
+}
+
+.inline-weight-menu button:hover,
+.inline-weight-menu button.is-selected {
+  background: #e8f8f5;
+  color: #176f70;
+}
+
+.inline-weight-menu small {
+  color: #7b8b92;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+@media (max-width: 520px) {
+  .inline-text-toolbar {
+    max-width: calc(100vw - 16px);
+    min-height: 54px;
+    padding: 4px 8px;
   }
+
+  .inline-weight-menu,
+  .inline-text-toolbar.weight-menu-left .inline-weight-menu {
+    top: calc(100% + 10px);
+    right: auto;
+    left: 0;
+    max-height: min(300px, 50vh);
+    overflow-y: auto;
+  }
+}
+
+@media print {
+  .inline-text-toolbar {
+    display: none !important;
+  }
+}
+@media (max-width: 760px) {
   :host .command-bar {
     padding: 12px;
   }
@@ -67,7 +231,7 @@ nexus-typography-panel {
   }
 }
 @media print {
-  nexus-typography-panel {
+  .typography-inspector {
     display: none !important;
   }
 }

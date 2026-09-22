@@ -4,7 +4,7 @@
   .dashboard-shell,
   .dashboard-shell.panel-closed {
     grid-template-rows: 60px 258px auto;
-    background: #effaff;
+    background: #f5f7fa;
   }
   .topbar {
     top: 0;
@@ -42,7 +42,7 @@
     padding: 0 22px;
     font-size: 18px;
     gap: 12px;
-    background: #00a4ce;
+    background: #006d85;
     box-shadow: none;
   }
   .topbar-action svg {
@@ -57,7 +57,7 @@
     height: 258px;
     min-height: 0;
     padding: 36px clamp(64px, 5vw, 96px);
-    background: #effaff;
+    background: #f5f7fa;
   }
   .eyebrow {
     font:
@@ -429,6 +429,141 @@
     }
   }
 }
+
+/* Template gallery color system: keep the chrome quiet so each resume leads. */
+:host {
+  .template-section {
+    background: #f7f8f8;
+  }
+
+  .template-heading > div:first-child > span {
+    color: #52716f;
+  }
+
+  .template-heading h1 {
+    color: #182321;
+    letter-spacing: -0.035em;
+  }
+
+  .template-heading p,
+  .template-search input {
+    color: #687674;
+  }
+
+  .template-search {
+    border-color: #d9e1df;
+    background: #ffffff;
+  }
+
+  .filter-tabs button {
+    border-color: #d9e1df;
+    background: #ffffff;
+    color: #465552;
+  }
+
+  .filter-tabs button:hover {
+    border-color: #9ebbb7;
+    background: #f3f8f7;
+    color: #286d6b;
+  }
+
+  .filter-tabs button.active {
+    border-color: #b9dfda;
+    background: #e5f6f3;
+    color: #176f6d;
+  }
+
+  .template-card {
+    border-color: #dde4e2;
+    background: #ffffff;
+    box-shadow: 0 3px 12px rgba(34, 52, 49, 0.055);
+  }
+
+  .template-card:hover {
+    border-color: #b7c8c5;
+    box-shadow: 0 14px 30px rgba(34, 52, 49, 0.11);
+  }
+
+  .template-card.selected {
+    border-color: #258e8a;
+    background: #f3faf9;
+    box-shadow:
+      0 0 0 2px rgba(37, 142, 138, 0.12),
+      0 14px 30px rgba(34, 52, 49, 0.1);
+  }
+
+  .template-card .template-preview {
+    background: #f0f3f2;
+  }
+
+  .template-card.tech-modern .template-preview {
+    background: #f1f2f5;
+  }
+
+  .template-card.tech-minimal .template-preview {
+    background: #f4f1eb;
+  }
+
+  .template-card.tech-executive .template-preview {
+    background: #eef2ef;
+  }
+
+  .template-card.tech-creative .template-preview {
+    background: #f4efec;
+  }
+
+  .template-card.selected .template-preview {
+    background: #e7f3f1;
+  }
+
+  .template-line h2 {
+    color: #1c2927;
+    font-weight: 680;
+    letter-spacing: -0.025em;
+  }
+
+  .template-card .tag {
+    border: 1px solid #d4e1df;
+    background: #edf5f4;
+    color: #426865;
+    font-weight: 650;
+  }
+
+  .template-card .tag.tech-core {
+    border-color: #d6e1ec;
+    background: #edf3f9;
+    color: #486681;
+  }
+
+  .template-card .tag.tech-modern {
+    border-color: #ded7ea;
+    background: #f3eff8;
+    color: #68557c;
+  }
+
+  .template-card .tag.tech-minimal {
+    border-color: #e4ddcf;
+    background: #f7f3ea;
+    color: #77684c;
+  }
+
+  .template-card .tag.tech-executive {
+    border-color: #d5e2d8;
+    background: #eef5ef;
+    color: #536f59;
+  }
+
+  .template-card .tag.tech-creative {
+    border-color: #ead9d0;
+    background: #faf0eb;
+    color: #8a5a45;
+  }
+
+  .selection-check {
+    background: #258e8a;
+    box-shadow: 0 3px 9px rgba(20, 101, 98, 0.28);
+  }
+}
 :host {
   .hero-art {
     clip-path: polygon(0 0, 100% 0, 100% 100%, 80px 100%, 80px 65%, 0 65%);
@@ -458,12 +593,12 @@
 }
 :host {
   .primary {
-    background: #00a4ce;
-    border-color: #00a4ce;
+    background: #006d85;
+    border-color: #006d85;
   }
   .primary:hover {
-    background: #008db4;
-    border-color: #008db4;
+    background: #00566b;
+    border-color: #00566b;
   }
   .dashboard-shell:not(.panel-closed) .template-heading {
     grid-template-columns: 1fr;
@@ -521,6 +656,7 @@
     background: rgba(10, 24, 36, 0.46);
     backdrop-filter: blur(6px);
     animation: dialog-backdrop-in 160ms ease-out;
+    justify-content: center;
   }
 
   .create-dialog {
@@ -773,5 +909,230 @@
       min-width: 0;
       padding-inline: 14px;
     }
+  }
+}
+
+:host {
+  .confirmation-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(15, 23, 31, 0.5);
+    backdrop-filter: blur(7px) saturate(0.9);
+    animation: dialog-backdrop-in 160ms ease-out;
+  }
+
+  .confirmation-dialog {
+    position: relative;
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 18px;
+    width: min(460px, calc(100vw - 48px));
+    padding: 28px;
+    overflow: hidden;
+    border: 1px solid #e2e7ea;
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow:
+      0 28px 80px rgba(15, 23, 31, 0.24),
+      0 2px 8px rgba(15, 23, 31, 0.08);
+    animation: dialog-content-in 180ms ease-out;
+  }
+
+  .confirmation-dialog::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto;
+    height: 4px;
+  }
+
+  .confirmation-icon {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+  }
+
+  .confirmation-copy {
+    min-width: 0;
+  }
+
+  .confirmation-copy > span {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .confirmation-copy h2 {
+    margin: 0;
+    color: #182126;
+    font-size: 22px;
+    line-height: 1.2;
+    letter-spacing: -0.035em;
+  }
+
+  .confirmation-copy p {
+    margin: 10px 0 0;
+    color: #667178;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .confirmation-copy strong {
+    color: #303a40;
+    font-weight: 680;
+  }
+
+  .confirmation-dialog footer {
+    display: flex;
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .confirmation-cancel,
+  .confirmation-action {
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 680;
+  }
+
+  .confirmation-cancel {
+    border: 1px solid #d8e0e4;
+    background: #ffffff;
+    color: #35434a;
+  }
+
+  .confirmation-cancel:hover {
+    border-color: #b9c5cb;
+    background: #f7f9fa;
+  }
+
+  .confirmation-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid transparent;
+    color: #ffffff;
+    box-shadow: 0 5px 14px rgba(20, 28, 33, 0.14);
+  }
+
+  .confirmation-dialog.delete::before {
+    background: #d92d3e;
+  }
+
+  .confirmation-dialog.delete .confirmation-icon {
+    background: #fff0f1;
+    color: #c92738;
+  }
+
+  .confirmation-dialog.delete .confirmation-copy > span {
+    color: #bd2636;
+  }
+
+  .confirmation-dialog.delete .confirmation-action {
+    background: #cf293a;
+  }
+
+  .confirmation-dialog.delete .confirmation-action:hover {
+    background: #b92031;
+  }
+
+  .confirmation-dialog.duplicate::before {
+    background: #d49316;
+  }
+
+  .confirmation-dialog.duplicate .confirmation-icon {
+    background: #fff7df;
+    color: #a96d00;
+  }
+
+  .confirmation-dialog.duplicate .confirmation-copy > span {
+    color: #946100;
+  }
+
+  .confirmation-dialog.duplicate .confirmation-action {
+    background: #ad7204;
+  }
+
+  .confirmation-dialog.duplicate .confirmation-action:hover {
+    background: #915f00;
+  }
+
+  .confirmation-dialog button:focus-visible {
+    outline: 3px solid rgba(24, 119, 133, 0.24);
+    outline-offset: 2px;
+  }
+
+  .confirmation-dialog button:disabled {
+    cursor: wait;
+    opacity: 0.68;
+  }
+
+  @media (max-width: 560px) {
+    .confirmation-backdrop {
+      align-items: end;
+      padding: 12px;
+    }
+
+    .confirmation-dialog {
+      grid-template-columns: 44px minmax(0, 1fr);
+      width: 100%;
+      gap: 14px;
+      padding: 22px 20px 20px;
+      border-radius: 20px;
+    }
+
+    .confirmation-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+    }
+
+    .confirmation-dialog footer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-top: 6px;
+    }
+
+    .confirmation-cancel,
+    .confirmation-action {
+      padding-inline: 12px;
+    }
+  }
+
+  .template-card.tech-core .template-preview {
+    background: #f0f3f2;
+  }
+
+  .template-card.tech-modern .template-preview {
+    background: #f1f2f5;
+  }
+
+  .template-card.tech-minimal .template-preview {
+    background: #f4f1eb;
+  }
+
+  .template-card.tech-executive .template-preview {
+    background: #eef2ef;
+  }
+
+  .template-card.tech-creative .template-preview {
+    background: #f4efec;
+  }
+
+  .template-card.selected .template-preview {
+    background: #e7f3f1;
   }
 }

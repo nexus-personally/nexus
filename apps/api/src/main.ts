@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import './database/env.js';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import { AppModule } from './app.module.js';

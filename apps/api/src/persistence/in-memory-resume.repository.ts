@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { ResumePublication, ResumeRecord } from '@nexus/shared';
 import { createStarterResume } from '@nexus/shared';
+import { randomUUID } from 'node:crypto';
 import type { ResumeRepository } from './resume.repository.js';
 
 @Injectable()
@@ -9,7 +10,7 @@ export class InMemoryResumeRepository implements ResumeRepository {
   private readonly publications = new Map<string, ResumePublication>();
 
   constructor() {
-    const starter = createStarterResume('resume-demo', 'Primary Tech Resume', 'tech-core');
+    const starter = createStarterResume(randomUUID(), 'Primary Tech Resume', 'tech-core');
     this.resumes.set(starter.id, starter);
   }
 

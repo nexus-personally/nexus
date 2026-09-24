@@ -73,15 +73,16 @@ export class PostgresResumeRepository implements ResumeRepository, OnModuleInit,
   private readonly pool = createPostgresPool();
 
   async onModuleInit() {
-    await this.pool.query(
+    const owner = await this.pool.query(
       `insert into users (id, display_name, is_owner)
        values ($1, 'NEXUS Owner', true)
-       on conflict (id) do nothing`,
+       on conflict (id) do nothing
+       returning id`,
       [OWNER_ID],
     );
 
     const result = await this.pool.query<{ count: string }>('select count(*) from resumes');
-    if (Number(result.rows[0]?.count ?? 0) === 0) {
+    if (owner.rowCount === 1 && Number(result.rows[0]?.count ?? 0) === 0) {
       await this.create(createStarterResume(randomUUID(), 'Primary Resume', 'tech-core'));
     }
   }

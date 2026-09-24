@@ -1229,7 +1229,7 @@ type ColorTarget = keyof ResumeColors;
               [style.height.px]="page.end - page.start"
             >
               <div class="resume-page-source" [style.top.px]="-page.start">
-                <nexus-resume-renderer [resume]="resume" [editable]="true" />
+                <nexus-resume-renderer [resume]="resume" [editable]="true" [paginatedPrint]="true" />
               </div>
             </div>
           </div>
@@ -6067,6 +6067,15 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
         const rect = element.getBoundingClientRect();
         return { top: rect.top - sheetTop, bottom: rect.bottom - sheetTop };
       });
+      for (const section of Array.from(body.querySelectorAll<HTMLElement>('.resume-section'))) {
+        const heading = section.querySelector<HTMLElement>('h2');
+        const firstBlock = heading?.nextElementSibling;
+        if (!heading || !(firstBlock instanceof HTMLElement)) continue;
+        breakBlocks.push({
+          top: heading.getBoundingClientRect().top - sheetTop,
+          bottom: firstBlock.getBoundingClientRect().bottom - sheetTop,
+        });
+      }
       let start = 0;
       for (let index = 0; start < contentEnd; index++) {
         const limit = start + this.a4Height - (index === 0 ? this.pageInset : this.pageInset * 2);
@@ -6118,7 +6127,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
         rect.top >= earliest &&
         rect.top < limit &&
         rect.bottom > limit &&
-        rect.bottom - rect.top < 160,
+        rect.bottom - rect.top < 240,
     );
     if (crossingBlocks.length) {
       return Math.min(...crossingBlocks.map((rect) => rect.top)) - 2;

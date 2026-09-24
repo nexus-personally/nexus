@@ -39,6 +39,7 @@ export interface ResumeColorSelection {
         class="sheet"
         [class]="resume.templateId"
         [class.is-editable]="editable"
+        [class.is-paginated-print]="paginatedPrint"
         [class.has-photo]="showPhoto"
         [style.--accent]="colors.accent"
         [style.--heading]="colors.heading"
@@ -1535,6 +1536,16 @@ export interface ResumeColorSelection {
         margin: 0;
       }
       @media print {
+        .is-paginated-print .resume-section,
+        .is-paginated-print .block,
+        .is-paginated-print .position,
+        .is-paginated-print .skill-group,
+        .is-paginated-print .editable-list-item {
+          break-inside: auto;
+        }
+        .is-paginated-print h2 {
+          break-after: auto;
+        }
         .sheet {
           width: 210mm;
           min-height: 297mm;
@@ -1568,6 +1579,7 @@ export class ResumeRendererComponent implements AfterViewInit, AfterViewChecked,
 
   @Input({ required: true }) resume?: ResumeRecord;
   @Input() editable = false;
+  @Input() paginatedPrint = false;
   @Input() referencePreview = false;
   @Output() edited = new EventEmitter<void>();
   @Output() colorSelected = new EventEmitter<ResumeColorSelection>();

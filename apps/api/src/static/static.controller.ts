@@ -1,5 +1,5 @@
-import { Controller, Get, Header, NotFoundException, Param, Res } from '@nestjs/common';
-import type { FastifyReply } from 'fastify';
+import { Controller, Get, Header, NotFoundException, Req, Res } from '@nestjs/common';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { readFile } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 
@@ -25,14 +25,11 @@ export class StaticController {
     return reply.send(await readFile(resolve(webRoot, 'index.html')));
   }
 
-  @Get('assets/*path')
-  async asset(@Param('path') path: string, @Res() reply: FastifyReply) {
-    return this.sendFile(path, reply);
-  }
-
-  @Get('*path')
-  async route(@Param('path') path: string, @Res() reply: FastifyReply) {
-    if (path.startsWith('api/')) throw new NotFoundException();
+  @Get('/*')
+  async route(@Req() request: FastifyRequest, @Res() reply: FastifyReply) {
+    const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+    if (pathname === '/api' || pathname.startsWith('/api/')) throw new NotFoundException();
+    const path = pathname.replace(/^\/+/, '');
     try {
       return await this.sendFile(path, reply);
     } catch (error) {

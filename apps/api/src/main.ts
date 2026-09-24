@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import './database/env.js';
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { RequestMethod } from '@nestjs/common';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
@@ -15,7 +16,13 @@ async function bootstrap() {
       .map((origin) => origin.trim())
       .filter(Boolean),
   );
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api', {
+    exclude: [
+      { path: '/', method: RequestMethod.GET },
+      { path: 'assets/*path', method: RequestMethod.GET },
+      { path: '*path', method: RequestMethod.GET },
+    ],
+  });
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.has(origin)) {

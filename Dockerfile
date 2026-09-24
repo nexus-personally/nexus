@@ -25,4 +25,4 @@ COPY --from=build /app/dist/apps/web/browser ./apps/web/browser
 COPY --from=build /app/infra/migrations ./infra/migrations
 
 EXPOSE 10000
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["sh", "-c", "node apps/api/dist/database/migrate.js && node apps/api/dist/main.js"]

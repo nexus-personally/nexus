@@ -1,10 +1,11 @@
 import './env.js';
 import { readdir, readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createPostgresPool } from './postgres.js';
 
 const pool = createPostgresPool();
-const migrationsDirectory = resolve(process.cwd(), '../../infra/migrations');
+const migrationsDirectory = resolve(dirname(fileURLToPath(import.meta.url)), '../../../../infra/migrations');
 
 async function migrate() {
   await pool.query(`

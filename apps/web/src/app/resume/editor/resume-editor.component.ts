@@ -25,6 +25,17 @@ import {
   LucideMoreHorizontal,
   LucidePencil,
   LucidePlus,
+  LucideEye,
+  LucideGraduationCap,
+  LucideStar,
+  LucideMenu,
+  LucideChevronRight,
+  LucideMail,
+  LucidePhone,
+  LucideMapPin,
+  LucideLink,
+  LucidePaintbrush,
+  LucideCamera,
   LucideRotateCcw,
   LucideUpload,
   LucideUserRound,
@@ -86,16 +97,28 @@ type ColorTarget = keyof ResumeColors;
     LucideMoreHorizontal,
     LucidePlus,
     LucidePencil,
+    LucideEye,
+    LucideGraduationCap,
+    LucideStar,
+    LucideMenu,
+    LucideChevronRight,
+    LucideMail,
+    LucidePhone,
+    LucideMapPin,
+    LucideLink,
+    LucidePaintbrush,
+    LucideCamera,
   ],
   template: `
     @if (resume) {
-      <main class="editor-shell">
+      <main class="editor-shell" [class.mobile-preview-open]="mobilePreviewOpen">
         <header class="command-bar">
           <div class="document-identity">
             <a routerLink="/resume" class="back-button" aria-label="Back to dashboard">
               <svg lucideArrowLeft size="17"></svg>
             </a>
             <span class="studio-mark">NEXUS</span>
+            <span class="mobile-page-heading"><strong>Edit Resume</strong><small>NEXUS Resume Studio</small></span>
             <label class="document-name-control">
               <input
                 [(ngModel)]="resume.name"
@@ -118,6 +141,7 @@ type ColorTarget = keyof ResumeColors;
                 (click)="
                   typographyOpen = true;
                   inspectorTab = 'typography';
+                  mobileInspectorOpen = true;
                   colorsOpen = false;
                   fieldColorOpen = false
                 "
@@ -250,12 +274,27 @@ type ColorTarget = keyof ResumeColors;
                 </section>
               }
             </div>
+            <button
+              class="mobile-inspector-trigger"
+              type="button"
+              (click)="inspectorTab = 'design'; typographyOpen = false; mobileInspectorOpen = true"
+            >
+              Design
+            </button>
+            <button
+              class="mobile-inspector-trigger"
+              type="button"
+              (click)="inspectorTab = 'section'; typographyOpen = false; mobileInspectorOpen = true"
+            >
+              Section
+            </button>
           </div>
 
           <div class="save-controls">
             <span
               class="save-state"
               [class.unsaved]="saveState.includes('Unsaved') || saveState.includes('Unable')"
+              [attr.title]="displaySaveState"
               ><i></i>{{ displaySaveState }}</span
             >
             <button type="button" (click)="save()">Save</button>
@@ -273,6 +312,14 @@ type ColorTarget = keyof ResumeColors;
               </button>
               @if (moreOpen) {
                 <div class="more-menu">
+                  <label class="mobile-menu-name">Resume name
+                    <input [(ngModel)]="resume.name" (ngModelChange)="markDirty()" aria-label="Resume name" />
+                  </label>
+                  <button class="mobile-menu-action" type="button" (click)="save(); moreOpen = false">Save resume</button>
+                  <button class="mobile-menu-action" type="button" (click)="publish(); moreOpen = false">Share resume</button>
+                  <button class="mobile-menu-action" type="button" (click)="downloadPdf(); moreOpen = false">Export PDF</button>
+                  <button class="mobile-menu-action" type="button" (click)="inspectorTab = 'design'; mobileInspectorOpen = true; moreOpen = false">Design & typography</button>
+                  <button class="mobile-menu-action" type="button" (click)="inspectorTab = 'section'; mobileInspectorOpen = true; moreOpen = false">Section settings</button>
                   <button type="button" (click)="unpublish(); moreOpen = false">
                     Disable public link
                   </button>
@@ -285,6 +332,206 @@ type ColorTarget = keyof ResumeColors;
             </button>
           </div>
         </header>
+
+        <section class="mobile-resume-overview" aria-label="Resume overview">
+          <div class="mobile-overview-photo">
+            @if (resume.content.profile.photoDataUrl) {
+              <img [src]="resume.content.profile.photoDataUrl" [alt]="resume.content.profile.fullName + ' profile photo'" />
+            } @else {
+              <svg lucideUserRound size="24" aria-hidden="true"></svg>
+            }
+          </div>
+          <div class="mobile-overview-copy">
+            <h1>{{ resume.content.profile.fullName || 'Your name' }}</h1>
+            <p>{{ resume.content.profile.headline || 'Add a professional headline' }}</p>
+            <small>Last edited {{ saveState.includes('Saved') ? 'just now' : 'recently' }}</small>
+          </div>
+          <div class="mobile-resume-thumbnail" aria-hidden="true">
+            <nexus-resume-renderer [resume]="resume" />
+          </div>
+          <div class="mobile-overview-actions">
+            <button type="button" class="mobile-preview-action" (click)="showMobilePreview()">
+              <svg lucideEye size="17"></svg> View Live Preview
+            </button>
+            <div class="mobile-zoom-actions" aria-label="Resume preview zoom">
+              <button type="button" aria-label="Fit preview" (click)="useFitPreview()">⌕</button>
+              <output>{{ (previewScale * 100).toFixed(0) }}%</output>
+              <button type="button" aria-label="Zoom out" (click)="adjustPreviewScale(-0.05)">−</button>
+              <button type="button" aria-label="Zoom in" (click)="adjustPreviewScale(0.05)">+</button>
+            </div>
+            <button type="button" class="mobile-overview-export" (click)="downloadPdf()"><svg lucideFileText size="16"></svg> Export PDF</button>
+          </div>
+        </section>
+
+        <nav class="mobile-editor-nav" aria-label="Resume content sections">
+          <button
+            type="button"
+            [class.active]="!mobilePreviewOpen"
+            (click)="showMobileProfile()"
+          >
+            <svg lucideUserRound size="24" aria-hidden="true"></svg>
+            Personal
+          </button>
+          <button type="button" [class.active]="mobilePreviewOpen && selectedSection?.type === 'experience'" (click)="showMobileSectionType('experience')"><svg lucideBriefcaseBusiness size="24" aria-hidden="true"></svg>Experience</button>
+          <button type="button" [class.active]="mobilePreviewOpen && selectedSection?.type === 'education'" (click)="showMobileSectionType('education')"><svg lucideGraduationCap size="24" aria-hidden="true"></svg>Education</button>
+          <button type="button" [class.active]="mobilePreviewOpen && selectedSection?.type === 'skills'" (click)="showMobileSectionType('skills')"><svg lucideStar size="24" aria-hidden="true"></svg>Skills</button>
+          <button type="button" [class.active]="mobilePreviewOpen && selectedSection?.type === 'projects'" (click)="showMobileSectionType('projects')"><svg lucideFileText size="24" aria-hidden="true"></svg>Projects</button>
+          <button type="button" (click)="openMobileSections()"><svg lucideMenu size="24" aria-hidden="true"></svg> More</button>
+        </nav>
+
+        @if (!mobilePreviewOpen) {
+          <section class="mobile-profile-form" aria-labelledby="mobile-profile-heading">
+            <header>
+              <div>
+                <h2 id="mobile-profile-heading">Personal Information</h2>
+                <p>Update your name, headline, photo, and contact details.</p>
+              </div>
+              <svg lucideChevronDown size="22" aria-hidden="true"></svg>
+            </header>
+
+            <section class="mobile-photo-editor" aria-label="Profile photo">
+              <strong class="mobile-photo-title">Profile Photo</strong>
+              <div class="mobile-photo-preview">
+                @if (resume.content.profile.photoDataUrl) {
+                  <img
+                    [src]="resume.content.profile.photoDataUrl"
+                    [alt]="resume.content.profile.fullName + ' profile photo'"
+                  />
+                } @else {
+                  <svg lucideUserRound size="27" aria-hidden="true"></svg>
+                }
+                <button type="button" class="mobile-photo-camera" aria-label="Change profile photo" (click)="editorPhotoInput.click()"><svg lucideCamera size="17"></svg></button>
+              </div>
+              <div class="mobile-photo-actions">
+                <strong>Profile photo</strong>
+                <button type="button" (click)="editorPhotoInput.click()">
+                  <svg lucideUpload size="15"></svg>
+                  {{ resume.content.profile.photoDataUrl ? 'Change photo' : 'Upload photo' }}
+                </button>
+                @if (resume.content.profile.photoDataUrl) {
+                  <button type="button" (click)="openCropEditor()">
+                    <svg lucideCrop size="15"></svg> Crop photo
+                  </button>
+                }
+                <label>
+                  <span>Show photo on resume</span>
+                  <input
+                    type="checkbox"
+                    [(ngModel)]="resume.content.profile.photoVisible"
+                    [disabled]="!resume.content.profile.photoDataUrl"
+                    (ngModelChange)="markDirty()"
+                  />
+                </label>
+                <small>JPG or PNG, max 5MB. A square image works best.</small>
+              </div>
+            </section>
+            @if (photoError) {
+              <p class="photo-error">{{ photoError }}</p>
+            }
+
+            <label class="mobile-field">
+              <span>Full name</span>
+              <input
+                [(ngModel)]="resume.content.profile.fullName"
+                (ngModelChange)="markDirty()"
+                aria-label="Full name"
+              />
+            </label>
+            <label class="mobile-field">
+              <span>Professional headline</span>
+              <input
+                [(ngModel)]="resume.content.profile.headline"
+                (ngModelChange)="markDirty()"
+                aria-label="Professional headline"
+              />
+            </label>
+            @if (primarySummary; as summary) {
+              <label class="mobile-field">
+                <span>{{ summary.title || 'Summary' }}</span>
+                <textarea
+                  [value]="summary.body"
+                  maxlength="300"
+                  rows="4"
+                  aria-label="Resume summary"
+                  (input)="updateMobileSummary($event)"
+                ></textarea>
+                <small>{{ summary.body.length }}/300</small>
+              </label>
+            }
+            <div class="mobile-contact-fields">
+              <h3>Contact information</h3>
+              <label class="mobile-field">
+                <span>Email</span><svg lucideMail size="18" aria-hidden="true"></svg>
+                <input
+                  type="email"
+                  [(ngModel)]="resume.content.profile.email"
+                  (ngModelChange)="markDirty()"
+                  aria-label="Email"
+                />
+              </label>
+              <label class="mobile-field">
+                <span>Phone</span><svg lucidePhone size="18" aria-hidden="true"></svg>
+                <input
+                  type="tel"
+                  [(ngModel)]="resume.content.profile.phone"
+                  (ngModelChange)="markDirty()"
+                  aria-label="Phone"
+                />
+              </label>
+              <label class="mobile-field">
+                <span>Location</span><svg lucideMapPin size="18" aria-hidden="true"></svg>
+                <input
+                  [(ngModel)]="resume.content.profile.location"
+                  (ngModelChange)="markDirty()"
+                  aria-label="Location"
+                />
+              </label>
+              <label class="mobile-field">
+                <span>Website</span><svg lucideLink size="18" aria-hidden="true"></svg>
+                <input
+                  type="url"
+                  [(ngModel)]="resume.content.profile.website"
+                  (ngModelChange)="markDirty()"
+                  aria-label="Website"
+                />
+              </label>
+              <label class="mobile-field">
+                <span>LinkedIn</span><svg lucideLink size="18" aria-hidden="true"></svg>
+                <input
+                  type="url"
+                  [(ngModel)]="resume.content.profile.linkedin"
+                  (ngModelChange)="markDirty()"
+                  aria-label="LinkedIn"
+                />
+              </label>
+              <label class="mobile-field">
+                <span>GitHub or portfolio</span><svg lucideLink size="18" aria-hidden="true"></svg>
+                <input
+                  type="url"
+                  [(ngModel)]="resume.content.profile.github"
+                  (ngModelChange)="markDirty()"
+                  aria-label="GitHub or portfolio"
+                />
+              </label>
+            </div>
+
+            <footer class="mobile-form-footer">
+              <button type="button" (click)="openMobileSections()"><svg lucideMoreHorizontal size="18"></svg> Section Actions</button>
+              <button type="button" (click)="showNextMobileSection()">Next Section <svg lucideChevronRight size="18"></svg></button>
+            </footer>
+          </section>
+          <div class="mobile-feature-cards">
+            <button type="button" (click)="inspectorTab = 'design'; mobileInspectorOpen = true"><svg lucidePaintbrush size="23"></svg><span><strong>Design & Typography</strong><small>Template, fonts, colors, page size, and layout</small></span><svg lucideChevronRight size="20"></svg></button>
+            <button type="button" (click)="moreOpen = true; scrollToMobileTop()"><svg lucideUpload size="23"></svg><span><strong>Export & Share</strong><small>Download PDF, share link, visibility settings</small></span><svg lucideChevronRight size="20"></svg></button>
+          </div>
+        } @else {
+          <section class="mobile-section-preview-heading">
+            <span>LIVE PREVIEW</span>
+            <h2>{{ selectedSection?.title || 'Resume' }}</h2>
+            <p>Select text in the resume below to edit it directly.</p>
+            <button type="button" (click)="showMobileProfile()">Back to personal information</button>
+          </section>
+        }
 
         <div class="editor-workspace">
           <aside class="structure-panel">
@@ -554,8 +801,17 @@ type ColorTarget = keyof ResumeColors;
           <aside
             class="design-panel"
             [class.typography-active]="inspectorTab === 'typography'"
+            [class.mobile-open]="mobileInspectorOpen"
             aria-label="Resume inspector"
           >
+            <button
+              class="mobile-inspector-close"
+              type="button"
+              aria-label="Close inspector"
+              (click)="mobileInspectorOpen = false"
+            >
+              Done
+            </button>
             <nav class="inspector-tabs" aria-label="Inspector view">
               <button
                 type="button"
@@ -693,7 +949,7 @@ type ColorTarget = keyof ResumeColors;
                   [selection]="selectedColorField ?? undefined"
                   (changed)="markDirty()"
                   (closed)="
-                    typographyOpen = false; inspectorTab = 'design'; typographyTrigger.focus()
+                    typographyOpen = false; inspectorTab = 'design'; mobileInspectorOpen = false; typographyTrigger.focus()
                   "
                 />
               </section>
@@ -1705,38 +1961,756 @@ type ColorTarget = keyof ResumeColors;
         }
       }
       @media (max-width: 760px) {
-        .command-bar {
-          position: relative;
-          display: flex;
-          flex-wrap: wrap;
+        .mobile-resume-overview,
+        .mobile-editor-nav,
+        .mobile-profile-form,
+        .mobile-section-preview-heading {
+          display: none;
         }
-        .document-identity {
-          flex: 1 1 100%;
+        :host .command-bar {
+          padding: 0.2rem 0 0;
+        }
+        :host .document-identity {
+          min-height: 2.55rem;
+          padding-inline: 0.55rem;
+        }
+        :host .document-controls,
+        :host .save-controls {
+          gap: 0.3rem;
+          padding: 0.2rem 0.55rem;
+        }
+        :host .document-controls button,
+        :host .save-controls button,
+        :host .document-controls .template-picker-trigger {
+          min-height: 2.15rem;
+          padding-block: 0.3rem;
+        }
+        .mobile-resume-overview {
+          display: grid;
+          grid-template-columns: 4.4rem minmax(0, 1fr);
+          align-items: center;
+          gap: 0.85rem;
+          margin: 0.8rem 0.75rem 0;
+          padding: 0.8rem;
+          border: 1px solid #e2e7e8;
+          border-radius: 0.8rem;
+          background: #fff;
+        }
+        .mobile-resume-thumbnail {
+          position: relative;
+          width: 4.4rem;
+          height: 5.7rem;
+          overflow: hidden;
+          border: 1px solid #e5e9e9;
+          border-radius: 0.25rem;
+          background: #f5f7f7;
+        }
+        .mobile-resume-thumbnail nexus-resume-renderer {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 794px;
+          transform: scale(0.088);
+          transform-origin: top left;
+          pointer-events: none;
+        }
+        .mobile-overview-copy {
+          display: grid;
+          min-width: 0;
+          gap: 0.22rem;
+        }
+        .mobile-overview-copy > span,
+        .mobile-profile-form > header span,
+        .mobile-section-preview-heading > span {
+          color: var(--editor-accent);
+          font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+          font-size: 0.62rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+        }
+        .mobile-overview-copy h1 {
+          overflow: hidden;
+          margin: 0;
+          color: var(--editor-text);
+          font-size: 1rem;
+          font-weight: 700;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .mobile-overview-copy p,
+        .mobile-overview-copy small {
+          overflow: hidden;
+          margin: 0;
+          color: var(--editor-text-secondary);
+          font-size: 0.73rem;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .mobile-overview-copy small {
+          color: #28774e;
+          font-size: 0.66rem;
+        }
+        .mobile-overview-actions {
+          display: grid;
+          grid-column: 1 / -1;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 0.55rem;
+          padding-top: 0.65rem;
+          border-top: 1px solid #edf0f1;
+        }
+        .mobile-preview-action {
+          display: inline-flex;
+          min-height: 2.65rem;
+          align-items: center;
+          justify-content: center;
+          gap: 0.45rem;
+          padding: 0.5rem 0.7rem;
+          border: 1px solid var(--editor-accent);
+          border-radius: 0.45rem;
+          background: var(--editor-accent);
+          color: #fff;
+          font-size: 0.77rem;
+          font-weight: 650;
+          white-space: nowrap;
+        }
+        .mobile-zoom-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.05rem;
+          padding: 0.18rem;
+          border: 1px solid #e2e7e8;
+          border-radius: 0.45rem;
+          background: #f8fafa;
+        }
+        .mobile-zoom-actions button {
+          min-width: 1.8rem;
+          min-height: 2.1rem;
+          padding: 0.2rem;
+          border: 0;
+          background: transparent;
+          color: var(--editor-text);
+          font-size: 0.76rem;
+        }
+        .mobile-zoom-actions output {
+          min-width: 2.4rem;
+          color: var(--editor-text-secondary);
+          font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+          font-size: 0.63rem;
+          text-align: center;
+        }
+        .mobile-editor-nav {
+          display: flex;
+          gap: 0.35rem;
+          margin: 0.7rem 0 0;
+          padding: 0 0.75rem 0.3rem;
+          overflow-x: auto;
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+        .mobile-editor-nav::-webkit-scrollbar {
+          display: none;
+        }
+        .mobile-editor-nav button {
+          min-height: 2.55rem;
+          flex: 0 0 auto;
+          padding: 0.4rem 0.8rem;
+          border: 1px solid transparent;
+          border-radius: 2rem;
+          background: #e9eeee;
+          color: #4f5e5f;
+          font-size: 0.77rem;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        .mobile-editor-nav button.active {
+          border-color: var(--editor-accent);
+          background: var(--editor-accent);
+          color: #fff;
+        }
+        .mobile-profile-form {
+          display: grid;
+          gap: 0.85rem;
+          margin: 0.25rem 0.75rem 1rem;
+          padding: 1rem;
+          border: 1px solid #e2e7e8;
+          border-radius: 0.8rem;
+          background: #fff;
+        }
+        .mobile-profile-form > header h2,
+        .mobile-section-preview-heading h2 {
+          margin: 0.22rem 0 0;
+          color: var(--editor-text);
+          font-size: 1.12rem;
+          font-weight: 700;
+        }
+        .mobile-profile-form > header p,
+        .mobile-section-preview-heading p {
+          margin: 0.35rem 0 0;
+          color: var(--editor-text-secondary);
+          font-size: 0.79rem;
+          line-height: 1.45;
+        }
+        .mobile-photo-editor {
+          display: grid;
+          grid-template-columns: 5.2rem minmax(0, 1fr);
+          align-items: center;
+          gap: 0.85rem;
+          padding: 0.85rem 0;
+          border-top: 1px solid #edf0f1;
+          border-bottom: 1px solid #edf0f1;
+        }
+        .mobile-photo-preview {
+          display: grid;
+          width: 5.2rem;
+          height: 5.2rem;
+          place-items: center;
+          overflow: hidden;
+          border-radius: 50%;
+          background: #eef2f3;
+          color: var(--editor-text-secondary);
+        }
+        .mobile-photo-preview img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .mobile-photo-actions {
+          display: grid;
+          justify-items: start;
+          gap: 0.35rem;
+        }
+        .mobile-photo-actions strong {
+          color: var(--editor-text);
+          font-size: 0.8rem;
+        }
+        .mobile-photo-actions button {
+          display: inline-flex;
+          min-height: 2.1rem;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.25rem 0.55rem;
+          border: 1px solid #dfe5e5;
+          border-radius: 0.35rem;
+          background: #fff;
+          color: var(--editor-text);
+          font-size: 0.73rem;
+        }
+        .mobile-photo-actions label {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          color: var(--editor-text-secondary);
+          font-size: 0.7rem;
+        }
+        .mobile-photo-actions input {
+          accent-color: var(--editor-accent);
+        }
+        .mobile-field {
+          display: grid;
+          min-width: 0;
+          gap: 0.32rem;
+          color: var(--editor-text-secondary);
+          font-size: 0.76rem;
+          font-weight: 600;
+        }
+        .mobile-field input,
+        .mobile-field textarea {
+          width: 100%;
+          min-width: 0;
+          min-height: 2.85rem;
+          box-sizing: border-box;
+          padding: 0.65rem 0.75rem;
+          border: 1px solid #dfe5e5;
+          border-radius: 0.42rem;
+          background: #fff;
+          color: var(--editor-text);
+          font: 400 0.9rem/1.4 Roboto, 'Helvetica Neue', sans-serif;
+        }
+        .mobile-field textarea {
+          min-height: 6.3rem;
+          resize: vertical;
+        }
+        .mobile-field input:focus,
+        .mobile-field textarea:focus {
+          border-color: var(--editor-accent);
+          outline: 2px solid color-mix(in srgb, var(--editor-accent), transparent 82%);
+        }
+        .mobile-field small {
+          justify-self: end;
+          color: var(--editor-text-secondary);
+          font-size: 0.67rem;
+          font-weight: 400;
+        }
+        .mobile-contact-fields {
+          display: grid;
+          gap: 0.8rem;
+          padding-top: 0.7rem;
+          border-top: 1px solid #edf0f1;
+        }
+        .mobile-contact-fields h3 {
+          margin: 0;
+          color: var(--editor-text);
+          font-size: 0.92rem;
+        }
+        .mobile-full-preview {
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .mobile-section-preview-heading {
+          display: grid;
+          gap: 0.35rem;
+          margin: 0.6rem 0.75rem 0;
+          padding: 0.85rem 1rem;
+          border-radius: 0.7rem;
+          background: #fff;
+        }
+        .mobile-section-preview-heading button {
+          justify-self: start;
+          min-height: 2.25rem;
+          padding: 0.35rem 0.65rem;
+          border: 1px solid #dfe5e5;
+          border-radius: 0.4rem;
+          background: #fff;
+          color: var(--editor-accent);
+          font-size: 0.76rem;
+          font-weight: 600;
+        }
+        .editor-shell:not(.mobile-preview-open) .structure-panel {
+          display: flex;
+        }
+        .editor-shell:not(.mobile-preview-open) .page-stage {
+          display: none;
+        }
+        .editor-shell.mobile-preview-open .mobile-profile-form,
+        .editor-shell.mobile-preview-open .structure-panel {
+          display: none;
+        }
+        .editor-shell.mobile-preview-open .mobile-section-preview-heading,
+        .editor-shell.mobile-preview-open .page-stage {
+          display: grid;
+        }
+        .editor-shell.mobile-preview-open .page-stage {
+          display: block;
+        }
+        .page-stage {
+          scroll-margin-top: 10.5rem;
+        }
+        .mobile-inspector-trigger {
+          display: inline-flex;
+          min-height: 2.35rem;
+          flex: 0 0 auto;
+          align-items: center;
+          padding: 0.4rem 0.75rem;
+          border: 1px solid var(--editor-border);
+          border-radius: 6px;
+          background: #fff;
+          color: var(--editor-text);
+          font-size: 0.78rem;
+          font-weight: 600;
+        }
+        :host {
+          display: block;
+          min-height: 100svh;
+          background: #eef2f3;
+        }
+        .editor-shell {
+          min-height: 100svh;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+        .command-bar {
+          position: sticky;
+          top: 0;
+          z-index: 40;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0;
+          min-height: 0;
+          padding: 0.35rem 0 0;
+          border-bottom: 1px solid var(--editor-border);
+          background: rgba(255, 255, 255, 0.97);
+          box-shadow: 0 3px 12px rgba(31, 35, 41, 0.08);
+          backdrop-filter: blur(16px);
+        }
+        :host .document-identity {
+          display: flex;
+          min-width: 0;
+          min-height: 3rem;
+          flex: none;
+          gap: 0.65rem;
+          padding: 0 0.75rem;
+        }
+        .back-button {
+          flex: 0 0 2rem;
+        }
+        .studio-mark {
+          padding-right: 0.65rem;
+          font-size: 0.95rem;
+        }
+        .document-name-control {
+          min-width: 0;
+          flex: 1 1 auto;
         }
         .document-identity input {
           width: 100%;
+          min-width: 0;
+          min-height: 2.25rem;
+          overflow: hidden;
+          padding-inline: 0.35rem;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
-        .document-controls,
-        .save-controls {
-          flex: 1 1 auto;
+        .document-controls {
+          order: 3;
+          display: flex;
+          width: 100%;
+          min-width: 0;
+          flex: none;
+          flex-wrap: nowrap;
+          justify-content: flex-start;
+          gap: 0.45rem;
+          overflow-x: auto;
+          padding: 0.4rem 0.7rem 0.55rem;
+          border-top: 1px solid #edf0f1;
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
         }
-        .save-state {
+        .document-controls::-webkit-scrollbar,
+        .save-controls::-webkit-scrollbar {
           display: none;
         }
-        .editor-workspace {
-          grid-template-columns: 1fr;
+        .document-controls > *,
+        .document-controls > label {
+          flex: 0 0 auto;
         }
-        .structure-panel {
+        .document-controls label {
+          display: flex;
+          align-items: center;
+          gap: 0.3rem;
+        }
+        .document-controls label > span:first-child,
+        .control-label {
+          font-size: 0.65rem;
+          white-space: nowrap;
+        }
+        .document-controls button,
+        .document-controls .template-picker-trigger,
+        .save-controls button {
+          min-height: 2.35rem;
+        }
+        .typography-trigger {
+          padding-inline: 0.7rem;
+        }
+        .template-picker-compact .template-picker-trigger {
+          max-width: 8.75rem;
+          padding-inline: 0.6rem;
+        }
+        .template-picker-compact .template-picker-trigger > span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .color-control {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+          white-space: nowrap;
+        }
+        .color-control .control-label {
+          display: none;
+        }
+        .colors-button {
+          gap: 0.3rem;
+          padding-inline: 0.5rem;
+        }
+        .colors-button code {
+          font-size: 0.68rem;
+        }
+        .save-controls {
+          order: 2;
+          display: flex;
+          width: 100%;
+          min-width: 0;
+          flex: none;
+          flex-wrap: nowrap;
+          justify-content: flex-start;
+          gap: 0.4rem;
+          overflow-x: auto;
+          padding: 0.35rem 0.7rem;
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+        .save-controls {
           position: relative;
-          top: 0;
-          height: auto;
-          max-height: 24rem;
+        }
+        .save-state {
+          display: inline-flex;
+          width: 0.55rem;
+          max-width: 0.55rem;
+          flex: 0 0 0.55rem;
+          align-items: center;
+          overflow: hidden;
+          font-size: 0;
+        }
+        .save-state i {
+          flex: 0 0 0.42rem;
+        }
+        .save-controls > button,
+        .save-controls > .more-actions-anchor {
+          flex: 0 0 auto;
+        }
+        .download-button {
+          padding-inline: 0.7rem;
+          white-space: nowrap;
+        }
+        .editor-workspace {
+          display: flex;
+          min-height: 0;
+          flex-direction: column;
+          overflow: visible;
         }
         .page-stage {
-          padding: 1rem 0.5rem 3rem;
+          order: 1;
+          min-height: 0;
+          overflow: hidden;
+          padding: 0.75rem 0.35rem 1rem;
+          background: #eef2f3;
+        }
+        .preview-area {
+          width: 100%;
+          overflow: hidden;
+          padding-bottom: 0.25rem;
+        }
+        .page-meta {
+          max-width: 100%;
+          padding-inline: 0.5rem;
+          font-size: 0.57rem;
+        }
+        .a4-viewport {
+          margin-inline: auto;
+          box-shadow: 0 5px 22px rgba(26, 38, 43, 0.12);
         }
         .preview-controls {
-          top: 0.5rem;
+          position: sticky;
+          top: auto;
+          bottom: 0.6rem;
+          z-index: 12;
+          margin: 0.5rem auto 0;
+          padding: 0.32rem 0.45rem;
+          box-shadow: 0 5px 20px rgba(20, 29, 30, 0.16);
+        }
+        .structure-panel {
+          order: 2;
+          position: relative;
+          top: auto;
+          width: 100%;
+          height: auto;
+          max-height: none;
+          overflow: visible;
+          border-top: 1px solid var(--editor-border);
+          border-right: 0;
+          background: #fff;
+        }
+        .structure-panel > header {
+          padding: 1rem 1rem 0.75rem;
+        }
+        .sections-help {
+          margin: 0;
+          padding: 0 1rem 0.85rem;
+          font-size: 0.74rem;
+        }
+        .profile-photo-control {
+          padding: 0.85rem 1rem;
+        }
+        .section-list {
+          display: grid;
+          gap: 0.45rem;
+          overflow: visible;
+          padding: 0.75rem;
+        }
+        .section-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          min-height: 3.25rem;
+          margin: 0;
+          border: 1px solid #e2e7e8;
+          border-radius: 0.65rem;
+        }
+        .section-main {
+          min-height: 3rem;
+          padding: 0.65rem 0.75rem;
+        }
+        .section-main strong {
+          font-size: 0.85rem;
+        }
+        .section-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0 0.5rem 0 0;
+        }
+        .section-actions input {
+          width: 1.1rem;
+          height: 1.1rem;
+          margin: 0 0.2rem;
+        }
+        .section-actions button {
+          min-width: 2rem;
+          min-height: 2rem;
+        }
+        .add-section {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0.6rem;
+          padding: 0.85rem 1rem 1rem;
+        }
+        .add-section-type {
+          display: grid;
+          gap: 0.35rem;
+        }
+        .add-section-select,
+        .add-section-select-trigger {
+          width: 100%;
+        }
+        .add-section-button {
+          min-height: 2.8rem;
+        }
+        .structure-panel > footer {
+          padding: 0.75rem 1rem 1rem;
+          border-top: 1px solid #edf0f1;
+        }
+        .design-panel {
+          position: fixed;
+          inset: auto 0 0;
+          z-index: 80;
+          display: none;
+          width: 100%;
+          height: min(82svh, 48rem);
+          padding-bottom: max(0.7rem, env(safe-area-inset-bottom, 0px));
+          overflow: auto;
+          border: 1px solid var(--editor-border);
+          border-bottom: 0;
+          border-radius: 1rem 1rem 0 0;
+          background: #fff;
+          box-shadow: 0 -10px 36px rgba(23, 34, 49, 0.2);
+        }
+        .design-panel.mobile-open,
+        .design-panel.mobile-open.typography-active {
+          display: flex;
+          height: min(82svh, 48rem);
+          flex-direction: column;
+        }
+        .mobile-inspector-close {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          display: flex;
+          min-height: 3rem;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: flex-end;
+          padding: 0 1rem;
+          border: 0;
+          border-bottom: 1px solid var(--editor-border);
+          border-radius: 0;
+          background: rgba(255, 255, 255, 0.96);
+          color: var(--editor-accent);
+          font-weight: 700;
+        }
+        .inspector-tabs {
+          position: sticky;
+          top: 3rem;
+          z-index: 1;
+          flex: 0 0 auto;
+          background: #fff;
+        }
+        .inspector-tabs button {
+          min-height: 3rem;
+        }
+        .inspector-group,
+        .typography-inspector,
+        .page-size-card {
+          flex: 0 0 auto;
+        }
+        .page-size-card {
+          position: static;
+          margin: 1rem;
+        }
+        .colors-panel {
+          position: fixed;
+          inset: auto 0 0;
+          z-index: 90;
+          width: 100%;
+          max-height: 75svh;
+          overflow: auto;
+          box-sizing: border-box;
+          border-radius: 1rem 1rem 0 0;
+          box-shadow: 0 -10px 36px rgba(23, 34, 49, 0.2);
+        }
+        .field-color-panel {
+          position: fixed !important;
+          inset: auto 0 0 !important;
+          z-index: 90;
+          width: 100%;
+          max-width: none;
+          max-height: 65svh;
+          overflow: auto;
+          box-sizing: border-box;
+          border-radius: 1rem 1rem 0 0;
+          padding: 1rem;
+        }
+        .text-toolbar {
+          position: sticky;
+          top: 0;
+          z-index: 15;
+          gap: 0.55rem;
+          padding: 0.65rem 0.75rem;
+          overflow-x: auto;
+          white-space: nowrap;
+        }
+        .text-toolbar > span {
+          min-width: 0;
+          flex: 0 0 auto;
+        }
+        .inline-text-toolbar {
+          position: fixed !important;
+          right: 0.5rem;
+          left: 0.5rem !important;
+          z-index: 90;
+          max-width: calc(100vw - 1rem);
+          overflow-x: auto;
+        }
+        .crop-dialog {
+          width: min(100% - 1rem, 34rem);
+          max-height: 92svh;
+          overflow: auto;
+          padding: 0.85rem;
+        }
+        .template-options,
+        .template-options-rich,
+        .add-section-options,
+        .section-menu,
+        .more-menu {
+          z-index: 95;
+          max-width: calc(100vw - 1.5rem);
+        }
+        .more-menu {
+          position: fixed;
+          top: auto;
+          right: 0.75rem;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 4.4rem);
+        }
+        .command-bar button,
+        .command-bar select,
+        .command-bar input,
+        .text-toolbar button,
+        .structure-panel button {
+          font-size: 0.82rem;
+        }
+        button,
+        select,
+        input:not([type='color']):not([type='checkbox']) {
+          scroll-margin-block: 7rem;
         }
       }
       .text-toolbar {
@@ -1836,6 +2810,10 @@ type ColorTarget = keyof ResumeColors;
         min-height: 32px;
         min-width: 28px;
         border-radius: 25px;
+      }
+      .mobile-inspector-trigger,
+      .mobile-inspector-close {
+        display: none;
       }
       /* Structured Studio: faithful implementation of the selected three-column concept. */
       :host {
@@ -2845,22 +3823,261 @@ type ColorTarget = keyof ResumeColors;
         }
       }
       @media (max-width: 760px) {
+        .mobile-inspector-trigger {
+          display: inline-flex;
+          min-height: 2.35rem;
+          flex: 0 0 auto;
+          align-items: center;
+          padding: 0.4rem 0.75rem;
+          border: 1px solid var(--editor-border);
+          border-radius: 6px;
+          background: #fff;
+          color: var(--editor-text);
+          font-size: 0.78rem;
+          font-weight: 600;
+        }
+        .mobile-inspector-close {
+          position: sticky;
+          top: 0;
+          z-index: 2;
+          display: flex;
+          min-height: 3rem;
+          flex: 0 0 auto;
+          align-items: center;
+          justify-content: flex-end;
+          padding: 0 1rem;
+          border: 0;
+          border-bottom: 1px solid var(--editor-border);
+          border-radius: 0;
+          background: rgba(255, 255, 255, 0.96);
+          color: var(--editor-accent);
+          font-weight: 700;
+        }
+        :host .command-bar {
+          position: sticky;
+          top: 0;
+          z-index: 40;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0;
+          min-height: 0;
+          padding: 0.3rem 0 0;
+          border-bottom: 1px solid var(--editor-border);
+          background: rgba(255, 255, 255, 0.97);
+          box-shadow: 0 3px 12px rgba(31, 35, 41, 0.08);
+          backdrop-filter: blur(16px);
+        }
+        :host .document-identity {
+          display: flex;
+          min-width: 0;
+          min-height: 2.8rem;
+          flex: none;
+          gap: 0.55rem;
+          padding: 0 0.65rem;
+        }
+        .document-name-control {
+          min-width: 0;
+          flex: 1 1 auto;
+        }
+        .document-identity input {
+          width: 100%;
+          min-width: 0;
+          min-height: 2.2rem;
+          overflow: hidden;
+          padding-inline: 0.35rem;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        :host .document-controls,
+        :host .save-controls {
+          display: flex;
+          width: 100%;
+          min-width: 0;
+          flex: none;
+          flex-wrap: nowrap;
+          justify-content: flex-start;
+          gap: 0.4rem;
+          overflow-x: auto;
+          padding: 0.35rem 0.65rem;
+          scrollbar-width: none;
+          -webkit-overflow-scrolling: touch;
+        }
+        :host .document-controls {
+          order: 2;
+          flex: 0 0 auto;
+          flex-wrap: nowrap;
+          border-top: 1px solid #edf0f1;
+        }
+        :host .save-controls {
+          order: 3;
+          flex: 0 0 auto;
+          margin-left: 0;
+        }
+        .document-controls::-webkit-scrollbar,
+        .save-controls::-webkit-scrollbar {
+          display: none;
+        }
+        .document-controls > *,
+        .document-controls > label,
+        .save-controls > button,
+        .save-controls > .more-actions-anchor {
+          flex: 0 0 auto;
+        }
+        .document-controls label {
+          display: flex;
+          align-items: center;
+          gap: 0.3rem;
+        }
+        .document-controls label > span:first-child,
+        .color-control .control-label {
+          display: none;
+        }
+        .template-picker-compact .template-picker-trigger {
+          max-width: 8.75rem;
+          padding-inline: 0.6rem;
+        }
+        .template-picker-compact .template-picker-trigger > span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .color-control {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+          white-space: nowrap;
+        }
+        .colors-button {
+          gap: 0.3rem;
+          padding-inline: 0.5rem;
+        }
+        .save-state {
+          display: inline-flex;
+          flex: 0 0 auto;
+          align-items: center;
+          font-size: 0.63rem;
+          white-space: nowrap;
+        }
+        .download-button {
+          padding-inline: 0.7rem;
+          white-space: nowrap;
+        }
         .editor-workspace {
-          display: block;
+          display: flex;
           height: auto;
+          flex-direction: column;
           overflow: visible;
         }
         .structure-panel {
+          order: 2;
+          position: relative;
+          top: auto;
+          width: 100%;
+          height: auto;
           max-height: none;
+          overflow: visible;
+          border-top: 1px solid var(--editor-border);
+          border-right: 0;
+          background: #fff;
+        }
+        .structure-panel > header {
+          padding: 1rem 1rem 0.75rem;
+        }
+        .sections-help {
+          margin: 0;
+          padding: 0 1rem 0.85rem;
+          font-size: 0.74rem;
+        }
+        .profile-photo-control {
+          padding: 0.85rem 1rem;
+        }
+        .section-list {
+          display: grid;
+          gap: 0.45rem;
+          overflow: visible;
+          padding: 0.75rem;
+        }
+        .section-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+          min-height: 3.25rem;
+          margin: 0;
+          border: 1px solid #e2e7e8;
+          border-radius: 0.65rem;
+        }
+        .section-main {
+          min-height: 3rem;
+          padding: 0.65rem 0.75rem;
+        }
+        .section-main strong {
+          font-size: 0.85rem;
+        }
+        .section-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0 0.5rem 0 0;
+        }
+        .section-actions input {
+          width: 1.1rem;
+          height: 1.1rem;
+          margin: 0 0.2rem;
+        }
+        .section-actions button {
+          min-width: 2rem;
+          min-height: 2rem;
+        }
+        .add-section {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0.6rem;
+          padding: 0.85rem 1rem 1rem;
+        }
+        .add-section-type {
+          display: grid;
+          gap: 0.35rem;
+        }
+        .add-section-select,
+        .add-section-select-trigger {
+          width: 100%;
+        }
+        .add-section-button {
+          min-height: 2.8rem;
+        }
+        .structure-panel > footer {
+          padding: 0.75rem 1rem 1rem;
+          border-top: 1px solid #edf0f1;
         }
         .page-stage {
-          min-height: 100svh;
+          order: 1;
+          min-height: 0;
+          overflow: hidden;
+          padding: 0.75rem 0.35rem 1rem;
+        }
+        .preview-area {
+          width: 100%;
+          overflow: hidden;
+        }
+        .page-stage {
+          background: #eef2f3;
+        }
+        .page-meta {
+          max-width: 100%;
+          padding-inline: 0.5rem;
+        }
+        .a4-viewport {
+          margin-inline: auto;
+          box-shadow: 0 5px 22px rgba(26, 38, 43, 0.12);
         }
         .preview-controls {
+          position: sticky;
           top: auto;
           right: auto;
           left: 50%;
           bottom: 0.75rem;
+          z-index: 12;
+          margin-top: 0.5rem;
+          box-shadow: 0 5px 20px rgba(20, 29, 30, 0.16);
         }
         .field-color-panel {
           left: 0 !important;
@@ -2876,7 +4093,543 @@ type ColorTarget = keyof ResumeColors;
           flex-wrap: wrap;
         }
         .document-controls {
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+        }
+        .inspector-tabs {
+          position: sticky;
+          top: 3rem;
+          z-index: 1;
+          flex: 0 0 auto;
+          background: #fff;
+        }
+        .inspector-tabs button {
+          min-height: 3rem;
+        }
+        .page-size-card {
+          position: static;
+          margin: 1rem;
+        }
+        .colors-panel {
+          position: fixed;
+          inset: auto 0 0;
+          z-index: 90;
+          width: 100%;
+          max-height: 75svh;
+          overflow: auto;
+          box-sizing: border-box;
+          border-radius: 1rem 1rem 0 0;
+          box-shadow: 0 -10px 36px rgba(23, 34, 49, 0.2);
+        }
+        .inline-text-toolbar {
+          position: fixed !important;
+          right: 0.5rem;
+          left: 0.5rem !important;
+          z-index: 90;
+          max-width: calc(100vw - 1rem);
+          overflow-x: auto;
+        }
+        .more-menu {
+          position: fixed;
+          top: auto;
+          right: 0.75rem;
+          bottom: calc(env(safe-area-inset-bottom, 0px) + 4.4rem);
+        }
+      }
+      .mobile-page-heading,
+      .mobile-menu-name,
+      .mobile-menu-action,
+      .mobile-feature-cards {
+        display: none;
+      }
+      @media (min-width: 761px) {
+        .mobile-resume-overview,
+        .mobile-editor-nav,
+        .mobile-profile-form,
+        .mobile-section-preview-heading,
+        .mobile-feature-cards {
+          display: none !important;
+        }
+      }
+      @media (max-width: 760px) {
+        :host {
+          background: #f7f9fc;
+        }
+        .editor-shell {
+          background: #f7f9fc;
+        }
+        :host .command-bar {
+          position: relative;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          min-height: 3.55rem;
+          padding: 0 0.75rem;
+          border-bottom: 0;
+          box-shadow: none;
+          background: #fff;
+        }
+        :host .document-identity {
+          min-height: 3.55rem;
+          gap: 0.5rem;
+          padding: 0;
+        }
+        .back-button {
+          width: 1.7rem;
+          height: 1.7rem;
+          flex-basis: 1.7rem;
+        }
+        .studio-mark,
+        .document-name-control,
+        :host .document-controls,
+        .save-controls > button,
+        .save-controls > .download-button {
+          display: none;
+        }
+        .mobile-page-heading {
+          display: grid;
+          gap: 0.02rem;
+          min-width: 0;
+        }
+        .mobile-page-heading strong {
+          color: #172231;
+          font-size: 1.04rem;
+          line-height: 1.2;
+        }
+        .mobile-page-heading small {
+          color: #68778b;
+          font-size: 0.65rem;
+          white-space: nowrap;
+        }
+        :host .save-controls {
+          order: initial;
+          display: flex;
+          width: auto;
+          align-items: center;
+          gap: 0.45rem;
+          overflow: visible;
+          padding: 0;
+        }
+        .save-state {
+          display: inline-flex;
+          width: auto;
+          max-width: none;
+          flex: 0 0 auto;
+          gap: 0.35rem;
+          overflow: visible;
+          padding: 0.42rem 0.5rem;
+          border-radius: 0.6rem;
+          background: #eaf5f8;
+          color: #17616b;
+          font-size: 0.64rem;
+          white-space: nowrap;
+        }
+        .save-state i {
+          width: 0.75rem;
+          height: 0.75rem;
+          flex: 0 0 0.75rem;
+          border-radius: 50%;
+          background: #168085;
+        }
+        .save-controls .more-actions-anchor,
+        .save-controls .more-button {
+          display: flex;
+        }
+        .save-controls .more-button {
+          min-width: 1.9rem;
+          min-height: 2rem;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: #26384a;
+          font-size: 1rem;
+        }
+        .more-menu {
+          position: absolute;
+          top: calc(100% - 0.1rem);
+          right: 0;
+          bottom: auto;
+          z-index: 90;
+          width: min(18rem, calc(100vw - 1.5rem));
+          max-height: min(75vh, 30rem);
+          overflow-y: auto;
+          box-shadow: 0 12px 34px rgba(30, 49, 68, 0.18);
+        }
+        .mobile-menu-name {
+          display: grid;
+          gap: 0.35rem;
+          padding: 0.65rem;
+          color: #64748b;
+          font-size: 0.72rem;
+        }
+        .mobile-menu-name input {
+          min-width: 0;
+          width: 100%;
+          box-sizing: border-box;
+          border: 1px solid #d4dee9;
+          border-radius: 0.45rem;
+          padding: 0.5rem;
+        }
+        .mobile-menu-action {
+          display: block;
+        }
+        .mobile-resume-overview {
+          display: grid;
+          grid-template-columns: 3.3rem minmax(0, 1fr) 2.9rem 7.7rem;
+          gap: 0.35rem;
+          min-height: 5.7rem;
+          margin: 0.45rem 0.65rem 0;
+          padding: 0.55rem;
+          border: 1px solid #dce4ef;
+          border-radius: 0.72rem;
+          box-shadow: 0 4px 16px rgba(30, 49, 68, 0.04);
+        }
+        .mobile-overview-photo {
+          display: grid;
+          width: 3.25rem;
+          height: 3.25rem;
+          place-items: center;
+          overflow: hidden;
+          border-radius: 50%;
+          background: #eaf2f6;
+          color: #41566d;
+        }
+        .mobile-overview-photo img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .mobile-overview-copy {
+          gap: 0.1rem;
+        }
+        .mobile-overview-copy h1 {
+          font-size: 0.86rem;
+        }
+        .mobile-overview-copy p {
+          color: #3d4d61;
+          font-size: 0.68rem;
+        }
+        .mobile-overview-copy small {
+          color: #64748b;
+          font-size: 0.59rem;
+        }
+        .mobile-resume-thumbnail {
+          width: 2.9rem;
+          height: 4.3rem;
+          align-self: center;
+        }
+        .mobile-resume-thumbnail nexus-resume-renderer {
+          transform: scale(0.057);
+        }
+        .mobile-overview-actions {
+          display: grid;
+          grid-column: auto;
+          grid-template-columns: 1fr;
+          gap: 0.15rem;
+          padding: 0;
+          border: 0;
+        }
+        .mobile-preview-action {
+          min-height: 2rem;
+          gap: 0.25rem;
+          padding: 0.25rem;
+          border-radius: 0.42rem;
+          background: #176f79;
+          font-size: 0.6rem;
+        }
+        .mobile-preview-action svg {
+          width: 0.9rem;
+          height: 0.9rem;
+        }
+        .mobile-zoom-actions {
+          justify-content: center;
+          border: 0;
+          padding: 0;
+          background: transparent;
+        }
+        .mobile-zoom-actions button {
+          min-width: 1.05rem;
+          min-height: 1.15rem;
+          padding: 0;
+          font-size: 0.65rem;
+        }
+        .mobile-zoom-actions output {
+          min-width: 1.7rem;
+          font-size: 0.59rem;
+        }
+        .mobile-overview-export {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.22rem;
+          min-height: 1.2rem;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: #17616b;
+          font-size: 0.61rem;
+          white-space: nowrap;
+        }
+        .mobile-overview-export svg {
+          width: 0.75rem;
+          height: 0.75rem;
+        }
+        .mobile-editor-nav {
+          display: flex;
+          gap: 0.18rem;
+          margin: 0.45rem 0.65rem 0;
+          padding: 0.2rem;
+          border: 1px solid #dce4ef;
+          border-radius: 0.7rem;
+          background: #fff;
+          box-shadow: 0 4px 16px rgba(30, 49, 68, 0.04);
+        }
+        .mobile-editor-nav button {
+          display: grid;
+          min-width: 0;
+          min-height: 3.25rem;
+          flex: 1 1 0;
+          place-items: center;
+          align-content: center;
+          gap: 0.2rem;
+          padding: 0.3rem;
+          border: 0;
+          border-radius: 0.55rem;
+          background: transparent;
+          color: #4a5b6d;
+          font-size: 0.58rem;
+          font-weight: 500;
+        }
+        .mobile-editor-nav button:first-child { order: 0; }
+        .mobile-editor-nav button:last-child { order: 99; }
+        .mobile-editor-nav button.active {
+          background: #21828a;
+          color: white;
+        }
+        .mobile-profile-form {
+          gap: 0.75rem;
+          margin: 0.55rem 0.65rem 0;
+          padding: 0.85rem 0.75rem;
+          border-color: #dce4ef;
+          border-radius: 0.7rem;
+          box-shadow: 0 4px 16px rgba(30, 49, 68, 0.04);
+        }
+        .mobile-profile-form > header {
+          display: flex;
+          align-items: start;
+          justify-content: space-between;
+          padding-bottom: 0.7rem;
+          border-bottom: 1px solid #e3e9f1;
+        }
+        .mobile-profile-form > header h2 {
+          margin: 0;
+          color: #172231;
+          font-size: 1.12rem;
+        }
+        .mobile-profile-form > header p {
+          margin-top: 0.18rem;
+          color: #61718a;
+          font-size: 0.67rem;
+        }
+        .mobile-profile-form > header > svg {
+          transform: rotate(180deg);
+          color: #405369;
+        }
+        .mobile-photo-editor {
+          grid-template-columns: 5rem minmax(0, 1fr);
+          gap: 0.55rem 0.75rem;
+          padding: 0;
+          border: 0;
+        }
+        .mobile-photo-title {
+          grid-column: 1 / -1;
+          color: #29394d;
+          font-size: 0.76rem;
+          font-weight: 500;
+        }
+        .mobile-photo-preview {
+          position: relative;
+          width: 5rem;
+          height: 5rem;
+          overflow: visible;
+        }
+        .mobile-photo-preview img {
+          border-radius: 50%;
+        }
+        .mobile-photo-camera {
+          position: absolute;
+          right: -0.1rem;
+          bottom: -0.1rem;
+          display: grid;
+          width: 1.7rem;
+          height: 1.7rem;
+          place-items: center;
+          border: 2px solid #fff;
+          border-radius: 50%;
+          background: #21828a;
+          color: #fff;
+        }
+        .mobile-photo-actions {
+          gap: 0.3rem;
+        }
+        .mobile-photo-actions strong {
+          display: none;
+        }
+        .mobile-photo-actions button {
+          min-width: 8.2rem;
+          min-height: 2rem;
+          justify-content: center;
+          border-radius: 0.45rem;
+          font-size: 0.7rem;
+        }
+        .mobile-photo-actions button:first-of-type {
+          border-color: #21828a;
+          color: #176f79;
+        }
+        .mobile-photo-actions label {
+          font-size: 0.64rem;
+        }
+        .mobile-photo-actions small {
+          color: #738199;
+          font-size: 0.6rem;
+        }
+        .mobile-field {
+          gap: 0.28rem;
+          color: #34455b;
+          font-size: 0.74rem;
+          font-weight: 500;
+        }
+        .mobile-field input,
+        .mobile-field textarea {
+          min-height: 2.55rem;
+          border-color: #cbd8e8;
+          border-radius: 0.45rem;
+          color: #172231;
+          font-size: 0.83rem;
+        }
+        .mobile-field textarea {
+          min-height: 5.2rem;
+        }
+        .mobile-contact-fields {
+          gap: 0.4rem;
+          padding-top: 0.25rem;
+          border: 0;
+        }
+        .mobile-contact-fields h3 {
+          font-size: 0.78rem;
+          font-weight: 500;
+        }
+        .mobile-contact-fields .mobile-field {
+          display: grid;
+          grid-template-columns: 2.1rem minmax(0, 1fr);
+          align-items: center;
+          gap: 0.4rem;
+        }
+        .mobile-contact-fields .mobile-field > span {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+        }
+        .mobile-contact-fields .mobile-field > svg {
+          width: 2.1rem;
+          height: 2.55rem;
+          box-sizing: border-box;
+          padding: 0.65rem;
+          border-radius: 0.45rem;
+          background: #eef3f8;
+          color: #53677d;
+        }
+        .mobile-form-footer {
+          display: flex;
+          justify-content: space-between;
+          gap: 0.5rem;
+          padding-top: 0.65rem;
+          border-top: 1px solid #e3e9f1;
+        }
+        .mobile-form-footer button {
+          display: inline-flex;
+          min-height: 2.35rem;
+          align-items: center;
+          justify-content: center;
+          gap: 0.35rem;
+          border: 0;
+          background: transparent;
+          color: #176f79;
+          font-size: 0.7rem;
+        }
+        .mobile-form-footer button:last-child {
+          padding: 0.4rem 0.65rem;
+          border-radius: 0.45rem;
+          background: #176f79;
+          color: #fff;
+        }
+        .mobile-feature-cards {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.4rem;
+          margin: 0.55rem 0.65rem 0.8rem;
+        }
+        .editor-shell.mobile-preview-open .mobile-feature-cards {
+          display: none;
+        }
+        .mobile-feature-cards button {
+          display: flex;
+          min-width: 0;
+          min-height: 5rem;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.55rem;
+          border: 1px solid #dce4ef;
+          border-radius: 0.7rem;
+          background: #fff;
+          color: #176f79;
+          text-align: left;
+        }
+        .mobile-feature-cards button > svg:first-child {
+          flex: 0 0 auto;
+        }
+        .mobile-feature-cards button > svg:last-child {
+          flex: 0 0 auto;
+          width: 0.8rem;
+        }
+        .mobile-feature-cards button span {
+          display: grid;
+          min-width: 0;
+          gap: 0.12rem;
+        }
+        .mobile-feature-cards strong {
+          color: #172231;
+          font-size: 0.65rem;
+        }
+        .mobile-feature-cards small {
+          color: #68778b;
+          font-size: 0.56rem;
+          line-height: 1.25;
+        }
+      }
+      @media (max-width: 350px) {
+        .save-state {
+          width: 1.65rem;
+          max-width: 1.65rem;
+          justify-content: center;
+          overflow: hidden;
+          font-size: 0;
+        }
+        .mobile-resume-overview {
+          grid-template-columns: 3.3rem minmax(0, 1fr) 2.9rem;
+        }
+        .mobile-overview-actions {
+          grid-column: 1 / -1;
+          grid-template-columns: minmax(0, 1fr) auto auto;
+          gap: 0.25rem;
+          padding-top: 0.35rem;
+          border-top: 1px solid #e3e9f1;
+        }
+        .mobile-overview-export {
+          font-size: 0.56rem;
         }
       }
       @page {
@@ -3011,6 +4764,8 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   protected selectedSectionId = '';
   protected sectionMenuId = '';
   protected inspectorTab: 'design' | 'typography' | 'section' = 'design';
+  protected mobileInspectorOpen = false;
+  protected mobilePreviewOpen = false;
   protected newSectionType: ResumeSectionType = 'education';
   protected addSectionMenuOpen = false;
   protected templateMenuOpen = false;
@@ -3154,6 +4909,79 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   protected get selectedSection() {
     return this.orderedSections.find((section) => section.id === this.selectedSectionId);
+  }
+
+  protected get primarySummary() {
+    return this.resume?.content.sections.find(
+      (section): section is Extract<ResumeSection, { type: 'summary' }> =>
+        section.type === 'summary',
+    );
+  }
+
+  protected updateMobileSummary(event: Event) {
+    if (!this.primarySummary) return;
+    this.primarySummary.body = (event.target as HTMLTextAreaElement).value;
+    this.markDirty();
+  }
+
+  protected showMobileProfile() {
+    this.mobilePreviewOpen = false;
+  }
+
+  protected openMobileSections() {
+    this.mobilePreviewOpen = false;
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>('.structure-panel')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  }
+
+  protected showNextMobileSection() {
+    const next = this.orderedSections.find((section) => section.type !== 'summary') ?? this.orderedSections[0];
+    if (next) this.showMobileSection(next.id);
+    else this.openMobileSections();
+  }
+
+  protected showMobileSectionType(type: ResumeSectionType) {
+    const section = this.orderedSections.find((candidate) => candidate.type === type);
+    if (section) this.showMobileSection(section.id);
+    else {
+      this.newSectionType = type;
+      this.openMobileSections();
+    }
+  }
+
+  protected scrollToMobileTop() {
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  }
+
+  protected showMobilePreview() {
+    this.mobilePreviewOpen = true;
+    requestAnimationFrame(() => {
+      if (window.matchMedia('(max-width: 760px)').matches) this.useFitPreview();
+      this.previewArea?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  protected showMobileSection(sectionId: string) {
+    this.selectedSectionId = sectionId;
+    this.mobilePreviewOpen = true;
+    requestAnimationFrame(() => {
+      if (window.matchMedia('(max-width: 760px)').matches) this.useFitPreview();
+      const selected = this.selectedSection;
+      const target = selected
+        ? this.previewArea?.nativeElement.querySelector<HTMLElement>(
+            `[data-section="${selected.type}"]`,
+          )
+        : undefined;
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      this.previewArea?.nativeElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   protected selectSection(sectionId: string) {
@@ -3686,6 +5514,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   @HostListener('document:keydown.escape')
   protected closeFloatingPanels() {
     this.typographyOpen = false;
+    this.mobileInspectorOpen = false;
     if (this.inspectorTab === 'typography') this.inspectorTab = 'design';
     this.inlineToolbarOpen = false;
     this.inlineWeightMenuOpen = false;

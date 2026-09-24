@@ -331,14 +331,41 @@ type ColorTarget = keyof ResumeColors;
               Export PDF
             </button>
           </div>
-          @if (shareUrl) {
-            <div class="share-link-panel" role="status">
-              <span>Anyone with this link can view your resume</span>
-              <a [href]="shareUrl" target="_blank" rel="noopener noreferrer">{{ shareUrl }}</a>
-              <button type="button" (click)="copyShareLink()">{{ shareCopied ? 'Copied' : 'Copy link' }}</button>
-            </div>
-          }
         </header>
+
+        @if (shareDialogOpen && shareUrl) {
+          <div class="share-dialog-backdrop" (click)="closeShareDialog()">
+            <section
+              class="share-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="share-dialog-title"
+              aria-describedby="share-dialog-description"
+              (click)="$event.stopPropagation()"
+            >
+              <div class="share-dialog-icon" aria-hidden="true"><svg lucideLink size="24"></svg></div>
+              <div class="share-dialog-copy">
+                <span>RESUME LINK</span>
+                <h2 id="share-dialog-title">Your resume is ready to share</h2>
+                <p id="share-dialog-description">Anyone with this link can view your resume. They can't edit your original.</p>
+                <div class="share-url-field">
+                  <a [href]="shareUrl" target="_blank" rel="noopener noreferrer">{{ shareUrl }}</a>
+                </div>
+              </div>
+              <footer>
+                <button type="button" class="share-close-button" (click)="closeShareDialog()">Close</button>
+                <button type="button" class="share-copy-button" (click)="copyShareLink()">
+                  @if (shareCopied) {
+                    <svg lucideCheck size="16"></svg>
+                  } @else {
+                    <svg lucideLink size="16"></svg>
+                  }
+                  {{ shareCopied ? 'Copied' : 'Copy link' }}
+                </button>
+              </footer>
+            </section>
+          </div>
+        }
 
         <section class="mobile-resume-overview" aria-label="Resume overview">
           <div class="mobile-overview-photo">
@@ -1816,6 +1843,167 @@ type ColorTarget = keyof ResumeColors;
         place-items: center;
         padding: 1rem;
         background: rgba(12, 17, 18, 0.68);
+      }
+      .share-dialog-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(15, 23, 31, 0.5);
+        backdrop-filter: blur(7px) saturate(0.9);
+        animation: dialog-backdrop-in 160ms ease-out;
+      }
+      .share-dialog {
+        position: relative;
+        display: grid;
+        grid-template-columns: 52px minmax(0, 1fr);
+        gap: 18px;
+        width: min(460px, calc(100vw - 48px));
+        padding: 28px;
+        overflow: hidden;
+        border: 1px solid #e2e7ea;
+        border-radius: 20px;
+        background: #ffffff;
+        color: #172231;
+        box-shadow: 0 28px 80px rgba(15, 23, 31, 0.24), 0 2px 8px rgba(15, 23, 31, 0.08);
+        animation: dialog-content-in 180ms ease-out;
+      }
+      .share-dialog::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto;
+        height: 4px;
+        background: #078db7;
+      }
+      .share-dialog-icon {
+        display: grid;
+        place-items: center;
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        background: #e7f9fc;
+        color: #078db7;
+      }
+      .share-dialog-copy {
+        min-width: 0;
+      }
+      .share-dialog-copy > span {
+        display: block;
+        margin-bottom: 5px;
+        color: #078db7;
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+      .share-dialog-copy h2 {
+        margin: 0;
+        color: #182126;
+        font-size: 22px;
+        line-height: 1.2;
+        letter-spacing: -0.035em;
+      }
+      .share-dialog-copy p {
+        margin: 10px 0 0;
+        color: #667178;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+      .share-url-field {
+        overflow: hidden;
+        margin-top: 12px;
+        padding: 10px 12px;
+        border: 1px solid #dce6e8;
+        border-radius: 10px;
+        background: #f7faf9;
+      }
+      .share-url-field a {
+        display: block;
+        overflow: hidden;
+        color: #087e9f;
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .share-dialog > footer {
+        display: flex;
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .share-close-button,
+      .share-copy-button {
+        display: inline-flex;
+        min-height: 42px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 18px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 680;
+        cursor: pointer;
+      }
+      .share-close-button {
+        border: 1px solid #d8e0e4;
+        background: #ffffff;
+        color: #35434a;
+      }
+      .share-close-button:hover {
+        border-color: #b9c5cb;
+        background: #f7f9fa;
+      }
+      .share-copy-button {
+        border: 1px solid transparent;
+        background: #078db7;
+        color: #ffffff;
+        box-shadow: 0 5px 14px rgba(20, 28, 33, 0.14);
+      }
+      .share-copy-button:hover {
+        background: #06799d;
+      }
+      .share-copy-button:focus-visible,
+      .share-close-button:focus-visible {
+        outline: 3px solid rgba(24, 119, 133, 0.24);
+        outline-offset: 2px;
+      }
+      @keyframes dialog-backdrop-in {
+        from { opacity: 0; }
+      }
+      @keyframes dialog-content-in {
+        from { opacity: 0; transform: translateY(12px) scale(0.985); }
+      }
+      @media (max-width: 560px) {
+        .share-dialog-backdrop {
+          align-items: end;
+          padding: 12px;
+        }
+        .share-dialog {
+          grid-template-columns: 44px minmax(0, 1fr);
+          width: 100%;
+          gap: 14px;
+          padding: 22px 20px 20px;
+          border-radius: 20px;
+        }
+        .share-dialog-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 14px;
+        }
+        .share-dialog > footer {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          margin-top: 6px;
+        }
+        .share-close-button,
+        .share-copy-button {
+          width: 100%;
+          min-height: 44px;
+          padding-inline: 12px;
+        }
       }
       .crop-dialog {
         width: min(31rem, 100%);
@@ -4770,6 +4958,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   protected saveState = 'Loading';
   protected shareUrl = '';
   protected shareCopied = false;
+  protected shareDialogOpen = false;
   protected selectedSectionId = '';
   protected sectionMenuId = '';
   protected inspectorTab: 'design' | 'typography' | 'section' = 'design';
@@ -5522,6 +5711,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   protected closeFloatingPanels() {
+    this.closeShareDialog();
     this.typographyOpen = false;
     this.mobileInspectorOpen = false;
     if (this.inspectorTab === 'typography') this.inspectorTab = 'design';
@@ -5571,6 +5761,8 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
       this.api.publishResume(resume.id, this.shareSlug(resume)).subscribe({
         next: (publication) => {
           this.shareUrl = `${window.location.origin}/r/${publication.slug}`;
+          this.shareCopied = false;
+          this.shareDialogOpen = true;
           this.saveState = 'Public link ready';
         },
         error: (error: { error?: { message?: string } }) => {
@@ -5600,6 +5792,10 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     } catch {
       this.saveState = 'Could not copy link. Select and copy it manually.';
     }
+  }
+
+  protected closeShareDialog() {
+    this.shareDialogOpen = false;
   }
 
   private shareSlug(resume: ResumeRecord) {

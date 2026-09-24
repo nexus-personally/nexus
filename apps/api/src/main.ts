@@ -66,8 +66,10 @@ async function bootstrap() {
     credentials: false,
   });
 
+  const fastify = app.getHttpAdapter().getInstance();
+  fastify.get('/', serveWebFallback);
+  fastify.get('/*', serveWebFallback);
   await app.init();
-  app.getHttpAdapter().getInstance().setNotFoundHandler(serveWebFallback);
 
   const port = Number(process.env.PORT ?? process.env.API_PORT ?? 3000);
   await app.listen(port, '0.0.0.0');

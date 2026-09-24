@@ -2,7 +2,9 @@ import { Pool, type PoolConfig } from 'pg';
 
 export function createPostgresPool(): Pool {
   const connectionString = process.env.DATABASE_URL?.trim();
-  const ssl = process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: true } : undefined;
+  // Render Postgres internal TLS uses a self-signed certificate. Render documents
+  // that verification is unsupported for internal URLs; TLS remains required.
+  const ssl = process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false, minVersion: 'TLSv1.2' as const } : undefined;
   const config: PoolConfig = connectionString
     ? { connectionString, ssl }
     : {

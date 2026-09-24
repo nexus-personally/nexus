@@ -797,28 +797,37 @@ type ColorTarget = keyof ResumeColors;
 
           <section class="page-stage">
             <div #previewArea class="preview-area">
-              <div class="page-meta" [style.width.px]="a4Width * previewScale">
-                <span>Page 1 / 1 (A4)</span><span>{{ templateName(resume.templateId) }}</span>
-              </div>
-              <div
-                class="a4-viewport"
-                [style.width.px]="a4Width * previewScale"
-                [style.height.px]="previewContentHeight * previewScale"
-              >
-                <div
-                  #previewCanvas
-                  class="a4-canvas"
-                  [style.transform]="'scale(' + previewScale + ')'"
-                >
-                  <nexus-resume-renderer
-                    #resumeRenderer
-                    [resume]="resume"
-                    [editable]="true"
-                    (edited)="markDirty()"
-                    (colorSelected)="openFieldColor($event)"
-                  />
+              @for (page of pages; track page.index) {
+                <div class="page-meta" [style.width.px]="a4Width * previewScale">
+                  <span>Page {{ page.index + 1 }} / {{ pages.length }} (A4)</span>
+                  <span>{{ templateName(resume.templateId) }}</span>
                 </div>
-              </div>
+                <div
+                  class="a4-viewport"
+                  [style.width.px]="a4Width * previewScale"
+                  [style.height.px]="a4Height * previewScale"
+                >
+                  <div class="a4-canvas" [style.transform]="'scale(' + previewScale + ')'">
+                    <div class="resume-page" [class.modern-page]="resume.templateId === 'tech-modern'">
+                      <div
+                        class="resume-page-clip"
+                        [style.top.px]="page.index === 0 ? 0 : pageInset"
+                        [style.height.px]="page.end - page.start"
+                      >
+                        <div class="resume-page-source" [style.top.px]="-page.start">
+                          <nexus-resume-renderer
+                            #resumeRenderer
+                            [resume]="resume"
+                            [editable]="true"
+                            (edited)="markDirty()"
+                            (colorSelected)="openFieldColor($event, resumeRenderer)"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
             </div>
             <div class="preview-controls" aria-label="Resume preview zoom">
               <button type="button" (click)="useFitPreview()">Fit</button>
@@ -1208,8 +1217,23 @@ type ColorTarget = keyof ResumeColors;
           </div>
         }
       </main>
+      <div #measureCanvas class="resume-measure" aria-hidden="true" inert>
+        <nexus-resume-renderer [resume]="resume" [editable]="true" />
+      </div>
       <div class="print-resume">
-        <nexus-resume-renderer [resume]="resume" />
+        @for (page of pages; track page.index) {
+          <div class="resume-page print-page" [class.modern-page]="resume.templateId === 'tech-modern'">
+            <div
+              class="resume-page-clip"
+              [style.top.px]="page.index === 0 ? 0 : pageInset"
+              [style.height.px]="page.end - page.start"
+            >
+              <div class="resume-page-source" [style.top.px]="-page.start">
+                <nexus-resume-renderer [resume]="resume" [editable]="true" />
+              </div>
+            </div>
+          </div>
+        }
       </div>
     } @else {
       <main class="loading-state">
@@ -1232,6 +1256,36 @@ type ColorTarget = keyof ResumeColors;
       }
       .print-resume {
         display: none;
+      }
+      .resume-measure {
+        position: absolute;
+        left: -10000px;
+        top: 0;
+        width: 210mm;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .resume-page {
+        position: relative;
+        width: 210mm;
+        height: 297mm;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 22px 70px rgba(10, 18, 20, 0.18);
+      }
+      .resume-page.modern-page {
+        background: linear-gradient(to right, #17262b 46mm, #ffffff 46mm);
+      }
+      .resume-page-clip {
+        position: absolute;
+        left: 0;
+        width: 210mm;
+        overflow: hidden;
+      }
+      .resume-page-source {
+        position: absolute;
+        left: 0;
+        width: 210mm;
       }
       .command-bar {
         position: sticky;
@@ -1758,8 +1812,8 @@ type ColorTarget = keyof ResumeColors;
       }
       .a4-viewport {
         position: relative;
-        margin: 0 auto;
-        overflow: visible;
+        margin: 0 auto 1.5rem;
+        overflow: hidden;
       }
       .a4-canvas {
         width: 210mm;
@@ -4841,15 +4895,29 @@ type ColorTarget = keyof ResumeColors;
         .editor-shell {
           display: none !important;
         }
+        .resume-measure {
+          display: none !important;
+        }
         .print-resume {
           display: block !important;
           width: 210mm;
-          min-height: 297mm;
           margin: 0;
           padding: 0;
           background: #ffffff;
           print-color-adjust: exact;
           -webkit-print-color-adjust: exact;
+        }
+        .print-page {
+          margin: 0;
+          box-shadow: none;
+          break-after: page;
+          page-break-after: always;
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
+        }
+        .print-page:last-child {
+          break-after: auto;
+          page-break-after: auto;
         }
       }
     `,
@@ -4862,9 +4930,9 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     this.previewArea = value;
     this.observePreview();
   }
-  @ViewChild('previewCanvas')
-  private set previewCanvasRef(value: ElementRef<HTMLElement> | undefined) {
-    this.previewCanvas = value;
+  @ViewChild('measureCanvas')
+  private set measureCanvasRef(value: ElementRef<HTMLElement> | undefined) {
+    this.measureCanvas = value;
     this.observePreview();
   }
   protected readonly templates = RESUME_TEMPLATES;
@@ -5007,8 +5075,11 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   private paletteTarget?: ResumeColorSelection;
   protected readonly a4Width = (210 / 25.4) * 96;
   protected readonly a4Height = (297 / 25.4) * 96;
+  protected readonly pageInset = 44;
   protected previewScale = 1;
-  protected previewContentHeight = this.a4Height;
+  protected pages: Array<{ index: number; start: number; end: number }> = [
+    { index: 0, start: 0, end: this.a4Height },
+  ];
   protected previewMode: 'fit' | 'manual' = 'fit';
   private readonly api = inject(ApiService);
   private readonly route = inject(ActivatedRoute);
@@ -5020,9 +5091,11 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   private cropImage?: HTMLImageElement;
   private cropPointer?: { id: number; x: number; y: number };
   private previewArea?: ElementRef<HTMLElement>;
-  private previewCanvas?: ElementRef<HTMLElement>;
+  private measureCanvas?: ElementRef<HTMLElement>;
   @ViewChild('resumeRenderer') private resumeRenderer?: ResumeRendererComponent;
+  private activeResumeRenderer?: ResumeRendererComponent;
   private previewResizeObserver?: ResizeObserver;
+  private paginationFrame = 0;
 
   ngOnInit() {
     this.loadPreviewPreference();
@@ -5050,6 +5123,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     window.clearTimeout(this.saveTimer);
+    window.cancelAnimationFrame(this.paginationFrame);
     this.previewResizeObserver?.disconnect();
   }
 
@@ -5237,10 +5311,11 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     this.saveState = 'Unsaved local draft';
     window.clearTimeout(this.saveTimer);
     this.saveTimer = window.setTimeout(() => this.save(), 900);
+    this.schedulePagination();
   }
 
   protected applyInlineStyle(command: { kind: 'weight' | 'italic'; value: number | boolean }) {
-    this.resumeRenderer?.applyInlineStyle(command);
+    (this.activeResumeRenderer ?? this.resumeRenderer)?.applyInlineStyle(command);
   }
 
   protected setInlineWeight(weight: number) {
@@ -5439,7 +5514,11 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     this.markDirty();
   }
 
-  protected openFieldColor(selection: ResumeColorSelection) {
+  protected openFieldColor(
+    selection: ResumeColorSelection,
+    renderer?: ResumeRendererComponent,
+  ) {
+    if (renderer) this.activeResumeRenderer = renderer;
     this.inlineToolbarOpen = selection.textSelected === true;
     this.inlineWeightMenuOpen = false;
     if (this.inlineToolbarOpen) {
@@ -5530,6 +5609,7 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   protected downloadPdf() {
     this.fieldColorOpen = false;
     this.colorsOpen = false;
+    this.updatePreviewMeasurements();
     window.setTimeout(() => window.print());
   }
 
@@ -5946,23 +6026,107 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   }
 
   private observePreview() {
-    if (!this.previewArea?.nativeElement || !this.previewCanvas?.nativeElement) return;
+    if (!this.previewArea?.nativeElement || !this.measureCanvas?.nativeElement) return;
     this.previewResizeObserver?.disconnect();
-    this.previewResizeObserver = new ResizeObserver(() => this.updatePreviewMeasurements());
+    this.previewResizeObserver = new ResizeObserver(() => this.schedulePagination());
     this.previewResizeObserver.observe(this.previewArea.nativeElement);
-    this.previewResizeObserver.observe(this.previewCanvas.nativeElement);
-    window.setTimeout(() => this.updatePreviewMeasurements());
+    this.previewResizeObserver.observe(this.measureCanvas.nativeElement);
+    window.setTimeout(() => this.schedulePagination());
+  }
+
+  private schedulePagination() {
+    if (this.paginationFrame) return;
+    this.paginationFrame = window.requestAnimationFrame(() => {
+      this.paginationFrame = 0;
+      this.updatePreviewMeasurements();
+    });
   }
 
   private updatePreviewMeasurements() {
     const area = this.previewArea?.nativeElement;
-    const canvas = this.previewCanvas?.nativeElement;
+    const canvas = this.measureCanvas?.nativeElement;
     if (!area || !canvas) return;
-    this.previewContentHeight = Math.max(this.a4Height, canvas.scrollHeight);
+    const sheet = canvas.querySelector<HTMLElement>('.sheet');
+    const body = sheet?.querySelector<HTMLElement>('.resume-body');
+    if (sheet && body) {
+      const sheetTop = sheet.getBoundingClientRect().top;
+      const bodyBottom = body.getBoundingClientRect().bottom - sheetTop;
+      const identity = sheet.querySelector<HTMLElement>('.identity');
+      const identityBottom =
+        this.resume?.templateId === 'tech-modern'
+          ? 0
+          : (identity?.getBoundingClientRect().bottom ?? sheetTop) - sheetTop;
+      const contentEnd = Math.max(bodyBottom, identityBottom) + this.pageInset;
+      const nextPages: Array<{ index: number; start: number; end: number }> = [];
+      const lineRects = this.getTextLineRects(body, sheetTop);
+      const breakBlocks = Array.from(
+        body.querySelectorAll<HTMLElement>(
+          '.editable-list-item, .skill-group, .position-line, .summary, .project-block, .education-block',
+        ),
+      ).map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { top: rect.top - sheetTop, bottom: rect.bottom - sheetTop };
+      });
+      let start = 0;
+      for (let index = 0; start < contentEnd; index++) {
+        const limit = start + this.a4Height - (index === 0 ? this.pageInset : this.pageInset * 2);
+        const end =
+          contentEnd <= limit
+            ? Math.max(contentEnd, start + 1)
+            : this.findPageBreak(lineRects, breakBlocks, start, limit);
+        nextPages.push({ index, start, end });
+        if (end >= contentEnd) break;
+        start = end;
+      }
+      if (
+        nextPages.length !== this.pages.length ||
+        nextPages.some((page, index) => Math.abs(page.end - this.pages[index].end) > 0.5)
+      ) {
+        this.pages = nextPages;
+      }
+    }
     if (this.previewMode === 'fit') {
       const availableWidth = Math.max(1, area.clientWidth - 16);
       this.previewScale = this.clamp(availableWidth / this.a4Width, 0.25, 1.25);
     }
+  }
+
+  private getTextLineRects(body: HTMLElement, sheetTop: number) {
+    const rects: Array<{ top: number; bottom: number }> = [];
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      if (!node.textContent?.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const rect of Array.from(range.getClientRects())) {
+        if (rect.height > 0) rects.push({ top: rect.top - sheetTop, bottom: rect.bottom - sheetTop });
+      }
+    }
+    return rects;
+  }
+
+  private findPageBreak(
+    lineRects: Array<{ top: number; bottom: number }>,
+    breakBlocks: Array<{ top: number; bottom: number }>,
+    start: number,
+    limit: number,
+  ) {
+    const earliest = start + (limit - start) * 0.7;
+    const crossingBlocks = breakBlocks.filter(
+      (rect) =>
+        rect.top >= earliest &&
+        rect.top < limit &&
+        rect.bottom > limit &&
+        rect.bottom - rect.top < 160,
+    );
+    if (crossingBlocks.length) {
+      return Math.min(...crossingBlocks.map((rect) => rect.top)) - 2;
+    }
+    const crossingLines = lineRects.filter(
+      (rect) => rect.top < limit && rect.bottom > limit && rect.top >= earliest,
+    );
+    return crossingLines.length ? Math.min(...crossingLines.map((rect) => rect.top)) - 2 : limit;
   }
 
   private loadPreviewPreference() {

@@ -1009,9 +1009,6 @@ export interface ResumeColorSelection {
       .experience-block + .experience-block {
         margin-top: 1.4rem;
       }
-      .is-editable .experience-block {
-        padding-right: 3.2rem;
-      }
       .company-actions {
         position: absolute;
         top: 0.35rem;
@@ -1550,12 +1547,12 @@ export interface ResumeColorSelection {
           outline: 0;
           background: transparent;
         }
+        .is-editable [contenteditable='true']:empty::before {
+          content: none;
+        }
         .list-item-actions,
         .company-actions {
           display: none !important;
-        }
-        .is-editable .experience-block {
-          padding-right: 0;
         }
       }
     `,
@@ -1782,6 +1779,7 @@ export class ResumeRendererComponent implements AfterViewInit, AfterViewChecked,
         ? range.commonAncestorContainer
         : range.commonAncestorContainer.parentElement;
     const target = ancestor?.closest<HTMLElement>('[data-color-key][contenteditable="true"]');
+    if (!target || !this.host.nativeElement.contains(target)) return;
     const key = target?.dataset['colorKey'];
     const role = target?.dataset['colorRole'] as ResumeColorRole | undefined;
     if (

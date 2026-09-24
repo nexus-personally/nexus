@@ -1,13 +1,21 @@
 import { Routes } from '@angular/router';
-import { ResumeDashboardComponent } from './resume/dashboard/resume-dashboard.component';
-import { ResumeEditorComponent } from './resume/editor/resume-editor.component';
-import { PublicResumeComponent } from './resume/publication/public-resume.component';
-import { UniverseComponent } from './universe/universe.component';
 
 export const routes: Routes = [
-  { path: '', component: UniverseComponent },
-  { path: 'resume', component: ResumeDashboardComponent },
-  { path: 'resume/:id/edit', component: ResumeEditorComponent },
-  { path: 'r/:slug', component: PublicResumeComponent },
+  {
+    path: '',
+    loadComponent: () => import('./universe/universe.component').then((module) => module.UniverseComponent),
+  },
+  {
+    path: 'resume',
+    loadComponent: () => import('./resume/dashboard/resume-dashboard.component').then((module) => module.ResumeDashboardComponent),
+  },
+  {
+    path: 'resume/:id/edit',
+    loadComponent: () => import('./resume/editor/resume-editor.component').then((module) => module.ResumeEditorComponent),
+  },
+  {
+    path: 'r/:slug',
+    loadComponent: () => import('./resume/publication/public-resume.component').then((module) => module.PublicResumeComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

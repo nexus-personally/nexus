@@ -885,6 +885,7 @@ export class UniverseComponent implements AfterViewInit, OnDestroy {
   private introTarget?: Float32Array;
   private introScatter?: Float32Array;
   private animationId = 0;
+  private lastFrameAt = 0;
   private introStartedAt = 0;
   private entryStartedAt = 0;
   private entryTimer?: number;
@@ -895,6 +896,17 @@ export class UniverseComponent implements AfterViewInit, OnDestroy {
   private readonly onResize = () => this.resize();
   private readonly onPointerMove = (event: PointerEvent) => this.updatePointer(event);
   private readonly onPointerLeave = () => this.releasePointer();
+  private readonly onVisibilityChange = () => {
+    if (document.hidden) {
+      cancelAnimationFrame(this.animationId);
+      this.animationId = 0;
+      return;
+    }
+
+    if (this.renderer && this.animationId === 0) {
+      this.animationId = requestAnimationFrame(this.animate);
+    }
+  };
 
   ngAfterViewInit() {
     const canvas = this.canvas?.nativeElement;
@@ -935,6 +947,7 @@ export class UniverseComponent implements AfterViewInit, OnDestroy {
     window.addEventListener('resize', this.onResize);
     window.addEventListener('pointermove', this.onPointerMove, { passive: true });
     document.addEventListener('pointerleave', this.onPointerLeave);
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
     this.introStartedAt = performance.now();
     this.zone.runOutsideAngular(() => this.animate());
   }
@@ -979,6 +992,7 @@ export class UniverseComponent implements AfterViewInit, OnDestroy {
     window.removeEventListener('resize', this.onResize);
     window.removeEventListener('pointermove', this.onPointerMove);
     document.removeEventListener('pointerleave', this.onPointerLeave);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
     this.scene?.traverse((object) => {
       const renderable = object as THREE.Points;
       renderable.geometry?.dispose();
@@ -1193,6 +1207,13 @@ export class UniverseComponent implements AfterViewInit, OnDestroy {
     if (!this.renderer || !this.scene || !this.camera || !this.galaxy || !this.galaxyGroup) {
       return;
     }
+
+    const minFrameInterval = this.prefersAdaptiveQuality() ? 1000 / 30 : 1000 / 60;
+    if (timestamp - this.lastFrameAt < minFrameInterval) {
+      this.animationId = requestAnimationFrame(this.animate);
+      return;
+    }
+    this.lastFrameAt = timestamp;
 
     const introElapsed = timestamp - this.introStartedAt;
     const revealProgress = this.introDone ? 1 : Math.min(1, introElapsed / 1850);

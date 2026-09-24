@@ -8,8 +8,8 @@ import { RESUME_REPOSITORY, type ResumeRepository } from '../persistence/resume.
 export class ResumesService {
   constructor(@Inject(RESUME_REPOSITORY) private readonly repository: ResumeRepository) {}
 
-  list() {
-    return this.repository.list();
+  list(limit = 100) {
+    return this.repository.list(limit);
   }
 
   async get(id: string) {

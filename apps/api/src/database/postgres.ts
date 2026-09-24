@@ -2,7 +2,7 @@ import { Pool, type PoolConfig } from 'pg';
 
 export function createPostgresPool(): Pool {
   const connectionString = process.env.DATABASE_URL?.trim();
-  const ssl = process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false } : undefined;
+  const ssl = process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: true } : undefined;
   const config: PoolConfig = connectionString
     ? { connectionString, ssl }
     : {
@@ -10,7 +10,7 @@ export function createPostgresPool(): Pool {
         port: Number(process.env.POSTGRES_PORT ?? 5432),
         database: process.env.POSTGRES_DB ?? 'nexus',
         user: process.env.POSTGRES_USER ?? 'nexus',
-        password: process.env.POSTGRES_PASSWORD ?? 'nexus_dev_only',
+        password: process.env.POSTGRES_PASSWORD ?? (process.env.NODE_ENV === 'production' ? '' : 'nexus_dev_only'),
         ssl,
       };
 

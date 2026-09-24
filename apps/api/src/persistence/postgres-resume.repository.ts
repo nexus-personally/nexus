@@ -90,9 +90,10 @@ export class PostgresResumeRepository implements ResumeRepository, OnModuleInit,
     await this.pool.end();
   }
 
-  async list(): Promise<ResumeRecord[]> {
+  async list(limit = 100): Promise<ResumeRecord[]> {
     const result = await this.pool.query<ResumeRow>(
-      'select * from resumes order by updated_at desc',
+      'select * from resumes order by updated_at desc limit $1',
+      [limit],
     );
     return result.rows.map(mapResume);
   }

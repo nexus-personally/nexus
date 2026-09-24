@@ -13,8 +13,8 @@ export class InMemoryResumeRepository implements ResumeRepository {
     this.resumes.set(starter.id, starter);
   }
 
-  async list(): Promise<ResumeRecord[]> {
-    return [...this.resumes.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  async list(limit = 100): Promise<ResumeRecord[]> {
+    return [...this.resumes.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, limit);
   }
 
   async get(id: string): Promise<ResumeRecord | undefined> {

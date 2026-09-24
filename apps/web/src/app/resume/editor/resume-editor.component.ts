@@ -331,6 +331,13 @@ type ColorTarget = keyof ResumeColors;
               Export PDF
             </button>
           </div>
+          @if (shareUrl) {
+            <div class="share-link-panel" role="status">
+              <span>Anyone with this link can view your resume</span>
+              <a [href]="shareUrl" target="_blank" rel="noopener noreferrer">{{ shareUrl }}</a>
+              <button type="button" (click)="copyShareLink()">{{ shareCopied ? 'Copied' : 'Copy link' }}</button>
+            </div>
+          }
         </header>
 
         <section class="mobile-resume-overview" aria-label="Resume overview">
@@ -4761,6 +4768,8 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
   ];
   protected resume?: ResumeRecord;
   protected saveState = 'Loading';
+  protected shareUrl = '';
+  protected shareCopied = false;
   protected selectedSectionId = '';
   protected sectionMenuId = '';
   protected inspectorTab: 'design' | 'typography' | 'section' = 'design';
@@ -5554,15 +5563,54 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
 
   protected publish() {
     if (!this.resume) return;
-    const slug = this.resume.content.profile.fullName || this.resume.name;
-    this.api.publishResume(this.resume.id, slug).subscribe({
-      next: (publication) => {
-        this.saveState = 'Published at /r/' + publication.slug;
+    if (this.saveInFlight || this.hasFocusedEditable()) {
+      this.saveTimer = window.setTimeout(() => this.publish(), 500);
+      return;
+    }
+    const publishSavedResume = (resume: ResumeRecord) => {
+      this.api.publishResume(resume.id, this.shareSlug(resume)).subscribe({
+        next: (publication) => {
+          this.shareUrl = `${window.location.origin}/r/${publication.slug}`;
+          this.saveState = 'Public link ready';
+        },
+        error: (error: { error?: { message?: string } }) => {
+          this.saveState = error.error?.message ?? 'Publish failed.';
+        },
+      });
+    };
+    this.saveState = 'Saving before sharing';
+    this.api.saveResume(structuredClone(this.resume)).subscribe({
+      next: (saved) => {
+        this.resume = saved;
+        localStorage.removeItem(this.recoveryKey(saved.id));
+        publishSavedResume(saved);
       },
-      error: (error: { error?: { message?: string } }) => {
-        this.saveState = error.error?.message ?? 'Publish failed.';
+      error: () => {
+        this.saveState = 'Unable to save. Resume was not shared.';
       },
     });
+  }
+
+  protected async copyShareLink() {
+    if (!this.shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(this.shareUrl);
+      this.shareCopied = true;
+      window.setTimeout(() => (this.shareCopied = false), 2000);
+    } catch {
+      this.saveState = 'Could not copy link. Select and copy it manually.';
+    }
+  }
+
+  private shareSlug(resume: ResumeRecord) {
+    const base = (resume.content.profile.fullName || resume.name)
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48) || 'resume';
+    return `${base}-${resume.id.replace(/-/g, '').slice(0, 12)}`;
   }
 
   protected unpublish() {

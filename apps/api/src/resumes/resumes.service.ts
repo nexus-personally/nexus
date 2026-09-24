@@ -74,7 +74,9 @@ export class ResumesService {
 
   async publish(resumeId: string, requestedSlug: string) {
     const resume = await this.get(resumeId);
-    const slugResult = validateSlug(requestedSlug);
+    const existing = await this.repository.getPublicationByResumeId(resumeId);
+    // Keep the first public URL stable across future shares and resume edits.
+    const slugResult = existing ? { ok: true as const, slug: existing.slug } : validateSlug(requestedSlug);
     if (!slugResult.ok) {
       throw new UnprocessableEntityException(slugResult.message);
     }
@@ -85,7 +87,6 @@ export class ResumesService {
     }
 
     const now = new Date().toISOString();
-    const existing = await this.repository.getPublicationByResumeId(resumeId);
     const publication = {
       id: existing?.id ?? randomUUID(),
       resumeId,

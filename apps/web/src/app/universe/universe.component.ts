@@ -904,7 +904,7 @@ export class UniverseComponent implements AfterViewInit, OnDestroy {
 
     // Keep the navigation usable when WebGL is unavailable or blocked.
     try {
-      this.renderer = new THREE.WebGLRenderer({\n        canvas,\n        antialias: !this.prefersAdaptiveQuality(),\n        alpha: false,\n      });
+      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !this.prefersAdaptiveQuality(), alpha: false });
     } catch {
       this.finishIntro();
       return;

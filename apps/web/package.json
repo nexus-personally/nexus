@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "ng.cmd serve --host 127.0.0.1 --port 4200",
-    "build": "ng.cmd build",
+    "build": "ng build",
     "typecheck": "tsc -p tsconfig.app.json --noEmit"
   },
   "dependencies": {

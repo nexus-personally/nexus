@@ -1534,17 +1534,17 @@ export interface ResumeColorSelection {
         color: #ffffff;
       }
       @page {
-        size: A4;
-        margin: 44px 0;
+        size: A4 portrait;
+        margin: 0;
       }
       @media print {
         .sheet {
           width: 210mm;
-          min-height: calc(297mm - 88px);
-          padding-top: 0;
-          padding-bottom: 0;
+          min-height: 297mm;
           overflow: visible;
           box-shadow: none;
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
         }
         .is-editable [contenteditable='true'] {
           outline: 0;

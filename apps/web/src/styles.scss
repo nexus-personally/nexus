@@ -45,7 +45,16 @@ select:focus-visible {
     background: #ffffff;
   }
 
+  .sheet,
+  .sheet * {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
   .sheet {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    box-sizing: border-box;
     box-shadow: none !important;
     margin: 0 !important;
   }

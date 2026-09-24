@@ -1208,6 +1208,9 @@ type ColorTarget = keyof ResumeColors;
           </div>
         }
       </main>
+      <div class="print-resume">
+        <nexus-resume-renderer [resume]="resume" />
+      </div>
     } @else {
       <main class="loading-state">
         <span>N</span>
@@ -1226,6 +1229,9 @@ type ColorTarget = keyof ResumeColors;
       }
       .editor-shell {
         min-height: 100svh;
+      }
+      .print-resume {
+        display: none;
       }
       .command-bar {
         position: sticky;
@@ -4828,39 +4834,22 @@ type ColorTarget = keyof ResumeColors;
         }
       }
       @page {
-        size: A4;
-        margin: 44px 0;
+        size: A4 portrait;
+        margin: 0;
       }
       @media print {
-        :host,
-        .editor-shell,
-        .editor-workspace,
-        .page-stage,
-        .preview-area {
-          display: block;
-          min-height: 0;
-          overflow: visible;
-          padding: 0;
-          background: #ffffff;
-        }
-        .command-bar,
-        .text-toolbar,
-        .more-menu,
-        .structure-panel,
-        .preview-controls,
-        .page-meta,
-        .field-color-panel,
-        .crop-backdrop {
+        .editor-shell {
           display: none !important;
         }
-        .a4-viewport {
-          width: 210mm !important;
-          height: auto !important;
-          margin: 0;
-        }
-        .a4-canvas {
+        .print-resume {
+          display: block !important;
           width: 210mm;
-          transform: none !important;
+          min-height: 297mm;
+          margin: 0;
+          padding: 0;
+          background: #ffffff;
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
         }
       }
     `,

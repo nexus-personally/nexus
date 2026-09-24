@@ -8,6 +8,7 @@ import { TemplatesController } from './templates/templates.controller.js';
 import { InMemoryResumeRepository } from './persistence/in-memory-resume.repository.js';
 import { PostgresResumeRepository } from './persistence/postgres-resume.repository.js';
 import { RESUME_REPOSITORY } from './persistence/resume.repository.js';
+import { StaticController } from './static/static.controller.js';
 
 const persistenceRepository =
   (process.env.PERSISTENCE ?? 'in-memory').toLowerCase() === 'postgres'
@@ -15,7 +16,13 @@ const persistenceRepository =
     : InMemoryResumeRepository;
 
 @Module({
-  controllers: [HealthController, PublicationController, ResumesController, TemplatesController],
+  controllers: [
+    HealthController,
+    PublicationController,
+    ResumesController,
+    TemplatesController,
+    StaticController,
+  ],
   providers: [
     ResumesService,
     {

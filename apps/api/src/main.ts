@@ -4,27 +4,30 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { readFile } from 'node:fs/promises';
+import { isIP } from 'node:net';
 import { extname, resolve, sep } from 'node:path';
-import { createHmac, timingSafeEqual } from 'node:crypto';
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import type { FastifyInstance } from 'fastify';
 import { AppModule } from './app.module.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const trustProxy = process.env.TRUST_PROXY === 'true';
-const adminToken = process.env.ADMIN_ACCESS_TOKEN?.trim() ?? '';
-if (isProduction && adminToken.length < 32) {
-  throw new Error('ADMIN_ACCESS_TOKEN must be set to a randomly generated value of at least 32 characters in production.');
+const rateLimitWindowMs = 60_000;
+const maxApiRequestsPerWindow = 60;
+const initialBlockMs = 15 * 60_000;
+const maxBlockMs = 24 * 60 * 60_000;
+const forgetIpAfterMs = 30 * 24 * 60 * 60_000;
+const maxTrackedIps = 20_000;
+
+interface IpRateLimitState {
+  windowStartedAt: number;
+  requestCount: number;
+  blockedUntil: number;
+  strikes: number;
+  lastSeenAt: number;
 }
 
-function matchesToken(candidate: string | undefined): boolean {
-  if (!adminToken || !candidate || candidate.length > 512) return false;
-  const expectedDigest = createHmac('sha256', 'nexus-admin-token').update(adminToken).digest();
-  const candidateDigest = createHmac('sha256', 'nexus-admin-token').update(candidate).digest();
-  return timingSafeEqual(expectedDigest, candidateDigest);
-}
-
-const securityCounters = new Map<string, number>();
+const ipRateLimits = new Map<string, IpRateLimitState>();
+let lastIpCleanupAt = 0;
 
 function rawPath(request: FastifyRequest): string | undefined {
   try {
@@ -50,40 +53,92 @@ async function applySecurity(request: FastifyRequest, reply: FastifyReply): Prom
     return;
   }
 
-  if (path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+  const isApiPath = path === '/api' || path.startsWith('/api/');
+  if (!isApiPath) return;
+
+  if (path !== '/api/health' && request.method !== 'OPTIONS') {
+    const now = Date.now();
+    const ip = clientAddress(request);
+    let state = ipRateLimits.get(ip);
+
+    if (!state) {
+      cleanupIpRateLimits(now);
+      if (ipRateLimits.size >= maxTrackedIps) {
+        let oldestIp: string | undefined;
+        let oldestSeenAt = Infinity;
+        for (const [trackedIp, trackedState] of ipRateLimits) {
+          if (trackedState.lastSeenAt < oldestSeenAt) {
+            oldestIp = trackedIp;
+            oldestSeenAt = trackedState.lastSeenAt;
+          }
+        }
+        if (oldestIp) ipRateLimits.delete(oldestIp);
+      }
+
+      state = { windowStartedAt: now, requestCount: 0, blockedUntil: 0, strikes: 0, lastSeenAt: now };
+      ipRateLimits.set(ip, state);
+    }
+
+    state.lastSeenAt = now;
+    if (state.blockedUntil > now) {
+      const retryAfter = Math.ceil((state.blockedUntil - now) / 1000);
+      reply.header('Retry-After', String(retryAfter)).code(403).send({
+        statusCode: 403,
+        message: 'IP temporarily blocked for repeated API requests.',
+      });
+      return;
+    }
+
+    if (now - state.windowStartedAt >= rateLimitWindowMs) {
+      state.windowStartedAt = now;
+      state.requestCount = 0;
+    }
+    state.requestCount += 1;
+
+    if (state.requestCount > maxApiRequestsPerWindow) {
+      state.strikes += 1;
+      state.blockedUntil = now + Math.min(initialBlockMs * 4 ** (state.strikes - 1), maxBlockMs);
+      const retryAfter = Math.ceil((state.blockedUntil - now) / 1000);
+      console.warn(JSON.stringify({
+        event: 'ip_temporarily_blocked',
+        ip,
+        requestsPerMinute: state.requestCount,
+        strike: state.strikes,
+        blockedForSeconds: retryAfter,
+      }));
+      reply.header('Retry-After', String(retryAfter)).code(429).send({
+        statusCode: 429,
+        message: 'Too many API requests. This IP is temporarily blocked.',
+      });
+      return;
+    }
+  }
+
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
     const origin = request.headers.origin;
     if (origin && !allowedOrigins.has(origin)) {
       throw new BadRequestException('Untrusted request origin.');
     }
   }
+}
 
-  const privateApiPath = path === '/api' || path.startsWith('/api/');
-  const isPublicEndpoint = ['/api/health', '/api/templates'].includes(path) || path.startsWith('/api/public/');
-  if (!privateApiPath || isPublicEndpoint) return;
-
-  const currentMinute = Math.floor(Date.now() / 60_000);
-  const bucket = `${clientAddress(request)}:admin:${currentMinute}`;
-  const current = securityCounters.get(bucket) ?? 0;
-  securityCounters.set(bucket, current + 1);
-  for (const key of securityCounters.keys()) {
-    const minute = Number(key.slice(key.lastIndexOf(':') + 1));
-    if (minute < currentMinute - 1) securityCounters.delete(key);
-  }
-  if (current >= 120) {
-    reply.header('Retry-After', '60').code(429).send({ statusCode: 429, message: 'Too many requests.' });
-    return;
-  }
-
-  const token = request.headers['x-nexus-admin-token'];
-  if (!adminToken || typeof token !== 'string' || !matchesToken(token)) {
-    if (isProduction && !adminToken) throw new UnauthorizedException('Admin access is not configured.');
-    throw new UnauthorizedException('Admin access required.');
+function cleanupIpRateLimits(now: number): void {
+  if (now - lastIpCleanupAt < rateLimitWindowMs) return;
+  lastIpCleanupAt = now;
+  for (const [ip, state] of ipRateLimits) {
+    if (now - state.lastSeenAt > forgetIpAfterMs) ipRateLimits.delete(ip);
   }
 }
 
 let allowedOrigins = new Set<string>();
 
 function clientAddress(request: FastifyRequest): string {
+  // Render routes public traffic through Cloudflare, which overwrites this header.
+  // Do not trust arbitrary X-Forwarded-For values supplied by callers.
+  if (process.env.RENDER_EXTERNAL_URL) {
+    const cloudflareIp = request.headers['cf-connecting-ip'];
+    if (typeof cloudflareIp === 'string' && isIP(cloudflareIp)) return cloudflareIp;
+  }
   return request.ip || 'unknown';
 }
 
@@ -130,7 +185,7 @@ async function serveWebFallback(request: FastifyRequest, reply: FastifyReply) {
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ bodyLimit: 4 * 1024 * 1024, trustProxy }),
+    new FastifyAdapter({ bodyLimit: 4 * 1024 * 1024, trustProxy: false }),
   );
   allowedOrigins = new Set(
     (process.env.WEB_ORIGIN ?? (isProduction ? (process.env.RENDER_EXTERNAL_URL ?? '') : 'http://localhost:4200,http://127.0.0.1:4200'))

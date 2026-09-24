@@ -46,19 +46,6 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
     LucideZap,
   ],
   template: `
-    @if (!unlocked) {
-      <main class="dashboard-shell" style="display:grid;min-height:100vh;place-items:center;padding:24px">
-        <form (ngSubmit)="unlock()" style="width:min(420px,100%);padding:32px;border-radius:20px;background:#fff;box-shadow:0 20px 70px #09161b22">
-          <span class="eyebrow">PRIVATE WORKSPACE</span>
-          <h1>Unlock Resume Studio</h1>
-          <p>Enter the admin access token configured for your NEXUS deployment.</p>
-          <label for="admin-token">Admin access token</label>
-          <input id="admin-token" name="adminToken" [(ngModel)]="adminTokenInput" type="password" autocomplete="current-password" required maxlength="512" style="display:block;width:100%;margin:12px 0;padding:12px;border:1px solid #aeb9bd;border-radius:8px" />
-          @if (unlockError) { <p role="alert">{{ unlockError }}</p> }
-          <button class="primary" type="submit" [disabled]="unlocking">{{ unlocking ? 'Checking…' : 'Unlock' }}</button>
-        </form>
-      </main>
-    } @else {
     <main
       class="dashboard-shell"
       [class.panel-closed]="!createOpen"
@@ -472,7 +459,6 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
         </div>
       }
     </main>
-    }
   `,
   styles: [
     `
@@ -1937,10 +1923,6 @@ type TemplateFilter = 'all' | 'ats' | 'modern' | 'creative';
   styleUrls: ['./resume-dashboard.reference.scss'],
 })
 export class ResumeDashboardComponent implements OnInit {
-  protected unlocked = false;
-  protected adminTokenInput = '';
-  protected unlocking = false;
-  protected unlockError = '';
   protected readonly templates = RESUME_TEMPLATES;
   protected readonly filters: Array<{ id: TemplateFilter; label: string }> = [
     { id: 'all', label: 'All' },
@@ -1974,33 +1956,7 @@ export class ResumeDashboardComponent implements OnInit {
   private readonly router = inject(Router);
 
   ngOnInit() {
-    if (this.api.hasAdminToken) {
-      this.unlocked = true;
-      this.load();
-    } else {
-      this.loading = false;
-    }
-  }
-
-  protected unlock() {
-    if (!this.adminTokenInput.trim() || this.unlocking) return;
-    this.unlocking = true;
-    this.unlockError = '';
-    this.api.verifyAdminToken(this.adminTokenInput).subscribe({
-      next: (resumes) => {
-        this.api.setAdminToken(this.adminTokenInput);
-        this.unlocked = true;
-        this.resumes = resumes;
-        this.loading = false;
-        this.unlocking = false;
-        this.adminTokenInput = '';
-      },
-      error: () => {
-        this.api.clearAdminToken();
-        this.unlocking = false;
-        this.unlockError = 'The token was rejected, or the API could not be reached.';
-      },
-    });
+    this.load();
   }
 
   protected get filteredTemplates() {
@@ -2044,8 +2000,6 @@ export class ResumeDashboardComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
-        if (this.api.hasAdminToken) this.api.clearAdminToken();
-        this.unlocked = false;
         this.loading = false;
         this.errorMessage = 'The API could not load your saved resumes.';
       },

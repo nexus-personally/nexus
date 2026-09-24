@@ -70,15 +70,14 @@ Nest service.
 
 ### Online deployment security
 
-- Configure `ADMIN_ACCESS_TOKEN` as a private deployment secret with at least 32 random characters. The Render blueprint generates one automatically. Keep it out of the repository and browser source.
-- Set `TRUST_PROXY=true` only when the service is directly behind its trusted hosting proxy (as in the Render blueprint). Otherwise leave it false so attacker-controlled proxy headers cannot spoof the client IP used for rate limits.
+- On Render, abuse limits use the client IP supplied in Cloudflare's `CF-Connecting-IP` header. The app ignores caller-controlled `X-Forwarded-For` headers.
 - Set `WEB_ORIGIN` to the exact HTTPS origin of the deployed web application, for example `https://resume.example.com`. The production API has no default allowed origins.
-- Visit `/resume` and enter the admin access token to unlock private resume operations. The token is stored in that browser's local storage; remove it by clearing this site's local storage. Public `/r/:slug` resumes remain publicly readable by design.
+- Public `/r/:slug` resumes remain publicly readable by design. Resume management APIs are also reachable without sign-in; IP rate limiting is abuse protection, not identity or authorization.
 - Keep managed PostgreSQL private and allow inbound connections only from the application service. Render links its managed database directly to the API, and the API verifies the database TLS certificate.
 - Place Cloudflare in front of the public web domain. Enable managed WAF rules, DDoS protection, bot protection, HTTPS redirects, and rate limits for `/api/*`. Restrict direct API access to Cloudflare if the host supports Cloudflare IP allow-lists.
-- API JSON requests are limited to 4 MiB. Private API access is limited to 120 requests per source IP per minute per app instance; enforce shared limits at Cloudflare when scaling to multiple instances.
+- API JSON requests are limited to 4 MiB. API traffic (except health checks and CORS preflights) is limited to 60 requests per source IP per minute. Exceeding the limit blocks that IP for 15 minutes; repeat violations increase the block duration up to 24 hours. Blocks live in process memory and reset on restart. Use Cloudflare rate limiting/WAF for persistent, multi-instance, and network-level blocking.
 - The current application does not implement blob uploads or external URL fetching. Local MinIO is development-only and must not be published.
-- This single-owner application does not include accounts, account recovery, or MFA. Rotate `ADMIN_ACCESS_TOKEN` in deployment secrets to revoke browser access.
+- The app does not include accounts or per-user authorization. Any IP that stays under the rate limit can call resume management endpoints directly.
 
 ## Architecture
 

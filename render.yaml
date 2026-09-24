@@ -13,10 +13,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: ADMIN_ACCESS_TOKEN
-        generateValue: true
-      - key: TRUST_PROXY
-        value: "true"
       - key: PERSISTENCE
         value: postgres
       - key: POSTGRES_SSL

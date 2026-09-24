@@ -902,6 +902,14 @@ export class UniverseComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    // Keep the navigation usable when WebGL is unavailable or blocked.
+    try {
+      this.renderer = new THREE.WebGLRenderer({\n        canvas,\n        antialias: !this.prefersAdaptiveQuality(),\n        alpha: false,\n      });
+    } catch {
+      this.finishIntro();
+      return;
+    }
+
     const lowPower = this.prefersAdaptiveQuality();
     const pixelRatio = Math.min(window.devicePixelRatio, lowPower ? 1.15 : 1.7);
 
@@ -909,7 +917,6 @@ export class UniverseComponent implements AfterViewInit, OnDestroy {
     this.camera = new THREE.PerspectiveCamera(54, window.innerWidth / window.innerHeight, 0.1, 320);
     this.camera.position.set(0, 0, 60);
 
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !lowPower, alpha: false });
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setClearColor(0x010205, 1);

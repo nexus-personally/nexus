@@ -4,6 +4,7 @@ import './app3d.css'
 import { Guide } from './guide'
 import { audio, loadAudioSettings, type AudioCue, type AudioSettings } from './audio'
 import { RoomPanel, useRoomNetwork } from './rooms'
+import { LandscapeGate } from './landscape-gate'
 import {
   aiChooseDiscard, aiClaim, buildTiles, declareSelfKong, declareSelfWin, discard,
   currentFanPreview, evaluateWin, label, newGame, nextHand, resolveReaction, seatWind, selfKongs,
@@ -207,7 +208,7 @@ function App() {
     <header className="lobby-header"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 3D 牌桌</small></div><div className="lobby-header-actions"><button onClick={() => setGuide(true)}>玩法說明</button><button onClick={() => { void audio.unlock(); setShowAudioSettings(true) }}>聲音設定</button></div></header>
     {!network.account ? <main className="auth-stage"><section className="auth-brand"><h1>港雀</h1><p className="auth-english">HONG KONG MAHJONG</p><p className="auth-invite">一枱麻雀，<br />連繫香港的情與局。</p><img src="/mahjong/assets/lobby-tiles.png" alt="發、中、二筒三張立起的麻將牌" /></section><div className="lobby-auth"><RoomPanel network={network} authOnly onReturn={() => setLobby(false)} /></div></main> : <main className="lobby-content"><section><span className="eyebrow">歡迎入座</span><h1>開枱，<br /><em>打一圈。</em></h1><p>真正立體的麻雀桌。登入後可選擇單機對戰，或透過房間碼與朋友同桌。</p><div className="lobby-tags"><span>香港麻雀</span><span>朋友房間</span><span>局域網／線上</span></div></section>
       <div className="lobby-modes" data-active={lobbyMode}><div className="lobby-switch" role="tablist" aria-label="選擇遊戲方式"><button role="tab" aria-selected={lobbyMode === 'solo'} onClick={() => setLobbyMode('solo')}>單機對戰</button><button role="tab" aria-selected={lobbyMode === 'room'} onClick={() => setLobbyMode('room')}>朋友開房</button></div><section className="mode-panel"><h2>單機對戰 <span>✦</span></h2>{game && !inRoom && <button onClick={() => { void audio.unlock(); setLobby(false) }}><b>繼續上次牌局</b><small>{game.count} 人 · 第 {game.handNumber} 局</small></button>}<button onClick={() => start(4)}><b>四人香港麻雀</b><small>144 張 · 花牌 · 三番起胡</small></button><button onClick={() => start(3)}><b>三人港式變體</b><small>116 張 · 可吃牌 · 三番起胡</small></button></section><RoomPanel network={network} onReturn={() => setLobby(false)} /></div>
-    </main>}{guide && <Guide onClose={() => setGuide(false)} />}{showAudioSettings && <AudioSettingsPanel settings={audioSettings} onChange={updateAudio} onClose={() => setShowAudioSettings(false)} />}
+    </main>}{guide && <Guide onClose={() => setGuide(false)} />}{showAudioSettings && <AudioSettingsPanel settings={audioSettings} onChange={updateAudio} onClose={() => setShowAudioSettings(false)} />}<LandscapeGate />
   </div>
 
   const me = game.players[0]
@@ -236,7 +237,7 @@ function App() {
     {showAudioSettings && <AudioSettingsPanel settings={audioSettings} onChange={updateAudio} onClose={() => setShowAudioSettings(false)} />}
     {(game.phase === 'result' || game.phase === 'match-result') && <div className="modal-shade"><div className="result-panel"><small>本局結算</small><h2>{game.phase === 'match-result' ? '東南圈完成' : game.result?.message}</h2>{game.result?.winner != null && <strong>{game.result.fan} 番</strong>}<div>{game.result?.items.map((item, index) => <p key={index}>{item.name}<b>+{item.fan}</b></p>)}</div><div className="scores">{game.players.map((player, index) => <span key={index}>{player.name} {player.score >= 0 ? '+' : ''}{player.score}</span>)}</div>{!inRoom || network.room?.hostId === network.account?.id ? <button onClick={() => !inRoom && game.phase === 'match-result' ? setLobby(true) : act('next')}>{game.phase === 'match-result' ? inRoom ? '開始新一圈' : '返回首頁' : '繼續下一局'}</button> : <p>等待房主開始下一局</p>}</div></div>}
     {toast && <div className="toast">{toast}</div>}
-  </div><div className="rotate-message">請將手機橫放，享受完整牌桌</div></div>
+  </div><LandscapeGate /></div>
 }
 
 function AudioSettingsPanel({ settings, onChange, onClose }: { settings: AudioSettings; onChange: (patch: Partial<AudioSettings>) => void; onClose: () => void }) {

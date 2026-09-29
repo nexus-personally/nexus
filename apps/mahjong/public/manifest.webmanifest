@@ -3,7 +3,7 @@
   "short_name": "港雀",
   "lang": "zh-Hant",
   "start_url": "/mahjong/",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#122b29",
   "theme_color": "#122b29",

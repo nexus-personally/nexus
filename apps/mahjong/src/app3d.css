@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@500;700;900&display=swap');
+:root{font-family:'Noto Sans TC',sans-serif;color:#f8eddb;background:#07121b;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;min-width:320px}button{font:inherit;cursor:pointer}button:disabled{cursor:default}button:focus-visible{outline:3px solid #f0c982;outline-offset:3px}
+.play-page{width:100vw;height:100dvh;display:grid;place-items:center;background:#07121b;overflow:hidden}
+.game-screen{position:relative;width:min(100vw,177.683vh);height:min(100dvh,56.28vw);container-type:size;overflow:hidden;background:#07121b url('/mahjong/assets/night-table.png') center/100% 129% no-repeat;isolation:isolate}
+.three-table{position:absolute;inset:0;z-index:1}.three-table canvas{width:100%;height:100%;display:block;cursor:pointer}
+.loading-scene{position:absolute;inset:0;z-index:1;display:grid;place-items:center;color:#e4d4ae;font:700 1.3cqw 'Noto Serif TC',serif}
+.table-vignette{position:absolute;inset:0;z-index:2;pointer-events:none;background:linear-gradient(180deg,#06131b44 0%,transparent 22%,transparent 67%,#06131b44 100%)}
+.game-header{position:absolute;inset:0 0 auto;z-index:5;height:11%;display:flex;justify-content:space-between;align-items:flex-start;padding:1.2% 1.3%;pointer-events:none}.game-header button{pointer-events:auto}
+.brand{display:flex;flex-direction:column;line-height:1.04;text-shadow:0 3px 10px #000}.brand strong{font:900 2.5cqw 'Noto Serif TC',serif;letter-spacing:.14em;color:#fff0d3}.brand small{font-size:.72cqw;letter-spacing:.25em;margin-top:.45cqh;color:#f0d7b6}
+.round-tag{position:absolute;top:.5cqh;left:50%;transform:translateX(-50%);min-width:18cqw;text-align:center;padding:.45cqh 1cqw;border:1px solid #e4c59177;border-radius:.85cqw;background:#0b1a29d9;box-shadow:0 5px 15px #0008;color:#f2dbb8;font:700 1.2cqw 'Noto Serif TC',serif;white-space:nowrap}.round-tag small{display:block;font:.65cqw 'Noto Sans TC',sans-serif;margin-top:.3cqh}
+.header-actions{margin-left:auto;display:flex;gap:.45cqw}.header-actions button{border:1px solid #e6d4ac88;background:#101d2bde;color:#f9eeda;border-radius:.65cqw;padding:.6cqh .8cqw;font-size:.75cqw;font-weight:700;box-shadow:0 3px 11px #0006}
+.seat-info,.my-status{position:absolute;z-index:4;display:flex;align-items:center;gap:.7cqw;padding:.35cqh .7cqw;border:1px solid #b0d1cb70;border-radius:.85cqw;background:#0a1b29df;box-shadow:0 6px 14px #0007;pointer-events:none}.seat-info>span,.my-status>span{width:2.65cqw;height:2.65cqw;display:grid;place-items:center;border-radius:50%;border:1px solid #e9d6ae99;background:#17343b;color:#fff1d4;font:900 1.8cqw 'Noto Serif TC',serif}.seat-info>div,.my-status>div{display:flex;flex-direction:column;line-height:1.3}.seat-info b,.my-status b{font:700 1.05cqw 'Noto Serif TC',serif}.seat-info small,.my-status small{font-size:.67cqw;color:#c9d8d2}
+.seat-1{left:3.3%;top:33%}.seat-2{left:22%;top:9%}.seat-3{right:3.3%;top:33%}.my-status{left:1.8%;top:60%;border:none;background:#081b29b3}.my-status>span{width:3.3cqw;height:3.3cqw;background:#822e31;border-color:#f0c476;box-shadow:0 0 14px #e68d5766;font-size:2.2cqw}.my-status b{font-size:1.45cqw}.my-status small{font-size:.78cqw}
+.center-status{position:absolute;z-index:4;left:50%;top:43%;transform:translate(-50%,-50%);width:18cqw;height:14cqh;border:1.5px solid #5bd4d8bc;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.3cqh;background:#081e2bdc;box-shadow:0 0 0 .45cqw #0619257a,0 0 20px #26bfcb50,inset 0 0 25px #164852;color:#f7e9d5;pointer-events:none;text-align:center}.center-status small{font-size:.75cqw}.center-status strong{font:800 1.45cqw 'Noto Serif TC',serif;color:#ffe2a3;text-shadow:0 0 10px #e6a84d;white-space:nowrap}.center-status span{font-size:.69cqw}.center-status em{font-style:normal;font-size:.85cqw;margin-top:.3cqh}
+.flowers{position:absolute;z-index:5;right:9%;top:60%;color:#ebd29d;font-size:.9cqw;background:#081a26b9;border-radius:.5cqw;padding:.5cqh .6cqw}.flowers span{display:none}.wall-note{position:absolute;z-index:4;left:50%;top:57%;transform:translateX(-50%);font-size:.63cqw;letter-spacing:.15em;color:#83d6d1b8;pointer-events:none}
+.action-row{position:absolute;z-index:7;bottom:2.9%;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:.55cqw;white-space:nowrap}.action-row button{min-width:7.2cqw;height:5.6cqh;border:1px solid #789da1;background:#112d39e8;color:#f3e8d7;border-radius:.65cqw;box-shadow:0 4px 0 #071723,0 6px 12px #0007;font:800 1.55cqw 'Noto Serif TC',serif;padding:0 .8cqw}.action-row button:hover:not(:disabled){filter:brightness(1.3)}.action-row button:disabled{opacity:.68}.action-row .discard-button{min-width:12.8cqw;background:#68502d;border-color:#e6bc71;color:#fff0d1;box-shadow:0 4px 0 #35261a,0 0 14px #c68a3770}.action-row .hot{background:#913935;border-color:#f17964}.action-row .hint-button{min-width:3.5cqw;font:600 .75cqw 'Noto Sans TC',sans-serif;padding:0 .3cqw}.turn-note{position:absolute;right:calc(100% + 2cqw);font-size:.8cqw;color:#f7d997}
+.hand-access{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.hand-access button.chosen{outline:3px solid #f3bc68}
+.modal-shade{position:absolute;inset:0;z-index:20;display:grid;place-items:center;background:#041019c9}.guide-panel,.result-panel{position:relative;width:min(34cqw,520px);max-height:85cqh;overflow:auto;background:linear-gradient(145deg,#f4e7cb,#dfc9a6);color:#1e3b39;border:1px solid #f3d6a0;border-radius:1.2cqw;box-shadow:0 24px 60px #000a;padding:2.2cqw}.guide-panel h2,.result-panel h2{font:900 2.2cqw 'Noto Serif TC',serif;margin:0 0 1.2cqh}.guide-panel p{font-size:1cqw;line-height:1.75}.guide-panel button:not(.close),.result-panel button{border:none;border-radius:.6cqw;background:#173c40;color:#fff0d2;padding:.8cqh 1.6cqw;font-weight:700}.guide-panel .close{position:absolute;right:1cqw;top:1cqh;background:transparent;border:0;font-size:2cqw;color:#38504b}.result-panel{text-align:center}.result-panel>strong{font:900 3.5cqw 'Noto Serif TC',serif;color:#a94035}.result-panel p{display:flex;justify-content:space-between;border-top:1px solid #baa788;padding:.35cqh 0;font-size:.9cqw}.scores{display:flex;justify-content:space-around;margin:1cqh 0;font-size:.8cqw}.toast{position:absolute;top:9%;left:50%;transform:translateX(-50%);z-index:30;background:#17313b;color:#fff0d7;border:1px solid #74c5c1;padding:.6cqh 1cqw;border-radius:.5cqw;font-size:.85cqw}
+.rotate-message{display:none}
+.lobby-3d{min-height:100dvh;background:#07121b url('/mahjong/assets/night-table.png') center/cover no-repeat;position:relative}.lobby-3d::before{content:'';position:absolute;inset:0;background:#06131acb}.lobby-header{position:relative;z-index:2;display:flex;justify-content:space-between;padding:22px 4vw}.lobby-header .brand strong{font-size:28px}.lobby-header .brand small{font-size:10px}.lobby-header button{align-self:start;padding:10px 18px;border:1px solid #bdac8a;border-radius:30px;background:#10252dc9;color:#f4ddae}.lobby-content{position:relative;z-index:2;max-width:1150px;min-height:calc(100dvh - 100px);margin:auto;padding:5vh 28px;display:grid;grid-template-columns:1fr 440px;gap:10%;align-items:center}.eyebrow{font-size:11px;letter-spacing:.2em;color:#e8c67f}.lobby-content h1{font:900 clamp(64px,8vw,120px) 'Noto Serif TC',serif;line-height:1.17;letter-spacing:.08em;margin:24px 0}.lobby-content h1 em{color:#dfb769;font-style:normal}.lobby-content section>p{max-width:480px;color:#d3ded5;font-size:15px;line-height:1.9}.lobby-tags{display:flex;gap:18px;font-size:12px;color:#ebca8f}.mode-panel{padding:25px;background:#102b35e8;border:1px solid #5aa9a8a1;border-radius:17px;box-shadow:0 20px 50px #0009}.mode-panel h2{display:flex;justify-content:space-between;font:700 24px 'Noto Serif TC',serif;margin:0 0 15px}.mode-panel h2 span{color:#d4a960}.mode-panel button{display:flex;flex-direction:column;text-align:left;gap:5px;width:100%;border:1px solid #609b9a;background:#1a3c45;color:#f8e9d2;border-radius:12px;margin:10px 0;padding:17px}.mode-panel button:hover{background:#27525a}.mode-panel b{font-size:17px}.mode-panel small{font-size:12px;color:#bdcfc8}.mode-panel p{font-size:12px;color:#aac6c2;margin:15px 0 0;line-height:1.7}
+@media(max-width:750px){.lobby-content{display:flex;flex-direction:column;align-items:stretch;gap:25px;padding:20px 24px 60px}.lobby-content h1{font-size:64px}.mode-panel{max-width:none}.play-page:has(.game-screen){min-height:100dvh}}
+@media(max-width:570px) and (orientation:portrait){.rotate-message{display:grid;position:fixed;inset:0;z-index:40;place-items:center;padding:25px;text-align:center;background:#081d25;color:#f0ddae;font:700 20px 'Noto Serif TC',serif}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+/* 茶樓桌面：背景只承載場景，牌牆、手牌及棄牌均由 3D 場景繪製。 */
+:root{background:#1c1109;color:#f8edd9}
+.lobby-modes{display:grid;gap:18px;max-height:78dvh;overflow:auto;padding:4px}.lobby-modes .mode-panel{padding:20px}.lobby-modes .mode-panel button{padding:12px;margin:7px 0}.room-panel{padding:22px;background:#102b35ee;border:1px solid #c9a97099;border-radius:17px;box-shadow:0 20px 50px #0009}.room-panel h2{display:flex;justify-content:space-between;font:700 24px 'Noto Serif TC',serif;margin:0 0 8px}.room-panel h2 span{color:#d4a960}.room-panel .room-subtitle{font-size:12px;line-height:1.5;color:#d4ddd4;margin:0 0 15px}.room-panel button{border:1px solid #84afa5;border-radius:8px;background:#215448;color:#f8ead4;padding:8px 12px;font-weight:700}.room-panel button:disabled{opacity:.5}.room-panel input{width:100%;min-width:0;padding:9px 11px;border:1px solid #7aa198;border-radius:7px;background:#f4ead7;color:#18382f;font:inherit}.room-panel form{display:grid;gap:10px}.room-panel form label{display:grid;gap:4px;font-size:12px}.room-panel form>button{margin-top:4px}.room-tabs{display:flex;gap:6px;margin-bottom:14px}.room-tabs button{flex:1;font-size:12px;background:#1b3941}.room-tabs button.active{background:#a17a3c;color:#fff}.room-account{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:15px}.room-account span{flex:1;font-size:12px;color:#c8d4c9}.room-account button{font-size:11px}.room-create{display:grid;gap:9px}.room-create>div{display:flex;gap:8px}.room-create>div input{flex:1}.room-code{display:flex;align-items:center;gap:10px;margin:12px 0}.room-code strong{letter-spacing:.16em;color:#f2ca7a;font-size:20px}.room-code button{margin-left:auto}.room-seats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.room-seats>div{display:grid;grid-template-columns:26px 1fr;column-gap:7px;padding:8px;border:1px solid #659589;border-radius:8px;background:#0c3030}.room-seats span{grid-row:span 2;color:#e9c378;font-size:21px}.room-seats b{font-size:13px}.room-seats small{font-size:10px;color:#a9c9bd}.room-controls{display:flex;gap:8px;margin-top:12px}.room-warning,.room-error{display:block;color:#ffbd9d;font-size:11px;line-height:1.5;margin-top:10px}.room-notice{color:#bfe4c9;font-size:12px}
+.play-page{background:#1c1109}
+.game-screen{background:#064426 url('/mahjong/assets/tea-house-table.png') center/100% 100% no-repeat}
+.table-vignette{background:linear-gradient(180deg,#1c100b20,transparent 16%,transparent 82%,#1b0f0820)}
+.brand strong{font-size:2.9cqw;color:#fff0d5;text-shadow:0 2px 2px #321907,0 5px 10px #130900}
+.brand small{font-size:.69cqw;color:#ead2a9}
+.round-tag{top:1.7cqh;min-width:29cqw;padding:.75cqh 1.3cqw;border:1px solid #b88a48;border-radius:.3cqw;background:#08291cdd;box-shadow:0 0 0 .18cqw #271806aa,0 4px 16px #0009;color:#f8e6c4;font-size:1.25cqw}
+.round-tag span{display:inline-block;margin-left:1.6cqw;padding-left:1.6cqw;border-left:1px solid #b69c6f;color:#f3d391}
+.header-actions button{border-color:#b58a51;background:#1c130ddc;border-radius:.3cqw;color:#f9e5c5}
+.header-actions .cancel-room-game{border-color:#d39876;background:#572820e8;color:#ffe4cf}
+.seat-info,.my-status{border-color:#bd9257;border-radius:.35cqw;background:#10251cdd;box-shadow:0 4px 10px #0009}
+.seat-info>span,.my-status>span{border-radius:.25cqw;border-color:#c79d63;background:#132e1e}
+.seat-info small,.my-status small{color:#e6d3ad}
+.seat-1{left:auto;right:2.9%;top:32%}.seat-2{left:21%;top:10%}.seat-3{left:2.9%;right:auto;top:32%}
+.seat-1.three-player-seat{left:auto;right:2.9%;top:32%}
+.seat-2.three-player-seat{left:21%;right:auto;top:10%}
+.my-status{left:1.9%;top:61%}.my-status>span{background:#6e241d;border-color:#dcae67;box-shadow:0 0 10px #d8854c55}
+.center-status{top:40.8%;width:5.6cqw;height:9.5cqh;gap:0;border:1px solid #aa8c59;border-radius:.25cqw;background:#10261ae8;box-shadow:0 2px 10px #0009,inset 0 0 0 .24cqw #24160da6;color:#efdcbc}
+.center-status small{font-size:.58cqw}.center-status strong{font-size:1.9cqw;line-height:1.14;color:#e5bb74;text-shadow:none}.center-status span{font-size:.52cqw}.center-status em{display:none}
+.wall-note{left:2.5%;top:70%;transform:none;padding:.25cqh .5cqw;border-radius:.25cqw;background:#10271bad;color:#ecd59e;font-size:.72cqw;letter-spacing:0}
+.flowers{top:62%;right:3.5%;color:#f0d3a0;background:#10251bc9;border:1px solid #a9834e;border-radius:.25cqw}
+.action-row{bottom:5.5%;gap:.65cqw}.action-row button{height:7.3cqh;min-width:8.6cqw;border-color:#bd9259;border-radius:.5cqw;background:#10271be8;box-shadow:0 3px 0 #251609,0 6px 12px #0007;color:#f9e8d0;font-size:1.6cqw}.action-row button:disabled{opacity:.8}.action-row .discard-button{min-width:14cqw;background:#cf9145;border-color:#f4ca80;color:#241504;box-shadow:0 3px 0 #5c3216,0 0 11px #e6a44b77}.action-row .hot{background:#8c3227;border-color:#df8f69}.action-row .hint-button{min-width:4cqw;font-size:.8cqw}.turn-note{display:none}
+.lobby-3d{background-image:url('/mahjong/assets/tea-house-table.png')}.lobby-3d::before{background:#071c12cb}.mode-panel{background:#0c2a1fdf;border-color:#b3925c}.mode-panel button{background:#17432c;border-color:#b3925c}.mode-panel button:hover{background:#26613a}
+@media(min-width:751px){.lobby-content>section:first-child,.lobby-content>.lobby-modes{transform:translateY(-6vh)}}
+.lobby-switch{display:none}
+.lobby-auth{width:100%;max-width:440px;justify-self:end}.lobby-auth .room-panel{width:100%}
+@media(max-width:1200px) and (max-height:650px) and (orientation:landscape){
+  .lobby-3d{height:100dvh;min-height:0;overflow:hidden}
+  .lobby-header{height:50px;padding:7px 2vw;align-items:center}
+  .lobby-header .brand strong{font-size:21px}.lobby-header .brand small{font-size:8px;margin-top:2px}
+  .lobby-header-actions{gap:6px}.lobby-header button{padding:6px 11px;font-size:11px;min-height:34px}
+  .lobby-content{height:calc(100dvh - 50px);min-height:0;max-width:none;padding:4px 2vw 8px;display:grid;grid-template-columns:minmax(190px,32%) minmax(0,1fr);gap:2vw;align-items:center}
+  .lobby-content{width:min(72vw,800px);height:calc(100dvh - 105px);padding:0;grid-template-columns:minmax(0,39%) minmax(0,61%);gap:14px;transform:translateY(-9px)}
+  .lobby-content>section:first-child,.lobby-content>.lobby-modes{transform:none}
+  .lobby-content>section:first-child{align-self:center;max-height:100%;overflow:hidden}
+  .lobby-content h1{font-size:clamp(32px,4.3vw,51px);line-height:1.04;margin:7px 0;letter-spacing:.02em}
+  .lobby-content .eyebrow{font-size:10px}.lobby-content section>p{font-size:11px;line-height:1.4;margin:5px 0}
+  .lobby-tags{gap:7px;flex-wrap:wrap;font-size:10px;margin-top:8px}
+  .lobby-modes{height:100%;max-height:none;min-height:0;overflow:hidden;display:grid;grid-template-rows:32px minmax(0,1fr);gap:5px;padding:0}
+  .lobby-auth{max-width:none;max-height:100%;overflow-y:auto;align-self:center}.lobby-auth .room-panel{padding:10px 13px;border-radius:10px}.lobby-auth .room-panel h2{font-size:18px;margin-bottom:6px}.lobby-auth .room-subtitle{font-size:10px;margin-bottom:7px}.lobby-auth .room-tabs{margin-bottom:7px}.lobby-auth .room-tabs button{min-height:32px;padding:5px;font-size:11px}.lobby-auth .room-panel form{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 9px}.lobby-auth .room-panel form label{font-size:10px;gap:2px}.lobby-auth .room-panel form label:nth-of-type(3){grid-column:1/-1}.lobby-auth .room-panel form input{height:34px;padding:5px 8px;font-size:12px}.lobby-auth .room-panel form>button{grid-column:1/-1;min-height:36px;margin-top:0}
+  .lobby-switch{display:flex;gap:5px}.lobby-switch button{flex:1;border:1px solid #b3925c;border-radius:8px;background:#102d24;color:#e9d6b4;font-size:12px;font-weight:700}.lobby-switch button[aria-selected=true]{background:#a77c3b;color:#fff9e6}
+  .lobby-modes>.mode-panel,.lobby-modes>.room-panel{grid-row:2;min-height:0;max-height:100%;align-self:start;overflow-y:auto;overscroll-behavior:contain;padding:9px 11px;border-radius:10px}
+  .lobby-modes[data-active=solo]>.room-panel,.lobby-modes[data-active=room]>.mode-panel{display:none}
+  .mode-panel h2,.room-panel h2{font-size:18px;margin-bottom:6px}.lobby-modes .mode-panel button{padding:9px 11px;margin:5px 0;gap:2px}.mode-panel b{font-size:14px}.mode-panel small{font-size:10px}
+  .room-panel .room-subtitle{font-size:10px;line-height:1.3;margin:0 0 6px;max-width:none}.room-tabs{margin-bottom:7px}.room-tabs button{min-height:32px;padding:5px;font-size:11px}
+  .room-panel form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 9px}.room-panel form label{font-size:10px;gap:2px}.room-panel form input{height:34px;padding:5px 8px;font-size:12px}.room-panel form>button{grid-column:1/-1;min-height:36px;margin-top:0}
+  .room-panel button{min-height:34px;padding:5px 9px;font-size:11px}.room-account{margin-bottom:6px;gap:5px}.room-account span{min-width:115px;font-size:10px}.room-account button{min-height:30px}
+  .room-create{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.room-create>div{grid-column:1/-1}.room-create input{height:35px}.room-code{margin:6px 0}.room-seats{gap:5px}.room-seats>div{padding:5px}.room-controls{margin-top:7px}
+}
+@media(max-width:750px){.round-tag{top:1.2cqh}.action-row{bottom:5%;gap:.4cqw}.action-row button{min-width:7.8cqw;height:7cqh}.action-row .discard-button{min-width:12cqw}.seat-info small,.my-status small{font-size:.72cqw}.wall-note{top:70%}}
+@media(max-width:1000px) and (max-height:500px) and (orientation:landscape){
+  .lobby-3d:not(.is-auth) .lobby-content{width:66vw;height:calc(100dvh - 76px);grid-template-columns:minmax(0,41%) minmax(0,59%);gap:10px;transform:translateY(-6px)}
+  .lobby-3d:not(.is-auth) .lobby-content h1{font-size:clamp(30px,4vw,39px);margin:5px 0}
+  .lobby-3d:not(.is-auth) .lobby-content .eyebrow{font-size:9px}
+  .lobby-3d:not(.is-auth) .lobby-content section>p{font-size:9px;line-height:1.25;margin:4px 0}
+  .lobby-3d:not(.is-auth) .lobby-tags{font-size:8px;gap:5px;margin-top:5px}
+  .lobby-3d:not(.is-auth) .lobby-modes{grid-template-rows:28px minmax(0,1fr);gap:4px}
+  .lobby-3d:not(.is-auth) .lobby-switch button{font-size:10px;border-radius:6px}
+  .lobby-3d:not(.is-auth) .lobby-modes>.room-panel,.lobby-3d:not(.is-auth) .lobby-modes>.mode-panel{padding:7px 9px;border-radius:8px}
+  .lobby-3d:not(.is-auth) .room-panel h2,.lobby-3d:not(.is-auth) .mode-panel h2{font-size:15px;margin-bottom:3px}
+  .lobby-3d:not(.is-auth) .room-panel .room-subtitle{font-size:9px;line-height:1.22;margin-bottom:4px}
+  .lobby-3d:not(.is-auth) .room-account{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-rows:repeat(2,minmax(0,auto));gap:1px 4px;margin-bottom:5px;align-items:center}
+  .lobby-3d:not(.is-auth) .room-account b{grid-column:1;grid-row:1;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lobby-3d:not(.is-auth) .room-account span{grid-column:1;grid-row:2;min-width:0;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lobby-3d:not(.is-auth) .room-account button{grid-row:1/3}
+  .lobby-3d:not(.is-auth) .room-panel button{min-height:26px;padding:3px 6px;font-size:10px}
+  .lobby-3d:not(.is-auth) .room-create{gap:4px}
+  .lobby-3d:not(.is-auth) .room-create>div{gap:4px}
+  .lobby-3d:not(.is-auth) .room-create input{height:28px;padding:3px 7px;font-size:11px}
+  .lobby-3d:not(.is-auth) .room-panel form{gap:4px 6px}
+  .lobby-3d:not(.is-auth) .room-panel form label{font-size:9px;gap:2px}
+  .lobby-3d:not(.is-auth) .room-panel form input{height:27px;padding:3px 6px;font-size:11px}
+  .lobby-3d:not(.is-auth) .room-code{gap:5px;margin:4px 0;font-size:10px;white-space:nowrap}
+  .lobby-3d:not(.is-auth) .room-code strong{font-size:15px;letter-spacing:.1em}
+  .lobby-3d:not(.is-auth) .room-code button{margin-left:auto}
+  .lobby-3d:not(.is-auth) .room-seats{gap:4px}
+  .lobby-3d:not(.is-auth) .room-seats>div{grid-template-columns:19px minmax(0,1fr);column-gap:4px;padding:3px 5px;border-radius:5px}
+  .lobby-3d:not(.is-auth) .room-seats span{font-size:16px;line-height:1.5}
+  .lobby-3d:not(.is-auth) .room-seats b{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lobby-3d:not(.is-auth) .room-seats small{font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lobby-3d:not(.is-auth) .room-controls{gap:4px;margin-top:4px}
+  .lobby-3d:not(.is-auth) .room-lobby>button{margin-top:4px}
+  .lobby-3d:not(.is-auth) .lobby-modes .mode-panel button{min-height:40px;padding:5px 8px;margin:4px 0}
+  .lobby-3d:not(.is-auth) .mode-panel b{font-size:11px}
+  .lobby-3d:not(.is-auth) .mode-panel small{font-size:9px}
+}
+@media(max-width:1100px) and (orientation:landscape){.game-screen{width:100vw;height:100dvh}.brand strong{font-size:max(21px,2.9cqw)}.brand small{font-size:max(8px,.69cqw)}.round-tag{font-size:max(11px,1.25cqw)}.seat-info b,.my-status b{font-size:max(10px,1.05cqw)}.seat-info small,.my-status small{font-size:max(8px,.72cqw)}.action-row{bottom:4%}.action-row button{height:max(36px,7cqh);font-size:max(15px,1.6cqw)}}
+.action-row .action-ready{position:relative;z-index:1;border-color:#ffe3a0;background:#75501f;color:#fff8e9;box-shadow:0 3px 0 #39240c,0 0 9px #ffcf65bd,0 0 23px #ffc95b85;animation:action-ready-glow 1.8s ease-in-out infinite}
+.action-row .action-ready[data-action-kind="胡"]{border-color:#ffd49e;background:#9f3c30;box-shadow:0 3px 0 #471812,0 0 11px #ffb469d9,0 0 27px #ff695c85}
+.action-row .action-ready[data-action-kind="胡"]{animation-name:action-win-glow}
+@keyframes action-ready-glow{50%{filter:brightness(1.18);box-shadow:0 3px 0 #39240c,0 0 16px #ffe19ae6,0 0 34px #ffc95baa}}
+@keyframes action-win-glow{50%{filter:brightness(1.18);box-shadow:0 3px 0 #471812,0 0 17px #ffd49ef0,0 0 37px #ff695caf}}
+@media(prefers-reduced-motion:reduce){.action-row .action-ready{animation:none}}
+.my-status .current-fan{margin-top:.2cqh;color:#ffdc8f;font-weight:800;text-shadow:0 0 7px #d28e4399}
+.guide-panel{width:min(68cqw,1050px);height:auto;max-height:82cqh;overflow:hidden;display:grid;grid-template-rows:auto minmax(0,auto) auto;gap:1.1cqh;padding:1.5cqw;border-radius:.7cqw;background:linear-gradient(145deg,#f3e5c7,#dec7a0)}
+.guide-heading small{font-size:clamp(11px,.7cqw,15px);font-weight:800;letter-spacing:.08em;color:#78613c}.guide-heading h2{font-size:clamp(21px,1.7cqw,34px);margin:.2cqh 0}.guide-heading p{font-size:clamp(12px,.78cqw,16px);line-height:1.4;margin:.2cqh 2cqw .2cqh 0}.guide-panel .close{font-size:clamp(23px,2cqw,34px)}
+.guide-cards{min-height:0;max-height:64cqh;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:.8cqw;padding:.2cqw}.guide-card{min-width:0;border:1px solid #bba57b;border-radius:.5cqw;padding:.65cqw;background:#fff8e6c9;box-shadow:0 2px 6px #59432124}.guide-card-title{display:flex;align-items:center;justify-content:space-between;gap:.5cqw;color:#173e2c;font-size:clamp(13px,1cqw,19px)}.guide-card-title b{white-space:nowrap;color:#a53c24}.guide-card p{font-size:clamp(11px,.69cqw,14px);line-height:1.35;margin:.45cqh 0 0;color:#514936}.guide-tiles{display:flex;align-items:center;gap:.12cqw;max-width:100%;min-height:3.6cqh;overflow-x:auto;padding:.4cqh 0}.guide-tiles img{flex:none;width:clamp(15px,1.8cqw,25px);aspect-ratio:5/7;object-fit:contain;background:#f8f4e9;border:1px solid #b3aa96;border-bottom:3px solid #126444;border-radius:3px;box-shadow:1px 2px 2px #0003}
+.guide-pagination{display:flex;align-items:center;justify-content:space-between;gap:1cqw}.guide-pagination>span{display:flex;gap:.45cqw}.guide-panel .guide-pagination button{padding:.45cqh 1cqw;font-size:clamp(11px,.7cqw,15px)}.guide-panel .guide-pagination button:disabled{opacity:.45}.guide-panel .guide-pagination span button{min-width:0;width:.65cqw;height:.65cqw;padding:0;border-radius:50%;background:#9eac95}.guide-panel .guide-pagination span button.selected{background:#a44b2c;outline:2px solid #e5bb7a}
+@media(max-width:750px){.guide-panel{width:95cqw;max-height:88cqh;padding:1.3cqw}.guide-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.guide-card{padding:.7cqw}.guide-tiles img{width:clamp(14px,1.75cqw,19px)}}
+.lobby-header-actions{display:flex;gap:10px}.audio-panel{position:relative;width:min(34cqw,540px);max-height:86cqh;overflow:auto;padding:1.7cqw 2cqw;border:1px solid #d8b579;border-radius:.7cqw;background:linear-gradient(145deg,#f3e5c7,#dfc79f);color:#223f30;box-shadow:0 20px 60px #000b}.audio-panel>small{font-weight:800;color:#8d7048}.audio-panel h2{margin:.25cqh 0 1.2cqh;font:900 clamp(23px,1.7cqw,34px) 'Noto Serif TC',serif}.audio-close{position:absolute;top:.8cqw;right:1cqw;border:0;background:transparent;color:#29483c;font-size:2cqw}.audio-mute{display:flex;align-items:center;gap:.7cqw;font-weight:800;margin-bottom:1cqh}.audio-mute input{width:1.2cqw;height:1.2cqw;accent-color:#235d40}.audio-slider{display:grid;grid-template-columns:6.5cqw 1fr 3cqw;align-items:center;gap:.8cqw;margin:.8cqh 0;font-size:clamp(12px,.8cqw,16px);font-weight:700}.audio-slider input{width:100%;accent-color:#356d4b}.audio-slider output{text-align:right}.audio-language{display:flex;align-items:center;justify-content:space-between;margin:1.3cqh 0;font-weight:700}.audio-language select{padding:.45cqh .6cqw;border:1px solid #a38e68;border-radius:.3cqw;background:#fff9e9;color:#213f31}.audio-panel p{font-size:clamp(11px,.7cqw,14px);line-height:1.4;color:#645c46}.audio-panel-actions{display:flex;justify-content:flex-end;gap:.7cqw}.audio-panel-actions button{padding:.6cqh 1cqw;border:1px solid #b99457;border-radius:.3cqw;background:#174632;color:#fff2d5;font-weight:700}
+@media(max-width:1100px) and (orientation:landscape){.audio-panel{width:min(68cqw,600px);padding:1.5cqw}.audio-slider{grid-template-columns:11cqw 1fr 5cqw}.audio-mute input{width:18px;height:18px}}
+
+/* 登入頁：按選定的左右雙區構圖，讓表單直接落在綠色桌布上。 */
+.lobby-3d.is-auth{min-height:100dvh;overflow:hidden;background-position:center;background-size:100% 100%}
+.lobby-3d.is-auth::before{background:#001c11a1}
+.is-auth .lobby-header{position:absolute;inset:0 0 auto;height:72px;padding:19px 4vw;z-index:3}
+.is-auth .lobby-header .brand{visibility:hidden}
+.auth-stage{position:relative;z-index:2;min-height:100dvh;width:min(75vw,1050px);margin:auto;display:grid;grid-template-columns:46% 54%;align-items:center;gap:0;padding:72px 0 25px}
+.auth-brand{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 6% 0 3%}
+.auth-brand h1{margin:0;color:#e9c17b;text-shadow:0 3px 1px #3a220b,0 8px 13px #000b;font:900 clamp(66px,8.7vw,132px)/1 'Noto Serif TC',serif;letter-spacing:.11em}
+.auth-english{width:min(90%,380px);margin:10px 0 20px;padding-bottom:11px;border-bottom:1px solid #caa56399;letter-spacing:.38em;color:#e6c780;font-size:clamp(10px,.85vw,14px);white-space:nowrap}
+.auth-invite{margin:0;color:#f1e0bc;font:700 clamp(20px,2.1vw,32px)/1.55 'Noto Serif TC',serif;letter-spacing:.12em}
+.auth-brand img{display:block;width:min(49%,245px);height:auto;margin:15px 0 0;object-fit:contain;filter:drop-shadow(0 12px 9px #0009)}
+.is-auth .lobby-auth{max-width:none;width:100%;justify-self:stretch;overflow:visible}
+.is-auth .lobby-auth .room-panel{padding:0;background:transparent;border:0;border-radius:0;box-shadow:none}
+.is-auth .room-panel h2{display:block;margin:0 0 12px;text-align:center;color:#f7e9cb;font:900 clamp(30px,3.2vw,52px) 'Noto Serif TC',serif;letter-spacing:.14em}
+.is-auth .room-panel .room-subtitle{display:none}
+.is-auth .room-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:0 0 20px;border:1px solid #c69e5e;border-radius:14px;overflow:hidden}
+.is-auth .room-tabs button{min-height:50px;border:0;border-right:1px solid #b18f57;border-radius:0;background:#002e1edb;color:#f8e9c9;font-size:clamp(13px,1.1vw,17px)}
+.is-auth .room-tabs button:last-child{border-right:0}
+.is-auth .room-tabs button.active{background:#c79645;color:#fff9e9}
+.is-auth .room-panel form{display:grid;grid-template-columns:1fr;gap:12px}
+.is-auth .room-panel form label,.is-auth .room-panel form label:nth-of-type(3){grid-column:auto;gap:6px;color:#fff0d5;font-size:clamp(13px,1vw,16px);font-weight:700}
+.is-auth .room-panel form input{height:54px;padding:10px 17px;border:1px solid #dfcfb3;border-radius:9px;background:#fff5e4;color:#263b2e;font-size:clamp(14px,1vw,17px)}
+.is-auth .room-panel form input:focus{outline:3px solid #e6b960;outline-offset:2px}
+.is-auth .room-panel form>button{grid-column:auto;min-height:57px;margin:4px 0 0;border:1px solid #edcb85;border-radius:9px;background:#d6a752;color:#123323;font:800 clamp(17px,1.4vw,22px) 'Noto Serif TC',serif}
+.is-auth .room-panel form>button:hover{background:#edc374}
+@media(min-width:1201px), (min-height:651px) and (orientation:landscape){.is-auth .auth-brand,.is-auth .lobby-auth{transform:translateY(-35px)}}
+@media(max-width:1200px) and (max-height:650px) and (orientation:landscape){
+  .is-auth .lobby-header{height:48px;padding:8px 3vw}.is-auth .lobby-header button{min-height:31px;padding:5px 10px;font-size:11px}
+  .auth-stage{width:76vw;height:100dvh;min-height:0;grid-template-columns:50% 50%;padding:47px 0 12px}
+  .auth-brand{padding-left:16%;transform:translateY(-22px)}.auth-brand h1{font-size:clamp(55px,9.5vw,94px)}.auth-english{margin:4px 0 8px;padding-bottom:6px;font-size:9px;letter-spacing:.28em}.auth-invite{font-size:clamp(16px,2.05vw,22px);line-height:1.37}.auth-brand img{width:min(53%,175px);margin-top:8px}
+  .is-auth .lobby-auth{width:84%;max-height:100%;justify-self:center;overflow-y:auto;padding:2px 0;transform:translate(-18px,-26px)}
+  .is-auth .room-panel h2{font-size:clamp(20px,2.4vw,25px);margin-bottom:4px}
+  .is-auth .room-tabs{margin-bottom:5px;border-radius:6px}.is-auth .room-tabs button{min-height:29px;font-size:10px}
+  .is-auth .room-panel form{gap:2px}.is-auth .room-panel form label,.is-auth .room-panel form label:nth-of-type(3){gap:1px;font-size:9px}.is-auth .room-panel form input{height:29px;padding:3px 8px;font-size:10px}.is-auth .room-panel form>button{min-height:31px;margin-top:2px;font-size:12px}
+}
+@media(max-width:750px) and (orientation:portrait){.lobby-3d.is-auth{overflow:auto;background-size:cover}.auth-stage{display:flex;flex-direction:column;gap:18px;min-height:100dvh;padding:64px 18px 35px}.auth-brand{align-items:center;text-align:center;padding:0}.auth-brand h1{font-size:64px}.auth-english{margin:5px 0 8px}.auth-invite{font-size:18px}.auth-brand img{width:130px;margin-top:8px}.is-auth .lobby-auth{width:100%}.is-auth .room-panel h2{font-size:27px}.is-auth .room-tabs button{min-height:42px;font-size:12px}.is-auth .room-panel form input{height:43px}}

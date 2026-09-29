@@ -4,11 +4,13 @@ import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { extname, resolve, sep } from 'node:path';
 import { BadRequestException } from '@nestjs/common';
 import type { FastifyInstance } from 'fastify';
 import { AppModule } from './app.module.js';
+import { registerMahjong } from '../../mahjong/server/index.mjs';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const rateLimitWindowMs = 60_000;
@@ -44,7 +46,7 @@ async function applySecurity(request: FastifyRequest, reply: FastifyReply): Prom
   reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   if (isProduction) {
     reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    reply.header('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https:; upgrade-insecure-requests");
+    reply.header('Content-Security-Policy', "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https: wss:; upgrade-insecure-requests");
   }
 
   const path = rawPath(request);
@@ -142,7 +144,8 @@ function clientAddress(request: FastifyRequest): string {
   return request.ip || 'unknown';
 }
 
-const webRoot = resolve(process.cwd(), 'apps/web/browser');
+const runtimeWebRoot = resolve(process.cwd(), 'apps/web/browser');
+const webRoot = existsSync(runtimeWebRoot) ? runtimeWebRoot : resolve(process.cwd(), 'dist/apps/web/browser');
 const mimeTypes: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -208,6 +211,8 @@ async function bootstrap() {
 
   const fastify = app.getHttpAdapter().getInstance() as FastifyInstance;
   fastify.addHook('onRequest', applySecurity);
+
+  await registerMahjong(fastify);
 
   fastify.get('/', serveWebFallback);
   fastify.get('/*', serveWebFallback);

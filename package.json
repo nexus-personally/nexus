@@ -16,7 +16,7 @@
     "db:local:up": "powershell -NoProfile -ExecutionPolicy Bypass -File infra/postgres-local.ps1 start",
     "db:local:down": "powershell -NoProfile -ExecutionPolicy Bypass -File infra/postgres-local.ps1 stop",
     "db:migrate": "npm --workspace @nexus/api run db:migrate",
-    "build": "npm run build --workspace @nexus/shared && npm run build --workspace @nexus/api && npm --workspace @nexus/web run build",
+    "build": "npm run build --workspace @nexus/shared && npm run build --workspace @nexus/api && npm --workspace @nexus/web run build && npm --workspace @nexus/mahjong run build",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run build --workspace @nexus/shared && npm run typecheck --workspace @nexus/api && npm --workspace @nexus/web run typecheck",

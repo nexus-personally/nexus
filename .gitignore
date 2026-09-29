@@ -7,3 +7,4 @@ coverage/
 work/
 /tmp/pdfs/
 *.log
+apps/mahjong/server/data/

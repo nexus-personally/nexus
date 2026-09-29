@@ -168,20 +168,19 @@ interface StarLayer {
         </span>
       </button>
 
-      <button
+      <a
         class="maintenance-node node-02"
-        type="button"
-        disabled
-        aria-label="System 02 under maintenance"
+        href="/mahjong/"
+        aria-label="Open System 02 Mahjong"
       >
         <span class="maintenance-ring" aria-hidden="true"></span>
         <span class="maintenance-core" aria-hidden="true"></span>
         <span class="maintenance-copy">
           <small>SYSTEM 02</small>
-          <strong>Work in progress</strong>
-          <em>Development in progress</em>
+          <strong>Mahjong</strong>
+          <em>Enter game</em>
         </span>
-      </button>
+      </a>
 
       <button
         class="maintenance-node node-03"
@@ -512,7 +511,13 @@ interface StarLayer {
       .node-02 {
         left: 31%;
         top: 35%;
+        cursor: pointer;
+        color: #e9d3ff;
+        text-decoration: none;
       }
+
+      .ready .node-02 { opacity: 1; }
+      .node-02:focus-visible { outline: 1px solid #c999ff; outline-offset: 8px; }
 
       .node-03 {
         left: 37%;

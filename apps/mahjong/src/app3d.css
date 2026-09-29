@@ -180,3 +180,15 @@ button,.lobby-3d,.game-screen{-webkit-user-select:none;user-select:none}
   .is-auth .room-panel form{gap:2px}.is-auth .room-panel form label,.is-auth .room-panel form label:nth-of-type(3){gap:1px;font-size:9px}.is-auth .room-panel form input{height:29px;padding:3px 8px;font-size:10px}.is-auth .room-panel form>button{min-height:31px;margin-top:2px;font-size:12px}
 }
 @media(max-width:750px) and (orientation:portrait){.lobby-3d.is-auth{overflow:auto;background-size:cover}.auth-stage{display:flex;flex-direction:column;gap:18px;min-height:100dvh;padding:64px 18px 35px}.auth-brand{align-items:center;text-align:center;padding:0}.auth-brand h1{font-size:64px}.auth-english{margin:5px 0 8px}.auth-invite{font-size:18px}.auth-brand img{width:130px;margin-top:8px}.is-auth .lobby-auth{width:100%}.is-auth .room-panel h2{font-size:27px}.is-auth .room-tabs button{min-height:42px;font-size:12px}.is-auth .room-panel form input{height:43px}}
+
+/* 牌局操作：在橫屏也保持清楚的觸控面積與輪次提示。 */
+.game-screen .header-actions{gap:clamp(5px,.55cqw,10px)}
+.game-screen .header-actions button{min-height:clamp(32px,5cqh,44px);padding:.6cqh 1cqw;font-size:clamp(12px,1cqw,17px);border-radius:6px}
+.turn-banner{position:absolute;z-index:6;left:50%;top:59%;transform:translateX(-50%);display:flex;align-items:center;gap:.8cqw;max-width:80%;padding:.7cqh 1.2cqw;white-space:nowrap;pointer-events:none;border:2px solid #f3cd79;border-radius:9px;background:#123827ed;color:#ffe2a4;box-shadow:0 0 0 3px #14371f99,0 0 24px #eeb754aa;animation:turn-pulse 1.6s ease-in-out infinite}
+.turn-banner strong{font-size:clamp(15px,1.45cqw,24px);letter-spacing:.08em}
+.turn-banner span{font-size:clamp(11px,.85cqw,15px);font-weight:700;color:#fff0cf}
+.is-my-turn .my-status{border:2px solid #f3c368;box-shadow:0 0 0 3px #ecb05277,0 0 25px #eaa939}
+@keyframes turn-pulse{50%{box-shadow:0 0 0 5px #f5c16388,0 0 34px #f8bf4c}}
+@media(max-width:1100px) and (orientation:landscape){.game-screen .header-actions button{min-height:32px;padding:4px 7px;font-size:11px}.turn-banner{top:57%;gap:6px;padding:4px 9px}.turn-banner strong{font-size:15px}.turn-banner span{font-size:10px}}
+@media(max-width:750px) and (orientation:landscape){.turn-banner span{display:none}}
+@media(prefers-reduced-motion:reduce){.turn-banner{animation:none}}

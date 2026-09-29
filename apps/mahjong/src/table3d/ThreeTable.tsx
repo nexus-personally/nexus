@@ -198,14 +198,14 @@ class MahjongScene {
     this.latestGlow.visible = false
     game.players.forEach((player, seat) => {
       player.river.slice(-30).forEach((tile, index) => {
-        const mesh = this.flatTile(tile, .70)
+        const mesh = this.flatTile(tile, 1.08)
         const horizontal = seat === 0 || seat === 2
         const columns = horizontal ? 8 : 6
         const row = Math.floor(index / columns), col = index % columns
-        if (seat === 0) mesh.position.set((col - 3.5) * .56, .44, .75 + row * .74)
-        else if (seat === 3) mesh.position.set(-5.5 + col * .56, .44, -3 + row * .84)
-        else if (seat === 2) mesh.position.set((col - 3.5) * .56, .44, -4.3 - row * .76)
-        else mesh.position.set(2.7 + col * .56, .44, -3 + row * .84)
+        if (seat === 0) mesh.position.set((col - 3.5) * .84, .44, .75 + row * 1.14)
+        else if (seat === 3) mesh.position.set(-5.5 + col * .84, .44, -3 + row * 1.14)
+        else if (seat === 2) mesh.position.set((col - 3.5) * .84, .44, -4.3 - row * 1.14)
+        else mesh.position.set(2.7 + col * .84, .44, -3 + row * 1.14)
         if (tile.id === game.latestRiverTileId) {
           this.latestGlow.position.set(mesh.position.x, .275, mesh.position.z)
           this.latestGlow.visible = true

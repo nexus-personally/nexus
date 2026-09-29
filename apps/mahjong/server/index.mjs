@@ -22,13 +22,15 @@ const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 async function loadAccounts() {
   if (!pool) return
   await pool.query('CREATE TABLE IF NOT EXISTS mahjong_accounts (id text PRIMARY KEY, login text NOT NULL UNIQUE, name text NOT NULL, password text NOT NULL)')
+  await pool.query('ALTER TABLE mahjong_accounts ADD COLUMN IF NOT EXISTS mamoney bigint NOT NULL DEFAULT 500')
   await pool.query('CREATE TABLE IF NOT EXISTS mahjong_sessions (token_hash text PRIMARY KEY, account_id text NOT NULL REFERENCES mahjong_accounts(id), created_at timestamptz NOT NULL DEFAULT now())')
-  const result = await pool.query('SELECT id, login, name, password FROM mahjong_accounts')
+  await pool.query('CREATE TABLE IF NOT EXISTS mahjong_wallet_events (account_id text NOT NULL REFERENCES mahjong_accounts(id), event_id text NOT NULL, delta bigint NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(account_id, event_id))')
+  const result = await pool.query('SELECT id, login, name, password, mamoney AS balance FROM mahjong_accounts')
   accounts = result.rows
 }
 async function saveAccount(account) {
   if (pool) {
-    await pool.query('INSERT INTO mahjong_accounts (id, login, name, password) VALUES ($1, $2, $3, $4) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, password = EXCLUDED.password', [account.id, account.login, account.name, account.password])
+    await pool.query('INSERT INTO mahjong_accounts (id, login, name, password, mamoney) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, password = EXCLUDED.password, mamoney = EXCLUDED.mamoney', [account.id, account.login, account.name, account.password, account.balance ?? 500])
     return
   }
   const temp = `${ACCOUNTS}.tmp`
@@ -43,7 +45,7 @@ function matches(password, stored) {
   const actual = scryptSync(password, salt, expected.length)
   return timingSafeEqual(expected, actual)
 }
-function publicAccount(account) { return { id: account.id, login: account.login, name: account.name } }
+function publicAccount(account) { return { id: account.id, login: account.login, name: account.name, mamoney: Number(account.balance ?? 500) } }
 const tokenHash = token => createHash('sha256').update(token).digest('hex')
 async function tokenFor(account) {
   const token = randomBytes(32).toString('hex')
@@ -93,7 +95,7 @@ async function handleApi(req, res, path, parsedBody) {
     if (path === '/api/register') {
       if (!validateLogin(body.login) || !validateName(body.name) || !validatePassword(body.password)) throw Error('登录名须为 3～24 位英数字或下划线；用户名 1～20 字；密码至少 8 位')
       if (accounts.some(item => item.login.toLowerCase() === body.login.toLowerCase())) throw Error('登录名已被使用')
-      const created = { id: randomBytes(12).toString('hex'), login: body.login, name: body.name.trim(), password: hash(body.password) }
+      const created = { id: randomBytes(12).toString('hex'), login: body.login, name: body.name.trim(), password: hash(body.password), balance: 500 }
       await saveAccount(created); accounts.push(created)
       return json(res, 200, { token: await tokenFor(created), account: publicAccount(created) })
     }
@@ -115,6 +117,33 @@ async function handleApi(req, res, path, parsedBody) {
     }
     if (!account) return json(res, 401, { error: '请先登录' })
     if (path === '/api/me') return json(res, 200, { account: publicAccount(account) })
+    if (path === '/api/wallet/sync') {
+      if (!Array.isArray(body.events) || body.events.length > 100) throw Error('妈币结算资料无效')
+      const applied = []
+      if (pool) {
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          for (const event of body.events) {
+            if (typeof event?.eventId !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(event.eventId) || !Number.isInteger(event.delta) || Math.abs(event.delta) > 10000) throw Error('妈币结算资料无效')
+            const inserted = await client.query('INSERT INTO mahjong_wallet_events (account_id, event_id, delta) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING RETURNING delta', [account.id, event.eventId, event.delta])
+            if (inserted.rowCount) { await client.query('UPDATE mahjong_accounts SET mamoney = mamoney + $1 WHERE id = $2', [event.delta, account.id]); applied.push(event.eventId) }
+          }
+          const balance = await client.query('SELECT mamoney FROM mahjong_accounts WHERE id = $1', [account.id])
+          await client.query('COMMIT')
+          account.balance = Number(balance.rows[0]?.mamoney ?? account.balance ?? 500)
+        } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
+      } else {
+        account.walletEvents ||= []
+        for (const event of body.events) {
+          if (typeof event?.eventId !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(event.eventId) || !Number.isInteger(event.delta) || Math.abs(event.delta) > 10000) throw Error('妈币结算资料无效')
+          if (!account.walletEvents.includes(event.eventId)) { account.balance = Number(account.balance ?? 500) + event.delta; account.walletEvents.push(event.eventId); applied.push(event.eventId) }
+        }
+        account.walletEvents = account.walletEvents.slice(-2000)
+        await saveAccount(account)
+      }
+      return json(res, 200, { account: publicAccount(account), applied })
+    }
     if (path === '/api/profile') {
       if (!matches(String(body.password || ''), account.password)) throw Error('当前密码错误')
       if (body.name !== undefined) { if (!validateName(body.name)) throw Error('用户名须为 1～20 字'); account.name = body.name.trim() }

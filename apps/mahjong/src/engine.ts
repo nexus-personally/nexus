@@ -1,17 +1,20 @@
 /** 不依賴畫面或網路的單機規則核心；日後伺服器亦可呼叫同一套函式。 */
 export type Suit = 'm' | 'p' | 's'
 export type Tile = { id: number; code: string }
-export type Meld = { kind: '吃' | '碰' | '明槓' | '暗槓' | '加槓'; tiles: Tile[]; from: number | null }
+export type Meld = { kind: '吃' | '碰' | '明槓' | '暗槓' | '加槓'; tiles: Tile[]; from: number | null; represented?: string[] }
 export type Player = { name: string; hand: Tile[]; melds: Meld[]; flowers: Tile[]; river: Tile[]; score: number; ai: boolean }
-export type Claim = { kind: '胡' | '槓' | '碰' | '吃'; tiles: number[] }
+export type Claim = { kind: '胡' | '槓' | '碰' | '吃'; tiles: number[]; represented?: string[] }
 export type FanItem = { name: string; fan: number }
 export type Result = { winner: number | null; from: number | null; items: FanItem[]; raw: number; fan: number; payments: number[]; message: string; dealerTenpai?: boolean }
 export type Phase = 'discard' | 'reaction' | 'result' | 'match-result'
 export type Game = {
-  version: 1; count: 3 | 4; players: Player[]; wall: Tile[]; wallOrder?: number[]; wallBreak?: number; active: number; dealer: number;
+  version: 2; handId: string; count: 3 | 4; players: Player[]; wall: Tile[]; wallOrder?: number[]; wallBreak?: number; active: number; dealer: number;
   prevailing: number; dealerCycle: number; repeat: number; handNumber: number; phase: Phase;
   lastDiscard: { tile: Tile; from: number } | null; reaction: Record<number, Claim[]>;
   latestRiverTileId?: number | null;
+  lastDraw?: { seat: number; reason: 'wall' | 'flower' | 'kong' };
+  consecutiveKongs?: number;
+  winContext?: 'rob-kong' | null;
   pendingKong?: { seat: number; tile: Tile; meldIndex: number } | null;
   result: Result | null; selected: number | null; history: string[];
 }
@@ -20,6 +23,8 @@ export const WIND = ['東', '南', '西', '北']
 export const DRAGON: Record<string, string> = { z5: '中', z6: '發', z7: '白' }
 export const MIN_FAN = 3
 export const FAN_CAP = 13
+export const minFan = (count: 3 | 4) => count === 3 ? 5 : MIN_FAN
+export const fanCap = (count: 3 | 4) => count === 3 ? 10 : FAN_CAP
 const seatWindIndex = (game: Game, seat: number): number => {
   const relativeSeat = (seat - game.dealer + game.count) % game.count
   return game.count === 3 && relativeSeat === 2 ? 3 : relativeSeat
@@ -32,21 +37,26 @@ export function label(code: string): string {
   if (code[0] === 's') return `${code[1]}索`
   if (code[0] === 'z') return WIND[Number(code[1]) - 1] || DRAGON[code] || '?'
   if (code[0] === 'f') return `花${code[1]}`
-  return `季${code[1]}`
+  if (code[0] === 'j') return `季${code[1]}`
+  if (code[0] === 'a') return ['貓', '鼠', '雞', '蟲'][Number(code[1]) - 1] || '動物'
+  if (code[0] === 'h') return `人頭${code[1]}`
+  if (code === 'x1') return '飛'
+  return '?'
 }
-export function isFlower(tile: Tile): boolean { return tile.code[0] === 'f' || tile.code[0] === 'j' }
+export function isFlower(tile: Tile): boolean { return 'fjah'.includes(tile.code[0]) }
 export function sortTiles(tiles: Tile[]): Tile[] { return tiles.sort((a, b) => order(a.code) - order(b.code) || a.id - b.id) }
-function order(code: string): number { return 'mpszfj'.indexOf(code[0]) * 10 + Number(code[1]) }
+function order(code: string): number { return 'mpszxfjah'.indexOf(code[0]) * 10 + Number(code[1]) }
 
 export function buildTiles(count: 3 | 4): Tile[] {
   const tiles: Tile[] = []
   const add = (code: string, copies: number) => { for (let i = 0; i < copies; i++) tiles.push({ id: tiles.length, code }) }
-  for (const suit of ['m', 'p', 's']) for (let n = 1; n <= 9; n++) {
-    if (count === 3 && suit === 'm' && n > 1 && n < 9) continue
+  for (const suit of count === 3 ? ['p'] : ['m', 'p', 's']) for (let n = 1; n <= 9; n++) {
     add(`${suit}${n}`, 4)
   }
   for (let n = 1; n <= 7; n++) add(`z${n}`, 4)
   for (const group of ['f', 'j']) for (let n = 1; n <= 4; n++) add(`${group}${n}`, 1)
+  if (count === 3) for (const group of ['a', 'h']) for (let n = 1; n <= 4; n++) add(`${group}${n}`, 1)
+  add('x1', 4)
   return tiles
 }
 
@@ -75,12 +85,14 @@ function takeSupplement(game: Game): Tile {
   const upperIsNext = first >= 0 && first % 2 === 0 && game.wall[1]?.id === game.wallOrder?.[first + 1]
   return game.wall.splice(upperIsNext ? 1 : 0, 1)[0]
 }
-function take(game: Game, seat: number, supplement = false): boolean {
+function take(game: Game, seat: number, supplement = false, reason: 'wall' | 'flower' | 'kong' = 'wall'): boolean {
   const player = game.players[seat]
   while (game.wall.length) {
     const tile = supplement ? takeSupplement(game) : game.wall.pop()!
-    if (isFlower(tile)) { player.flowers.push(tile); log(game, `${player.name} 補花：${label(tile.code)}`); supplement = true; continue }
+    if (isFlower(tile)) { player.flowers.push(tile); log(game, `${player.name} 補花：${label(tile.code)}`); supplement = true; reason = 'flower'; continue }
     player.hand.push(tile); sortTiles(player.hand)
+    game.lastDraw = { seat, reason }
+    game.winContext = null
     return true
   }
   endDraw(game)
@@ -101,11 +113,11 @@ export function newGame(count: 3 | 4, dealer = randomDealer(count), scores?: num
   const wall = shuffle(tiles, seed)
   const dice = seed === undefined ? (() => { const values = new Uint32Array(2); crypto.getRandomValues(values); return values })() : new Uint32Array([seed >>> 0, Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0])
   const diceTotal = dice[0] % 6 + dice[1] % 6 + 2
-  const stacksPerSide = count === 4 ? [18, 18, 18, 18] : [18, 20, 20]
+  const stacksPerSide = count === 4 ? [19, 19, 18, 18] : [14, 14, 14]
   const side = (dealer + diceTotal - 1) % count
   const wallBreak = stacksPerSide.slice(0, side).reduce((sum, n) => sum + n, 0) + diceTotal % stacksPerSide[side]
   const game: Game = {
-    version: 1, count, wall, wallOrder: wall.map(tile => tile.id), wallBreak, active: dealer, dealer, prevailing, dealerCycle,
+    version: 2, handId: crypto.randomUUID(), count, wall, wallOrder: wall.map(tile => tile.id), wallBreak, active: dealer, dealer, prevailing, dealerCycle,
     repeat, handNumber, phase: 'discard', lastDiscard: null, latestRiverTileId: null, reaction: {}, pendingKong: null, result: null, selected: null, history: [],
     players: Array.from({ length: count }, (_, seat) => ({
       name: seat === 0 ? '你' : `牌友 ${seat}`, hand: [], melds: [], flowers: [], river: [], score: scores?.[seat] ?? 0, ai: seat !== 0,
@@ -127,33 +139,60 @@ function counts(tiles: Tile[]): Map<string, number> {
   for (const tile of tiles) m.set(tile.code, (m.get(tile.code) || 0) + 1)
   return m
 }
-function validStandard(tiles: Tile[], meldCount: number): boolean {
-  if (tiles.length !== (4 - meldCount) * 3 + 2) return false
-  const map = counts(tiles)
-  const codes = [...map.keys()].sort((a, b) => order(a) - order(b))
-  const meldsNeeded = 4 - meldCount
-  const canMeld = (remaining: number): boolean => {
-    if (remaining === 0) return [...map.values()].every(n => n === 0)
-    const code = codes.find(c => (map.get(c) || 0) > 0)
-    if (!code) return false
-    const n = map.get(code)!
-    if (n >= 3) { map.set(code, n - 3); if (canMeld(remaining - 1)) return true; map.set(code, n) }
-    if ('mps'.includes(code[0]) && Number(code[1]) <= 7) {
-      const a = `${code[0]}${Number(code[1]) + 1}`, b = `${code[0]}${Number(code[1]) + 2}`
-      if ((map.get(a) || 0) && (map.get(b) || 0)) {
-        map.set(code, n - 1); map.set(a, map.get(a)! - 1); map.set(b, map.get(b)! - 1)
-        if (canMeld(remaining - 1)) return true
-        map.set(code, n); map.set(a, map.get(a)! + 1); map.set(b, map.get(b)! + 1)
-      }
+type ResolvedHand = { tiles: Tile[]; allTriplets: boolean; allChows: boolean; pair: string }
+function resolvedStandards(tiles: Tile[], meldCount: number, count: 3 | 4): ResolvedHand[] {
+  if (tiles.length !== (4 - meldCount) * 3 + 2) return []
+  const real = counts(tiles.filter(tile => tile.code !== 'x1'))
+  const wild = tiles.filter(tile => tile.code === 'x1').length
+  const available = [...new Set(buildTiles(count).filter(tile => 'mpsz'.includes(tile.code[0])).map(tile => tile.code))]
+  const results: ResolvedHand[] = []
+  const seen = new Set<string>()
+  const use = (map: Map<string, number>, shape: string[], wilds: number): { map: Map<string, number>; wilds: number } | null => {
+    const next = new Map(map)
+    let missing = 0
+    for (const code of shape) {
+      const n = next.get(code) || 0
+      if (n) next.set(code, n - 1)
+      else missing++
     }
-    return false
+    return missing <= wilds ? { map: next, wilds: wilds - missing } : null
   }
-  for (const pair of codes) if ((map.get(pair) || 0) >= 2) {
-    map.set(pair, map.get(pair)! - 2)
-    if (canMeld(meldsNeeded)) return true
-    map.set(pair, map.get(pair)! + 2)
+  const meld = (map: Map<string, number>, wilds: number, remaining: number, shapes: string[][], triplets: boolean, chows: boolean, pair: string) => {
+    if (results.length >= 1024) return
+    if (remaining === 0) {
+      if (wilds || [...map.values()].some(Boolean)) return
+      const codes = shapes.flat()
+      const key = `${codes.slice().sort().join(',')}:${triplets}:${chows}:${pair}`
+      if (!seen.has(key)) { seen.add(key); results.push({ tiles: codes.map((code, id) => ({ id: -id - 1, code })), allTriplets: triplets, allChows: chows, pair }) }
+      return
+    }
+    const first = [...map].find(([, n]) => n > 0)?.[0]
+    if (!first) {
+      // Three flying tiles cannot form a pong by themselves under this basic rule set.
+      return
+    }
+    const triplet = [first, first, first]
+    const taken = use(map, triplet, wilds)
+    if (taken) meld(taken.map, taken.wilds, remaining - 1, [...shapes, triplet], triplets, false, pair)
+    if ('mps'.includes(first[0])) for (let start = Number(first[1]) - 2; start <= Number(first[1]); start++) {
+      if (start < 1 || start > 7) continue
+      const shape = [start, start + 1, start + 2].map(n => `${first[0]}${n}`)
+      const next = use(map, shape, wilds)
+      if (next) meld(next.map, next.wilds, remaining - 1, [...shapes, shape], false, chows, pair)
+    }
   }
-  return false
+  for (const pair of available) {
+    const next = use(real, [pair, pair], wild)
+    if (next) meld(next.map, next.wilds, 4 - meldCount, [[pair, pair]], true, true, pair)
+  }
+  return results
+}
+function isSevenPairs(tiles: Tile[]): boolean {
+  if (tiles.length !== 14) return false
+  const map = counts(tiles.filter(tile => tile.code !== 'x1'))
+  let wild = tiles.filter(tile => tile.code === 'x1').length
+  for (const [code, amount] of map) if (amount % 2) { if (!wild) return false; map.set(code, amount - 1); wild-- }
+  return wild % 2 === 0
 }
 function thirteenOrphans(tiles: Tile[], count: number): boolean {
   if (tiles.length !== 14) return false
@@ -174,12 +213,77 @@ function allTriplets(tiles: Tile[], melds: Meld[]): boolean {
 }
 function fanBreakdown(game: Game, seat: number, tiles: Tile[], selfDraw: boolean): FanItem[] | null {
   const player = game.players[seat]
-  const special = player.melds.length === 0 && thirteenOrphans(tiles, game.count)
-  if (!special && !validStandard(tiles, player.melds.length)) return null
+  const special = game.count === 4 && player.melds.length === 0 && thirteenOrphans(tiles, game.count)
   if (special) return [{ name: '十三么', fan: 13 }]
-  const all = [...tiles, ...player.melds.flatMap(m => m.tiles)]
+  const solutions = resolvedStandards(tiles, player.melds.length, game.count)
+  if (game.count === 3 && player.melds.length === 0 && isSevenPairs(tiles)) {
+    const existing = tiles.find(tile => tile.code !== 'x1')?.code || 'p1'
+    const wildcardTarget = existing[0] === 'z' ? 'z1' : 'p1'
+    solutions.push({ tiles: tiles.map(tile => tile.code === 'x1' ? { ...tile, code: wildcardTarget } : tile), allTriplets: false, allChows: false, pair: wildcardTarget })
+  }
+  if (!solutions.length) return null
+  let best: FanItem[] = []
+  for (const solution of solutions) {
+    const items = scoreResolved(game, seat, solution, selfDraw)
+    if (items.reduce((sum, item) => sum + item.fan, 0) > best.reduce((sum, item) => sum + item.fan, 0)) best = items
+  }
+  return best
+}
+
+function scoreResolved(game: Game, seat: number, solution: ResolvedHand, selfDraw: boolean): FanItem[] {
+  const player = game.players[seat]
+  const tiles = solution.tiles
+  const meldTiles = player.melds.flatMap(meld => meld.tiles.map((tile, index) => ({ ...tile, code: meld.represented?.[index] || tile.code })))
+  const all = [...tiles, ...meldTiles]
   const items: FanItem[] = []
   const add = (name: string, fan: number) => items.push({ name, fan })
+  if (game.count === 3) {
+    if (selfDraw && game.lastDraw?.seat === seat && game.lastDraw.reason === 'flower') add('花牌補牌自摸', 1)
+    if (selfDraw && game.lastDraw?.seat === seat && game.lastDraw.reason === 'kong') add('槓後補牌自摸', 1)
+    if (!selfDraw && game.winContext === 'rob-kong') add('搶槓胡', 1)
+    if (!player.flowers.length) add('無花', 10)
+    for (const flower of player.flowers) {
+      const rank = Number(flower.code[1]) - 1
+      if ('ah'.includes(flower.code[0])) add(`${label(flower.code)}`, 1)
+      else if (rank === seatWindIndex(game, seat) || rank === 3) add(`${label(flower.code)}`, 1)
+    }
+    for (const group of ['f', 'j', 'a', 'h']) if (player.flowers.filter(tile => tile.code[0] === group).length === 4) add(`一臺${group === 'f' ? '花' : group === 'j' ? '季' : group === 'a' ? '動物' : '人頭'}`, 1)
+    const honors = all.some(tile => tile.code[0] === 'z')
+    if (!honors) add('清一色', 3)
+    else if (all.some(tile => tile.code[0] === 'p')) add('混一色', 1)
+    if (solution.allTriplets && player.melds.every(meld => meld.kind !== '吃')) add('對對胡', 2)
+    if (solution.allChows && solution.pair[0] === 'p' && player.melds.every(meld => meld.kind === '吃')) add('平胡（筒眼）', 1)
+    const map = counts(all)
+    const dragons = ['z5', 'z6', 'z7'].map(code => map.get(code) || 0)
+    if (dragons.every(n => n >= 3)) add('大三元', 10)
+    else if (dragons.filter(n => n >= 3).length === 2 && dragons.includes(2)) add('小三元', 3)
+    else for (const code of ['z5', 'z6', 'z7']) if ((map.get(code) || 0) >= 3) add(`${label(code)}刻`, 1)
+    const winds = ['z1', 'z2', 'z3', 'z4'].map(code => map.get(code) || 0)
+    if (winds.every(n => n >= 3) || (winds.filter(n => n >= 3).length === 3 && winds.includes(2))) add('風牌大牌', 10)
+    else {
+      if ((map.get('z1') || 0) >= 3) add('東風刻', 1)
+      if ((map.get('z4') || 0) >= 3) add('北風刻', 1)
+      const own = `z${seatWindIndex(game, seat) + 1}`
+      if (own !== 'z1' && own !== 'z4' && (map.get(own) || 0) >= 3) add('門風刻', 1)
+      if ((map.get('z1') || 0) >= 3 && own === 'z1') add('東位加番', 1)
+    }
+    if (all.every(tile => tile.code[0] === 'z')) add('字一色', 10)
+    if (player.melds.filter(meld => meld.kind.includes('槓')).length === 4) add('四槓', 10)
+    if (isSevenPairs(tiles)) add('七對', 1)
+    const dotCounts = counts(all)
+    const nineGates = all.length === 14 && all.every(tile => tile.code[0] === 'p') &&
+      [...Array(9)].every((_, index) => (dotCounts.get(`p${index + 1}`) || 0) >= (index === 0 || index === 8 ? 3 : 1)) &&
+      [...dotCounts.values()].reduce((sum, amount) => sum + amount, 0) === 14 && selfDraw
+    if (nineGates) add('九蓮寶燈', 10)
+    if (player.flowers.length === 16) add('十六花', 10)
+    if (solution.allTriplets && player.melds.every(meld => meld.kind === '暗槓')) add('四暗刻', 10)
+    if (game.consecutiveKongs !== undefined && game.consecutiveKongs >= 2 && selfDraw && game.lastDraw?.seat === seat && game.lastDraw.reason === 'kong') add('連續兩槓補牌胡', 10)
+    const windPungs = ['z1', 'z2', 'z3', 'z4'].filter(code => (dotCounts.get(code) || 0) >= 3).length
+    if (windPungs >= 3 && ['z1', 'z2', 'z3', 'z4'].some(code => (dotCounts.get(code) || 0) >= 2)) add('三風刻', 10)
+    if (game.wall.length === 0) add('海底／河底', 10)
+    if (items.reduce((sum, item) => sum + item.fan, 0) >= 10) add('爆番', 10)
+    return items
+  }
   if (selfDraw) add('自摸', 1)
   if (selfDraw && player.melds.every(m => m.kind === '暗槓')) add('門前清自摸', 1)
   if (player.flowers.length === 0) add('無花', 1)
@@ -193,7 +297,7 @@ function fanBreakdown(game: Game, seat: number, tiles: Tile[], selfDraw: boolean
   if (suits.size === 1) add(honors ? '混一色' : '清一色', honors ? 3 : 7)
   const fourKongs = player.melds.filter(m => m.kind.includes('槓')).length === 4
   if (fourKongs) add('四槓', 13)
-  else if (allTriplets(tiles, player.melds)) add('對對胡', 3)
+  else if (solution.allTriplets && player.melds.every(meld => meld.kind !== '吃')) add('對對胡', 3)
   const map = counts(all)
   const dragons = ['z5', 'z6', 'z7'].map(c => map.get(c) || 0)
   if (dragons.every(n => n >= 3)) add('大三元', 13)
@@ -218,14 +322,28 @@ export function evaluateWin(game: Game, seat: number, incoming?: Tile, selfDraw 
   const items = fanBreakdown(game, seat, tiles, selfDraw)
   if (!items) return null
   const raw = items.reduce((sum, item) => sum + item.fan, 0)
-  return raw >= MIN_FAN ? { items, raw, fan: Math.min(raw, FAN_CAP) } : null
+  return raw >= minFan(game.count) ? { items, raw, fan: Math.min(raw, fanCap(game.count)) } : null
 }
 
 // A private, provisional readout for the player's current tiles. Winning-only
 // bonuses are awarded by evaluateWin once the complete hand is checked.
 export function currentFanPreview(game: Game, seat: number): { items: FanItem[]; raw: number; fan: number } {
   const player = game.players[seat]
-  if (!player.melds.length && thirteenOrphans(player.hand, game.count)) return { items: [{ name: '十三么', fan: 13 }], raw: 13, fan: 13 }
+  if (game.count === 4 && !player.melds.length && thirteenOrphans(player.hand, game.count)) return { items: [{ name: '十三么', fan: 13 }], raw: 13, fan: 13 }
+  if (game.count === 3) {
+    const items: FanItem[] = []
+    for (const flower of player.flowers) {
+      const rank = Number(flower.code[1]) - 1
+      if ('ah'.includes(flower.code[0]) || rank === seatWindIndex(game, seat) || rank === 3) items.push({ name: label(flower.code), fan: 1 })
+    }
+    const all = [...player.hand, ...player.melds.flatMap(meld => meld.tiles)]
+    if (all.length && all.every(tile => tile.code[0] === 'p' || tile.code === 'x1')) items.push({ name: '清一色參考', fan: 3 })
+    if (game.lastDraw?.seat === seat && game.lastDraw.reason === 'flower') items.push({ name: '花牌補牌自摸（待胡）', fan: 1 })
+    if (game.lastDraw?.seat === seat && game.lastDraw.reason === 'kong') items.push({ name: '槓後補牌自摸（待胡）', fan: 1 })
+    for (const code of ['z1', 'z4', 'z5', 'z6', 'z7']) if (all.filter(tile => tile.code === code).length >= 3) items.push({ name: `${label(code)}刻`, fan: 1 })
+    const raw = items.reduce((sum, item) => sum + item.fan, 0)
+    return { items, raw, fan: Math.min(raw, 10) }
+  }
   const all = [...player.hand, ...player.melds.flatMap(m => m.tiles)]
   const map = counts(all)
   const items: FanItem[] = []
@@ -259,7 +377,7 @@ export function currentFanPreview(game: Game, seat: number): { items: FanItem[];
 
 export function selfKongs(game: Game, seat: number): Claim[] {
   const player = game.players[seat], map = counts(player.hand), claims: Claim[] = []
-  for (const [code, n] of map) if (n === 4) claims.push({ kind: '槓', tiles: player.hand.filter(t => t.code === code).map(t => t.id) })
+  for (const [code, n] of map) if (code !== 'x1' && n === 4) claims.push({ kind: '槓', tiles: player.hand.filter(t => t.code === code).map(t => t.id) })
   for (const meld of player.melds) if (meld.kind === '碰') {
     const tile = player.hand.find(t => t.code === meld.tiles[0].code)
     if (tile) claims.push({ kind: '槓', tiles: [tile.id] })
@@ -272,19 +390,26 @@ function chowChoices(hand: Tile[], tile: Tile): Claim[] {
   const rank = Number(tile.code[1]), suit = tile.code[0], claims: Claim[] = []
   for (let start = rank - 2; start <= rank; start++) {
     if (start < 1 || start > 7) continue
-    const needed = [start, start + 1, start + 2].filter(n => n !== rank)
-    const found = needed.map(n => hand.find(t => t.code === `${suit}${n}`))
-    if (found.every(Boolean)) claims.push({ kind: '吃', tiles: found.map(t => t!.id) })
+    const needed = [start, start + 1, start + 2].filter(n => n !== rank).map(n => `${suit}${n}`)
+    const real = needed.map(code => hand.find(t => t.code === code))
+    if (real.every(Boolean)) claims.push({ kind: '吃', tiles: real.map(t => t!.id), represented: needed })
+    for (let wildAt = 0; wildAt < 2; wildAt++) {
+      const other = real[1 - wildAt], fly = hand.find(t => t.code === 'x1')
+      if (other && fly) claims.push({ kind: '吃', tiles: wildAt === 0 ? [fly.id, other.id] : [other.id, fly.id], represented: needed })
+    }
   }
   return claims
 }
 export function reactionOptions(game: Game, seat: number, tile: Tile, from: number): Claim[] {
-  if (seat === from) return []
+  if (seat === from || tile.code === 'x1') return []
   const player = game.players[seat], same = player.hand.filter(t => t.code === tile.code)
+  const flies = player.hand.filter(t => t.code === 'x1')
   const options: Claim[] = []
   if (evaluateWin(game, seat, tile, false)) options.push({ kind: '胡', tiles: [] })
   if (same.length >= 3) options.push({ kind: '槓', tiles: same.slice(0, 3).map(t => t.id) })
   if (same.length >= 2) options.push({ kind: '碰', tiles: same.slice(0, 2).map(t => t.id) })
+  if (same.length >= 1 && flies.length) options.push({ kind: '碰', tiles: [same[0].id, flies[0].id], represented: [tile.code, tile.code] })
+  if (flies.length >= 2) options.push({ kind: '碰', tiles: flies.slice(0, 2).map(t => t.id), represented: [tile.code, tile.code] })
   if ((from + 1) % game.count === seat) options.push(...chowChoices(player.hand, tile))
   return options
 }
@@ -293,7 +418,10 @@ function settleWin(game: Game, winner: number, from: number | null): void {
   const info = evaluateWin(game, winner, from === null ? undefined : game.lastDiscard!.tile, from === null)!
   const payments = Array(game.count).fill(0)
   if (from === null) {
-    for (let i = 0; i < game.count; i++) if (i !== winner) { payments[i] -= info.fan; payments[winner] += info.fan }
+    const due = info.fan * (game.count === 3 ? 2 : 1)
+    for (let i = 0; i < game.count; i++) if (i !== winner) { payments[i] -= due; payments[winner] += due }
+  } else if (game.count === 3) {
+    for (let i = 0; i < game.count; i++) if (i !== winner) { const due = info.fan * (i === from ? 2 : 1); payments[i] -= due; payments[winner] += due }
   } else { payments[from] -= info.fan; payments[winner] += info.fan }
   for (let i = 0; i < game.count; i++) game.players[i].score += payments[i]
   game.result = { winner, from, ...info, payments, message: from === null ? `${game.players[winner].name} 自摸！` : `${game.players[winner].name} 胡 ${game.players[from].name} 的牌！` }
@@ -316,6 +444,7 @@ export function discard(game: Game, seat: number, tileId: number): void {
   if (index < 0) throw Error('這張牌不在手中')
   const [tile] = player.hand.splice(index, 1)
   player.river.push(tile); game.lastDiscard = { tile, from: seat }; game.latestRiverTileId = tile.id; game.selected = null
+  game.consecutiveKongs = 0
   game.reaction = {}
   for (let i = 0; i < game.count; i++) if (i !== seat) game.reaction[i] = reactionOptions(game, i, tile, seat)
   game.phase = 'reaction'; log(game, `${player.name} 打出 ${label(tile.code)}`)
@@ -343,14 +472,16 @@ export function resolveReaction(game: Game, choices: Record<number, Claim | null
     if (winners.length) {
       removeIds(game.players[kongSeat], [tile.id])
       game.lastDiscard = { tile, from: kongSeat }
+      game.winContext = 'rob-kong'
       settleWin(game, winners[0], kongSeat)
       log(game, `${game.players[winners[0]].name} 搶槓胡`)
     } else {
       const player = game.players[kongSeat]
       const [fourth] = removeIds(player, [tile.id])
       player.melds[meldIndex].kind = '加槓'; player.melds[meldIndex].tiles.push(fourth)
+      game.consecutiveKongs = (game.consecutiveKongs || 0) + 1
       log(game, `${player.name} 加槓成功`)
-      if (take(game, kongSeat, true)) game.phase = 'discard'
+      if (take(game, kongSeat, true, 'kong')) game.phase = 'discard'
     }
     return
   }
@@ -361,7 +492,7 @@ export function resolveReaction(game: Game, choices: Record<number, Claim | null
     const seat = Number(s)
     const legal = game.reaction[seat]?.some(c => c.kind === claim?.kind && JSON.stringify(c.tiles) === JSON.stringify(claim?.tiles))
     return claim && legal ? [{ seat, claim }] : []
-  }).sort((a, b) => ranking[b.claim.kind] - ranking[a.claim.kind] || ((a.seat - from + game.count) % game.count) - ((b.seat - from + game.count) % game.count))
+  }).sort((a, b) => ranking[b.claim.kind] - ranking[a.claim.kind] || (a.claim.kind === '碰' && b.claim.kind === '碰' ? a.claim.tiles.filter(id => game.players[a.seat].hand.some(tile => tile.id === id && tile.code === 'x1')).length - b.claim.tiles.filter(id => game.players[b.seat].hand.some(tile => tile.id === id && tile.code === 'x1')).length : 0) || ((a.seat - from + game.count) % game.count) - ((b.seat - from + game.count) % game.count))
   game.reaction = {}
   if (!candidates.length) {
     game.active = (from + 1) % game.count; game.lastDiscard = null
@@ -375,10 +506,11 @@ export function resolveReaction(game: Game, choices: Record<number, Claim | null
   const player = game.players[seat]
   const consumed = removeIds(player, claim.tiles)
   const kind = claim.kind === '槓' ? '明槓' : claim.kind
-  player.melds.push({ kind, tiles: sortTiles([...consumed, tile]), from })
+  player.melds.push({ kind, tiles: [...consumed, tile], represented: claim.represented ? [...claim.represented, tile.code] : undefined, from })
+  if (claim.kind === '槓') game.consecutiveKongs = (game.consecutiveKongs || 0) + 1
   game.active = seat; game.lastDiscard = null
   log(game, `${player.name} ${claim.kind} ${label(tile.code)}`)
-  if (claim.kind === '槓') { if (take(game, seat, true)) game.phase = 'discard' }
+  if (claim.kind === '槓') { if (take(game, seat, true, 'kong')) game.phase = 'discard' }
   else game.phase = 'discard'
 }
 
@@ -389,7 +521,7 @@ export function declareSelfWin(game: Game, seat: number): void {
 export function declareSelfKong(game: Game, seat: number, claim: Claim): void {
   if (game.phase !== 'discard' || game.active !== seat || !selfKongs(game, seat).some(c => JSON.stringify(c.tiles) === JSON.stringify(claim.tiles))) throw Error('現在不能槓')
   const player = game.players[seat]
-  if (claim.tiles.length === 4) player.melds.push({ kind: '暗槓', tiles: removeIds(player, claim.tiles), from: null })
+  if (claim.tiles.length === 4) { player.melds.push({ kind: '暗槓', tiles: removeIds(player, claim.tiles), from: null }); game.consecutiveKongs = (game.consecutiveKongs || 0) + 1 }
   else {
     const tile = player.hand.find(t => t.id === claim.tiles[0])!
     const meldIndex = player.melds.findIndex(m => m.kind === '碰' && m.tiles[0].code === tile.code)
@@ -401,7 +533,7 @@ export function declareSelfKong(game: Game, seat: number, claim: Claim): void {
     return
   }
   log(game, `${player.name} 宣告暗槓`)
-  take(game, seat, true)
+  take(game, seat, true, 'kong')
 }
 
 export function nextHand(game: Game, seed?: number): Game {

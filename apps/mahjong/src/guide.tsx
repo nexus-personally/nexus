@@ -1,38 +1,42 @@
 import { useState } from 'react'
-import { FAN_CAP, MIN_FAN, label } from './engine'
+import { label } from './engine'
 
 type RuleCard = { name: string; fan?: string; note: string; tiles: string[] }
 type RulePage = { title: string; intro: string; cards: RuleCard[] }
 
-const pages: RulePage[] = [
-  { title: '開局與操作', intro: '選牌後按「出牌」；可吃、碰、槓、胡時，對應按鈕會發光。', cards: [
-    { name: '四人局', note: '144 張，包含 8 張花季牌；摸到花季牌會補牌。', tiles: ['m1', 'm2', 'm3', 'p1', 'p2', 'p3', 's1', 's2', 's3', 'z1', 'z5', 'f1'] },
-    { name: '三人局', note: '116 張，移除二至八萬；保留花季牌，也可以吃牌。', tiles: ['m1', 'm9', 'p1', 'p2', 'p3', 's1', 's2', 's3', 'z1', 'z5', 'f1'] },
-    { name: '應牌順序', note: '胡優先於碰、槓；碰、槓優先於吃。只許一人胡牌，同級按座位順序。', tiles: ['p3', 'p3', 'p3', 's2', 's3', 's4'] },
+const fourPages: RulePage[] = [
+  { title: '四人港式麻雀', intro: '148 張牌：原有 144 張牌，加 4 張飛。番數與香港玩法沿用港雀現有規則。', cards: [
+    { name: '牌組', note: '萬、筒、索、字牌、8 張花季，以及 4 張飛。花季摸到後會亮出並補牌。', tiles: ['m1','p1','s1','z1','z5','f1','j1','x1'] },
+    { name: '起胡與封頂', note: '至少 3 番才可胡，13 番封頂。胡牌支付按四人港式牌局結算。', tiles: ['p2','p3','p4','z5','z5','z5'] },
+    { name: '飛牌', note: '飛可在手牌中代替一張牌完成順子、刻子或將眼；不能作槓子，也不能吃碰別人打出的飛。飛不另加番。', tiles: ['x1','p2','p3','p4','z5','z5'] },
   ] },
-  { title: '起胡與基本番', intro: `本遊戲預設滿 ${MIN_FAN} 番才可胡；番數可相加，${FAN_CAP} 番起算爆番並封頂。`, cards: [
-    { name: '自摸', fan: '1 番', note: '自己摸到胡牌張。門前清自摸再加 1 番。', tiles: ['p2', 'p3', 'p4', 'p5'] },
-    { name: '無花／正花／正季', fan: '各 1 番', note: '胡牌時沒有花季牌得無花；與門風相符的花、與圈風相符的季各加 1 番。', tiles: ['f1', 'j1', 'f2', 'j2'] },
-    { name: '三元牌', fan: '各 1 番', note: '紅中、發財、白板每組刻子各加 1 番。', tiles: ['z5', 'z5', 'z5', 'z6', 'z6', 'z6'] },
-    { name: '門風／圈風', fan: '各 1 番', note: '對應風牌刻子各加 1 番；同一刻子可同時符合門風與圈風。', tiles: ['z1', 'z1', 'z1', 'z2', 'z2', 'z2'] },
+  { title: '四人牌型例子', intro: '示意牌形會顯示在卡片內；番數以牌局結算顯示為準。', cards: [
+    { name: '清一色', fan: '7 番', note: '只使用同一門數牌。', tiles: ['p1','p2','p3','p4','p5','p6','p7','p8','p9','p2','p3','p4','p5','p5'] },
+    { name: '對對胡', fan: '3 番', note: '四組刻子或槓，加一對將。', tiles: ['p2','p2','p2','s4','s4','s4','z5','z5','z5','z1','z1','z1','p9','p9'] },
+    { name: '混一色', fan: '3 番', note: '一門數牌加字牌。', tiles: ['p1','p2','p3','p4','p5','p6','p7','p8','p9','z5','z5','z5','z1','z1'] },
   ] },
-  { title: '常見牌型', intro: '牌面是示意；正式胡牌仍須符合四組面子加一對將牌。', cards: [
-    { name: '對對胡', fan: '3 番', note: '四組刻子或槓，加一對將牌。', tiles: ['p2', 'p2', 'p2', 's4', 's4', 's4', 'z5', 'z5', 'z5', 'z1', 'z1', 'z1', 'p9', 'p9'] },
-    { name: '混一色', fan: '3 番', note: '一種數牌加字牌。', tiles: ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'z5', 'z5', 'z5', 'z1', 'z1'] },
-    { name: '清一色', fan: '7 番', note: '只用同一種數牌，沒有字牌。', tiles: ['s1', 's2', 's3', 's2', 's3', 's4', 's5', 's6', 's7', 's7', 's8', 's9', 's9', 's9'] },
-    { name: '小三元', fan: '5 番', note: '兩組三元牌刻子，另一種三元牌作將。', tiles: ['z5', 'z5', 'z5', 'z6', 'z6', 'z6', 'z7', 'z7', 'p1', 'p2', 'p3', 's4', 's5', 's6'] },
+  { title: '四人媽幣結算', intro: '媽幣是帳號內累積的虛擬餘額；新帳號有 500 枚。', cards: [
+    { name: '放銃', note: '放銃者支付贏家的最終番數；其他玩家不付。', tiles: ['p4','p5','p6'] },
+    { name: '自摸', note: '其餘每位玩家各支付贏家的最終番數。', tiles: ['s2','s3','s4'] },
+    { name: '真人對局', note: '只有真人帳號之間轉移媽幣；電腦玩家不會增加或扣除帳號餘額。離線對局會在重新連網後同步。', tiles: ['z1','z2','z3','x1'] },
   ] },
-  { title: '爆番牌型', intro: `下列牌型各為 ${FAN_CAP} 番；多個番型合計超過 ${FAN_CAP} 番仍按 ${FAN_CAP} 番結算。`, cards: [
-    { name: '十三么', fan: '13 番', note: '十三種么九字牌各一張，其中一種再成對。', tiles: ['m1', 'm9', 'p1', 'p9', 's1', 's9', 'z1', 'z2', 'z3', 'z4', 'z5', 'z6', 'z7', 'z1'] },
-    { name: '大三元／大四喜', fan: '13 番', note: '三種三元牌全成刻子，或四種風牌全成刻子。', tiles: ['z5', 'z5', 'z5', 'z6', 'z6', 'z6', 'z7', 'z7', 'z7'] },
-    { name: '小四喜／字一色', fan: '13 番', note: '三組風刻子加一對風將，或全手都是字牌。', tiles: ['z1', 'z1', 'z1', 'z2', 'z2', 'z2', 'z3', 'z3', 'z3', 'z4', 'z4'] },
-    { name: '清么九／四槓', fan: '13 番', note: '全手只用數牌一、九，或完成四組槓。', tiles: ['m1', 'm1', 'm1', 'p9', 'p9', 'p9', 's1', 's1', 's1'] },
+]
+
+const threePages: RulePage[] = [
+  { title: '馬來西亞三人麻雀', intro: '84 張牌：36 張筒子、28 張字牌、8 張花季、4 張動物、4 張人頭、4 張飛。座位為東、南、西。', cards: [
+    { name: '筒子與字牌', note: '只使用一至九筒與東南西北中發白；沒有萬子、索子。', tiles: ['p1','p2','p3','p4','p5','p6','p7','p8','p9','z1','z5'] },
+    { name: '花、季、動物、人頭', note: '摸到後亮出並補牌。個別牌、完整四張組合、門風花季會計入番數。', tiles: ['f1','f2','f3','f4','j1','j2','a1','h1'] },
+    { name: '起胡與爆番', fan: '5 至 10 番', note: '至少 5 番才可胡；10 番封頂。飛本身不加番。', tiles: ['p2','p3','p4','z5','z5','z5','x1'] },
   ] },
-  { title: '結算與連莊', intro: '這些番值是港雀專用預設，可在日後的規則設定中調整，不代表所有香港麻雀玩法。', cards: [
-    { name: '出銃', note: '放銃者支付贏家的封頂番數；一張棄牌只會有一位贏家。', tiles: ['p7', 'p7', 'p7'] },
-    { name: '自摸', note: '另外每位玩家各支付一次封頂番數。', tiles: ['s3', 's3', 's3'] },
-    { name: '莊家與流局', note: '莊家胡或流局保留莊位；閒家胡則莊位輪轉。東南圈結束後完場。', tiles: ['z1', 'z2', 'z3', 'z4'] },
-    { name: '目前番數', note: '桌上只顯示你自己的牌型參考番數；摸牌、出牌可能改變它。胡牌時才核對完整牌型與最終番數。', tiles: ['m1', 'm2', 'm3', 'z5', 'z5', 'z5'] },
+  { title: '三人番型例子', intro: '牌型番數可相加，總番數最多計 10 番。', cards: [
+    { name: '清一色', fan: '3 番', note: '全手只有筒子。', tiles: ['p1','p2','p3','p4','p5','p6','p7','p8','p9','p2','p3','p4','p5','p5'] },
+    { name: '混一色', fan: '1 番', note: '筒子加字牌。', tiles: ['p1','p2','p3','p4','p5','p6','z5','z5','z5','z1','z1','z1','p9','p9'] },
+    { name: '對對胡／小三元', fan: '各 2／3 番', note: '對對胡是四組刻子或槓加一對；小三元是兩組三元牌刻子加第三種作將。', tiles: ['z5','z5','z5','z6','z6','z6','z7','z7','p2','p2','p2','z1','z1','z1'] },
+  ] },
+  { title: '飛牌與媽幣', intro: '本桌採用基本飛牌規則；媽幣只在真人之間轉移。', cards: [
+    { name: '飛作百搭', note: '可代一張牌完成順子、刻子或將眼。碰牌可以用飛補刻子；吃牌可以用一張飛補順子。不能代替槓子，棄出的飛不能被取用。', tiles: ['x1','p4','p5','p6','z5','z5'] },
+    { name: '胡牌付款', note: '三人放銃：放銃者付雙份，另一位付單份。自摸：兩位對手各付雙份。每份等於最終番數。', tiles: ['p2','p3','p4'] },
+    { name: '媽幣範例', note: '6 番放銃：放銃者付 12，另一位付 6，胡牌者收 18。6 番自摸：兩位對手各付 12，胡牌者收 24。', tiles: ['p6','p6','p6','x1'] },
   ] },
 ]
 
@@ -43,10 +47,14 @@ function TileRow({ codes }: { codes: string[] }) {
 }
 
 export function Guide({ onClose }: { onClose: () => void }) {
+  const [variant, setVariant] = useState<'three' | 'four'>('four')
   const [page, setPage] = useState(0)
+  const pages = variant === 'three' ? threePages : fourPages
   const current = pages[page]
+  const changeVariant = (next: 'three' | 'four') => { setVariant(next); setPage(0) }
   return <div className="modal-shade"><section className="guide-panel" role="dialog" aria-modal="true" aria-label="港雀玩法說明">
     <button className="close" onClick={onClose} aria-label="關閉說明">×</button>
+    <nav className="guide-variant" aria-label="选择麻将玩法"><button className={variant === 'three' ? 'selected' : ''} onClick={() => changeVariant('three')}>三人麻雀</button><button className={variant === 'four' ? 'selected' : ''} onClick={() => changeVariant('four')}>四人麻雀</button></nav>
     <div className="guide-heading"><small>玩法說明 · {page + 1} / {pages.length}</small><h2>{current.title}</h2><p>{current.intro}</p></div>
     <div className="guide-cards">{current.cards.map(card => <article className="guide-card" key={card.name}>
       <div className="guide-card-title"><strong>{card.name}</strong>{card.fan && <b>{card.fan}</b>}</div>

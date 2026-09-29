@@ -20,7 +20,7 @@ export class TileModel {
     if (!material) {
       const map = this.loader.load(`/mahjong/assets/tiles/${code}.svg`)
       map.colorSpace = THREE.SRGBColorSpace
-      map.anisotropy = 8
+      map.anisotropy = 16
       material = new THREE.MeshStandardMaterial({ map, transparent: true, roughness: .48, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 })
       this.textures.set(code, material)
     }

@@ -86,6 +86,8 @@ export function RoomPanel({ network, onReturn, authOnly = false }: { network: Ro
   const [password, setPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [roomCode, setRoomCode] = useState('')
+  const [channel, setChannel] = useState<'offline' | 'online'>('offline')
+  const [roomAction, setRoomAction] = useState<'create' | 'join'>('create')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const run = async (work: () => Promise<void>) => { setBusy(true); network.setError(''); setNotice(''); try { await work() } catch (error) { network.setError(error instanceof Error ? error.message : '操作失败') } finally { setBusy(false) } }
@@ -116,14 +118,15 @@ export function RoomPanel({ network, onReturn, authOnly = false }: { network: Ro
         <label>新密码（留空则不修改）<input type="password" minLength={8} value={newPassword} onChange={event => setNewPassword(event.target.value)} /></label>
         <button disabled={busy}>保存资料</button>
       </form>}
-      {!authOnly && (!room ? <div className="room-create">
-        {!offline.active && <div className="offline-options"><strong>面对面无网开房</strong><p>先在有网时安装并登录一次；之后所有手机连接同一热点。房主与朋友互扫两次二维码。</p><button onClick={() => { void audio.unlock(); offline.create(4) }}>无网四人房</button><button onClick={() => { void audio.unlock(); offline.create(3) }}>无网三人房</button><PairingScanner title="扫描房主的邀请二维码" onScan={scanOffer} /></div>}
-        {offline.active && offline.pairing?.kind === 'answer' && <><PairingCode data={offline.pairing.data} title="让房主扫描此回应码" /><button onClick={offline.leave}>取消配对</button></>}
-        {!offline.active && <><strong>线上房间</strong>
-        <button disabled={!network.connected} onClick={() => { void audio.unlock(); network.send({ type: 'create', count: 4 }) }}>创建四人房间</button>
-        <button disabled={!network.connected} onClick={() => { void audio.unlock(); network.send({ type: 'create', count: 3 }) }}>创建三人房间</button>
-        <div><input value={roomCode} maxLength={8} onChange={event => setRoomCode(event.target.value.toUpperCase())} placeholder="输入 8 位房间码" aria-label="房间码" /><button disabled={!network.connected || roomCode.length !== 8} onClick={() => { void audio.unlock(); network.send({ type: 'join', code: roomCode }) }}>加入房间</button></div>
+      {!authOnly && (!room ? <div className="room-flow">
+        {!offline.active && <>
+          <nav className="room-channel-tabs" aria-label="房间连接方式"><button className={channel === 'offline' ? 'active' : ''} aria-pressed={channel === 'offline'} onClick={() => { setChannel('offline'); setRoomAction('create') }}>面对面无网</button><button className={channel === 'online' ? 'active' : ''} aria-pressed={channel === 'online'} onClick={() => { setChannel('online'); setRoomAction('create') }}>线上房间</button></nav>
+          <nav className="room-action-tabs" aria-label="开房或加入"><button className={roomAction === 'create' ? 'active' : ''} aria-pressed={roomAction === 'create'} onClick={() => setRoomAction('create')}>创建房间</button><button className={roomAction === 'join' ? 'active' : ''} aria-pressed={roomAction === 'join'} onClick={() => setRoomAction('join')}>加入朋友</button></nav>
+          <div className="room-flow-panel">
+            {channel === 'offline' ? roomAction === 'create' ? <><p>所有手机连接同一热点；空位可由电脑补上。</p><div className="room-choice-grid"><button onClick={() => { void audio.unlock(); offline.create(4) }}>四人房 <small>你和最多三位朋友</small></button><button onClick={() => { void audio.unlock(); offline.create(3) }}>三人房 <small>你和最多两位朋友</small></button></div></> : <><p>请房主展示邀请二维码。扫码后，再让房主扫描你的回应码。</p><PairingScanner title="扫描房主二维码" onScan={scanOffer} /></> : roomAction === 'create' ? <><p>通过网络开房，建立后分享 8 位房间码。</p><div className="room-choice-grid"><button disabled={!network.connected} onClick={() => { void audio.unlock(); network.send({ type: 'create', count: 4 }) }}>四人房 <small>朋友或电脑同桌</small></button><button disabled={!network.connected} onClick={() => { void audio.unlock(); network.send({ type: 'create', count: 3 }) }}>三人房 <small>朋友或电脑同桌</small></button></div></> : <><p>输入朋友给你的 8 位房间码。</p><div className="room-code-entry"><input value={roomCode} maxLength={8} onChange={event => setRoomCode(event.target.value.toUpperCase())} placeholder="8 位房间码" aria-label="房间码" /><button disabled={!network.connected || roomCode.length !== 8} onClick={() => { void audio.unlock(); network.send({ type: 'join', code: roomCode }) }}>加入</button></div></>}
+          </div>
         </>}
+        {offline.active && offline.pairing?.kind === 'answer' && <div className="room-flow-panel"><PairingCode data={offline.pairing.data} title="让房主扫描此回应码" /><button onClick={offline.leave}>取消配对</button></div>}
       </div> : <div className="room-lobby">
         <div className="room-code">{offline.active ? '无网房间' : '线上房间码'} <strong>{room.code}</strong>{!offline.active && <button onClick={() => navigator.clipboard?.writeText(room.code)}>复制</button>}</div>
         {offline.active && offline.isHost && !room.started && <><button onClick={() => void offline.invite().catch(error => offline.setError(error instanceof Error ? error.message : '无法邀请'))}>邀请朋友扫码</button>{offline.pairing?.kind === 'offer' && <><PairingCode data={offline.pairing.data} title="请朋友扫描邀请二维码" /><PairingScanner title="再扫描朋友手机的回应码" onScan={scanAnswer} /></>}</>}

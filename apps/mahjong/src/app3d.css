@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@500;700;900&display=swap');
 :root{font-family:'Noto Sans TC',sans-serif;color:#f8eddb;background:#07121b;font-synthesis:none}
+html,button,input,textarea,canvas{-webkit-tap-highlight-color:transparent}
+button,.lobby-3d,.game-screen{-webkit-user-select:none;user-select:none}
+.lobby-3d input,.lobby-3d textarea{-webkit-user-select:text;user-select:text}
+.three-table canvas{touch-action:none}
 *{box-sizing:border-box}body{margin:0;min-width:320px}button{font:inherit;cursor:pointer}button:disabled{cursor:default}button:focus-visible{outline:3px solid #f0c982;outline-offset:3px}
 .play-page{width:100vw;height:100dvh;display:grid;place-items:center;background:#07121b;overflow:hidden}
 .game-screen{position:relative;width:min(100vw,177.683vh);height:min(100dvh,56.28vw);container-type:size;overflow:hidden;background:#07121b url('/mahjong/assets/night-table.png') center/100% 129% no-repeat;isolation:isolate}
@@ -133,6 +137,9 @@
 /* 登入頁：按選定的左右雙區構圖，讓表單直接落在綠色桌布上。 */
 .lobby-3d.is-auth{min-height:100dvh;overflow:hidden;background-position:center;background-size:100% 100%}
 .offline-options{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px!important;padding:10px;border:1px solid #8db39a;border-radius:9px;background:#092b29}
+.room-flow{display:grid;gap:7px;min-width:0}.room-channel-tabs,.room-action-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.room-channel-tabs button,.room-action-tabs button{min-width:0;background:#153c35}.room-channel-tabs button.active{background:#b3894b;border-color:#ebc780;color:#102c24}.room-action-tabs button.active{border-color:#ebc780;color:#ffe3a7}.room-flow-panel{display:grid;gap:8px;min-width:0;padding:10px;border:1px solid #6c9685;border-radius:9px;background:#082b29}.room-flow-panel>p{margin:0;font-size:11px;line-height:1.35;color:#d7e3d7}.room-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.room-choice-grid button{display:grid;gap:3px;min-width:0;text-align:left}.room-choice-grid small{font-size:10px;font-weight:400;color:#c9ded4}.room-code-entry{display:flex;gap:7px;min-width:0}.room-code-entry input{flex:1;min-width:0}.room-code-entry button{flex:none}.room-flow-panel .offline-scanner{padding:0;border:0;background:transparent}.room-flow-panel .offline-scanner h3{font-size:11px}
+@media(max-height:650px) and (orientation:landscape){.room-flow,.room-flow-panel{gap:4px}.room-flow-panel{padding:6px}.room-flow-panel>p{font-size:10px}.room-choice-grid{gap:5px}.room-choice-grid button{min-height:42px!important}.room-choice-grid small{font-size:9px}}
+@media(pointer:coarse){.room-flow button{min-height:36px!important}}
 .room-create>.offline-code,.room-create>.offline-scanner{display:grid}
 .offline-options>strong,.offline-options>p,.offline-options>.offline-scanner{grid-column:1/-1}.offline-options>p{margin:0;font-size:11px;line-height:1.4;color:#d4e2d6}
 .offline-code,.offline-scanner{display:grid;gap:7px;padding:9px;border:1px solid #7da697;border-radius:9px;background:#092b29;min-width:0}

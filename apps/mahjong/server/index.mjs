@@ -32,7 +32,8 @@ async function saveAccount(account) {
     return
   }
   const temp = `${ACCOUNTS}.tmp`
-  writeFileSync(temp, JSON.stringify(accounts), { mode: 0o600 })
+  const snapshot = accounts.some(item => item.id === account.id) ? accounts : [...accounts, account]
+  writeFileSync(temp, JSON.stringify(snapshot), { mode: 0o600 })
   renameSync(temp, ACCOUNTS)
 }
 function hash(password, salt = randomBytes(16).toString('hex')) { return `${salt}:${scryptSync(password, salt, 64).toString('hex')}` }
@@ -61,7 +62,11 @@ async function accountFor(token) {
   return accounts.find(item => item.id === id)
 }
 function json(res, status, body) { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(body)) }
-async function bodyOf(req) {
+async function bodyOf(req, parsedBody) {
+  if (parsedBody !== undefined) {
+    if (Buffer.byteLength(JSON.stringify(parsedBody), 'utf8') > 8192) throw Error('请求过大')
+    return parsedBody
+  }
   let text = ''
   for await (const chunk of req) { text += chunk; if (text.length > 8192) throw Error('请求过大') }
   return JSON.parse(text || '{}')
@@ -78,12 +83,12 @@ function rateLimit(req) {
   attempts.set(key, record)
   return ++record.count <= 30
 }
-async function handleApi(req, res, path) {
+async function handleApi(req, res, path, parsedBody) {
   path = path.replace(/^\/mahjong/, '')
   if (req.method !== 'POST') return json(res, 405, { error: '仅支持 POST' })
   if (!rateLimit(req)) return json(res, 429, { error: '操作太频繁，请稍后重试' })
   try {
-    const body = await bodyOf(req)
+    const body = await bodyOf(req, parsedBody)
     const account = await accountFor((req.headers.authorization || '').replace(/^Bearer /, ''))
     if (path === '/api/register') {
       if (!validateLogin(body.login) || !validateName(body.name) || !validatePassword(body.password)) throw Error('登录名须为 3～24 位英数字或下划线；用户名 1～20 字；密码至少 8 位')
@@ -278,7 +283,7 @@ export async function registerMahjong(fastify) {
   await loadAccounts()
   fastify.all('/mahjong/api/*', async (request, reply) => {
     reply.hijack()
-    await handleApi(request.raw, reply.raw, new URL(request.url, 'http://localhost').pathname)
+    await handleApi(request.raw, reply.raw, new URL(request.url, 'http://localhost').pathname, request.body)
   })
   fastify.get('/mahjong', async (_request, reply) => reply.redirect('/mahjong/'))
   fastify.get('/mahjong/*', async (request, reply) => {

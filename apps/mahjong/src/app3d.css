@@ -129,6 +129,13 @@
 
 /* 登入頁：按選定的左右雙區構圖，讓表單直接落在綠色桌布上。 */
 .lobby-3d.is-auth{min-height:100dvh;overflow:hidden;background-position:center;background-size:100% 100%}
+.offline-options{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px!important;padding:10px;border:1px solid #8db39a;border-radius:9px;background:#092b29}
+.room-create>.offline-code,.room-create>.offline-scanner{display:grid}
+.offline-options>strong,.offline-options>p,.offline-options>.offline-scanner{grid-column:1/-1}.offline-options>p{margin:0;font-size:11px;line-height:1.4;color:#d4e2d6}
+.offline-code,.offline-scanner{display:grid;gap:7px;padding:9px;border:1px solid #7da697;border-radius:9px;background:#092b29;min-width:0}
+.offline-code h3,.offline-scanner h3{margin:0;font-size:14px}.offline-code img{display:block;width:min(100%,270px);height:auto;margin:auto;background:white;border:5px solid white;border-radius:4px;image-rendering:pixelated}.offline-code p{font-size:11px;line-height:1.4;margin:0;color:#d4e2d6}
+.offline-scanner video{display:block;width:min(100%,280px);max-height:150px;object-fit:cover;margin:auto;border:2px solid #e3c782;border-radius:7px}.offline-paste{display:flex;gap:5px;min-width:0}.offline-paste textarea{min-width:0;flex:1;height:38px;resize:vertical;border-radius:5px;padding:5px;font:11px sans-serif}.offline-paste button{flex:none}
+@media(max-height:650px) and (orientation:landscape){.offline-options{padding:5px;gap:4px!important}.offline-options>p,.offline-code p{font-size:9px}.offline-code,.offline-scanner{padding:5px;gap:4px}.offline-code img{width:min(100%,180px)}.offline-code h3,.offline-scanner h3{font-size:11px}.offline-scanner video{max-height:100px}}
 .lobby-3d.is-auth::before{background:#001c11a1}
 .is-auth .lobby-header{position:absolute;inset:0 0 auto;height:72px;padding:19px 4vw;z-index:3}
 .is-auth .lobby-header .brand{visibility:hidden}
@@ -157,7 +164,7 @@
   .is-auth .lobby-header{height:48px;padding:8px 3vw}.is-auth .lobby-header button{min-height:31px;padding:5px 10px;font-size:11px}
   .auth-stage{width:76vw;height:100dvh;min-height:0;grid-template-columns:50% 50%;padding:47px 0 12px}
   .auth-brand{padding-left:16%;transform:translateY(-22px)}.auth-brand h1{font-size:clamp(55px,9.5vw,94px)}.auth-english{margin:4px 0 8px;padding-bottom:6px;font-size:9px;letter-spacing:.28em}.auth-invite{font-size:clamp(16px,2.05vw,22px);line-height:1.37}.auth-brand img{width:min(53%,175px);margin-top:8px}
-  .is-auth .lobby-auth{width:84%;max-height:100%;justify-self:center;overflow-y:auto;padding:2px 0;transform:translate(-18px,-26px)}
+  .is-auth .lobby-auth{width:84%;max-height:100%;justify-self:center;overflow-y:auto;padding:2px 7px;transform:translate(-18px,-26px)}
   .is-auth .room-panel h2{font-size:clamp(20px,2.4vw,25px);margin-bottom:4px}
   .is-auth .room-tabs{margin-bottom:5px;border-radius:6px}.is-auth .room-tabs button{min-height:29px;font-size:10px}
   .is-auth .room-panel form{gap:2px}.is-auth .room-panel form label,.is-auth .room-panel form label:nth-of-type(3){gap:1px;font-size:9px}.is-auth .room-panel form input{height:29px;padding:3px 8px;font-size:10px}.is-auth .room-panel form>button{min-height:31px;margin-top:2px;font-size:12px}

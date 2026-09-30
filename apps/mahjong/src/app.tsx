@@ -28,7 +28,11 @@ function claimPreviewGame(): Game {
   game.latestRiverTileId = incoming.id
   game.phase = 'reaction'
   game.active = 1
-  game.reaction = { 0: [
+  game.reaction = { 0: CLAIM_PREVIEW_VALUE === 'scroll' ? [
+    { kind: '吃', tiles: [9000, 9003], represented: ['p1', 'p3'] },
+    { kind: '吃', tiles: [9003, 9004], represented: ['p3', 'p4'] },
+    { kind: '吃', tiles: [9000, 9012], represented: ['p1', 'p3'] },
+  ] : [
     { kind: '碰', tiles: [9001, 9002] },
     { kind: '碰', tiles: [9001, 9012], represented: ['p2', 'p2'] },
   ] }
@@ -95,7 +99,7 @@ function App() {
   const [lobbyMode, setLobbyMode] = useState<'solo' | 'room'>('room')
   const [toast, setToast] = useState('')
   const [clockNow, setClockNow] = useState(Date.now())
-  const [claimMode, setClaimMode] = useState<'吃' | '碰' | null>(() => CLAIM_PREVIEW_VALUE === 'picker' ? '碰' : null)
+  const [claimMode, setClaimMode] = useState<'吃' | '碰' | null>(() => CLAIM_PREVIEW_VALUE === 'scroll' ? '吃' : CLAIM_PREVIEW_VALUE === 'picker' ? '碰' : null)
   const [reactionDecision, setReactionDecision] = useState<ReactionDecision>(() => CLAIM_PREVIEW_VALUE === 'waiting' ? { index: 0, kind: '碰' } : null)
   const gameRef = useRef<Game | null>(game)
   const lastRoomLog = useRef('')
@@ -171,9 +175,9 @@ function App() {
   }, [inRoom, network.room?.deadlineAt])
 
   useEffect(() => {
-    setClaimMode(CLAIM_PREVIEW_VALUE === 'picker' ? '碰' : null)
+    setClaimMode(CLAIM_PREVIEW_VALUE === 'scroll' ? '吃' : CLAIM_PREVIEW_VALUE === 'picker' ? '碰' : null)
     setReactionDecision(CLAIM_PREVIEW_VALUE === 'waiting' ? { index: 0, kind: '碰' } : null)
-  }, [game?.phase, game?.lastDiscard?.tile.id])
+  }, [game?.phase, game?.lastDiscard?.tile.id, game?.lastDiscard?.from, game?.history[0]])
 
   useEffect(() => {
     if (!game || inRoom || lobby || guide || showAudioSettings || game.phase === 'result' || game.phase === 'match-result') return
@@ -292,7 +296,11 @@ function App() {
     : []
   const submittedClaim = typeof reactionDecision === 'object' && reactionDecision ? claims[reactionDecision.index] : null
   return <div className="play-page"><div className={`game-screen${isMyTurn ? ' is-my-turn' : ''}`}>
-    <Suspense fallback={<div className="loading-scene">正在砌牌牆…</div>}><ThreeTable game={game} selectedId={selectedId} onSelect={setSelectedId} /></Suspense>
+    <Suspense fallback={<div className="loading-scene">正在砌牌牆…</div>}><ThreeTable game={game} selectedId={selectedId} onSelect={id => {
+      const tile = me.hand.find(candidate => candidate.id === id)
+      if (tile?.code === 'x1') { message('飛牌必須留在手中，不能打出'); return }
+      setSelectedId(id)
+    }} /></Suspense>
     <div className="table-vignette" />
     <header className="game-header"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 茶樓牌局</small></div><div className="round-tag">{round}<span>餘牌 {game.wall.length}</span></div><div className="header-actions"><span className="wallet-badge">媽幣 {network.account?.mamoney ?? 500}</span><FullscreenButton /><button onClick={() => setGuide(true)}>說明</button><button onClick={() => updateAudio({ bgmEnabled: !audioSettings.bgmEnabled })} aria-label={`背景音樂${audioSettings.bgmEnabled ? '開啟中，按下關閉' : '已關閉，按下開啟'}`}>{audioSettings.bgmEnabled ? '音樂開' : '音樂關'}</button><button onClick={() => { void audio.unlock(); setShowAudioSettings(true) }}>音量</button>{inRoom && network.room?.hostId === network.account?.id && game.phase !== 'result' && game.phase !== 'match-result' && <button className="cancel-room-game" onClick={cancelRoomGame}>取消本局</button>}<button onClick={() => setLobby(true)}>首頁</button></div></header>
     {game.players.slice(1).map((player, index) => <div key={index} className={`seat-info seat-${index + 1}${game.count === 3 ? ' three-player-seat' : ''}`}><span>{seatWind(game, index + 1)}</span><div><b>{player.name}</b><small>{seatWind(game, index + 1)}位 · {player.score >= 0 ? '+' : ''}{player.score} 分</small></div></div>)}
@@ -301,17 +309,17 @@ function App() {
     {(isMyTurn || claims.length > 0) && !claimMode && reactionDecision === null && <div className="turn-banner" role="status" aria-live="polite"><strong>{isMyTurn ? '輪到你出牌' : '你可以應牌'}</strong><span>{isMyTurn ? '選一張手牌，再按「出牌」' : '請選擇吃、碰、槓、胡或過'}</span>{secondsLeft !== null && <time aria-hidden="true">{secondsLeft} 秒</time>}</div>}
     <div className="flowers">花牌 {me.flowers.length}{me.flowers.map(tile => <span key={tile.id}>{label(tile.code)}</span>)}</div>
     <div className="wall-note">{turnStatus}{secondsLeft !== null && !isMyTurn && !claims.length ? ` · ${secondsLeft} 秒` : ''}</div>
-    <div className="hand-access" aria-label="你的手牌">{sortTiles([...me.hand]).map(tile => <button key={tile.id} className={selectedId === tile.id ? 'chosen' : ''} onClick={() => setSelectedId(tile.id)} disabled={!isMyTurn} aria-label={`選擇 ${label(tile.code)}`}>{label(tile.code)}</button>)}</div>
+    <div className="hand-access" aria-label="你的手牌">{sortTiles([...me.hand]).map(tile => <button key={tile.id} className={selectedId === tile.id ? 'chosen' : ''} onClick={() => setSelectedId(tile.id)} disabled={!isMyTurn || tile.code === 'x1'} aria-label={tile.code === 'x1' ? '飛牌不可打出' : `選擇 ${label(tile.code)}`}>{label(tile.code)}</button>)}</div>
     {claims.length > 0 && claimMode && game.lastDiscard && reactionDecision === null && <section className="claim-picker" aria-label={`選擇${claimMode}牌`}>
       <header><strong>選擇{claimMode}牌</strong>{secondsLeft !== null && <time>{secondsLeft}秒</time>}</header>
-      <div className="claim-picker-body"><button className="claim-picker-back" onClick={() => setClaimMode(null)}>‹ 返回</button><div className="claim-options">{choiceClaims.map(({ claim, index }) => <ClaimCombination key={index} claim={claim} hand={me.hand} incoming={game.lastDiscard!.tile} onChoose={() => act('claim', index)} />)}</div><button className="claim-picker-pass" onClick={() => act('pass')}>過</button></div>
+      <div className="claim-picker-body"><button className="claim-picker-back" onClick={() => setClaimMode(null)}>‹ 返回</button><div className={`claim-options${choiceClaims.length > 2 ? ' scrollable' : ''}`}>{choiceClaims.map(({ claim, index }) => <ClaimCombination key={index} claim={claim} hand={me.hand} incoming={game.lastDiscard!.tile} onChoose={() => act('claim', index)} />)}</div><button className="claim-picker-pass" onClick={() => act('pass')}>過</button></div>
     </section>}
     {claims.length > 0 && reactionDecision !== null && <section className="claim-picker claim-waiting" role="status" aria-live="polite">
       {reactionDecision === 'pass' || !submittedClaim || !game.lastDiscard ? <><strong>已過牌</strong><span>等待其他玩家</span></> : <><header><strong>已選擇：{submittedClaim.kind}</strong>{secondsLeft !== null && <time>{secondsLeft}秒</time>}</header><div className="claim-waiting-body"><ClaimCombination claim={submittedClaim} hand={me.hand} incoming={game.lastDiscard.tile} onChoose={() => {}} /><span>等待其他玩家回應</span><button onClick={() => act('withdraw')}>撤回</button></div></>}
     </section>}
     {(!claims.length || (!claimMode && reactionDecision === null)) && <div className="action-row"><span className="turn-note">{isMyTurn ? '輪到你出牌' : claims.length ? '請選擇應牌' : '等待牌友出牌'}</span>
       {claims.length ? <>{visualClaimKinds.map(kind => <button key={kind} className="action-ready" data-action-kind={kind} onClick={() => setClaimMode(kind)}>{kind}</button>)}{directClaims.map(({ claim, index }) => <button key={`${claim.kind}-${index}`} className={`action-ready${claim.kind === '胡' ? ' hot' : ''}`} data-action-kind={claim.kind} onClick={() => act('claim', index)}>{claim.kind}</button>)}<button onClick={() => act('pass')}>過</button></> : <><button disabled>吃</button><button disabled>碰</button>{kongs.length ? kongs.map((_, index) => <button key={index} className="action-ready" data-action-kind="槓" onClick={() => act('kong', index)}>槓</button>) : <button disabled>槓</button>}<button className={selfWin ? 'action-ready hot' : ''} data-action-kind="胡" disabled={!selfWin} onClick={() => act('win')}>胡</button><button disabled>過</button></>}
-      <button className="discard-button" disabled={!isMyTurn || selectedId === null} onClick={() => act('discard')}>出牌 →</button><button className="hint-button" disabled={!isMyTurn} onClick={() => act('hint')}>建議</button>
+      <button className="discard-button" disabled={!isMyTurn || selectedId === null || me.hand.find(tile => tile.id === selectedId)?.code === 'x1'} onClick={() => act('discard')}>出牌 →</button><button className="hint-button" disabled={!isMyTurn} onClick={() => act('hint')}>建議</button>
     </div>}
     {guide && <Guide onClose={() => setGuide(false)} />}
     {showAudioSettings && <AudioSettingsPanel settings={audioSettings} onChange={updateAudio} onClose={() => setShowAudioSettings(false)} />}

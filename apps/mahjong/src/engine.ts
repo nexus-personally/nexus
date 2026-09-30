@@ -442,6 +442,7 @@ export function discard(game: Game, seat: number, tileId: number): void {
   if (game.phase !== 'discard' || game.active !== seat) throw Error('目前不能出牌')
   const player = game.players[seat], index = player.hand.findIndex(t => t.id === tileId)
   if (index < 0) throw Error('這張牌不在手中')
+  if (player.hand[index].code === 'x1') throw Error('飛牌必須留在手中，不能打出')
   const [tile] = player.hand.splice(index, 1)
   player.river.push(tile); game.lastDiscard = { tile, from: seat }; game.latestRiverTileId = tile.id; game.selected = null
   game.consecutiveKongs = 0
@@ -550,6 +551,8 @@ export function nextHand(game: Game, seed?: number): Game {
 
 export function aiChooseDiscard(game: Game, seat: number): number {
   const player = game.players[seat]
+  const discardable = player.hand.filter(tile => tile.code !== 'x1')
+  if (!discardable.length) throw Error('手中沒有可以打出的牌')
   const visible = game.players.flatMap(p => [...p.river, ...p.melds.flatMap(m => m.tiles)])
   const score = (tile: Tile): number => {
     const same = player.hand.filter(t => t.code === tile.code).length
@@ -558,7 +561,7 @@ export function aiChooseDiscard(game: Game, seat: number): number {
     const seen = visible.filter(t => t.code === tile.code).length
     return (same - 1) * 2 + neighbors - seen * .4 + (suit === 'z' && rank >= 5 ? .3 : 0)
   }
-  return [...player.hand].sort((a, b) => score(a) - score(b) || a.id - b.id)[0].id
+  return discardable.sort((a, b) => score(a) - score(b) || a.id - b.id)[0].id
 }
 
 export function aiClaim(game: Game, seat: number): Claim | null {

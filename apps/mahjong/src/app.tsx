@@ -327,11 +327,12 @@ function App() {
       <small>本局結算</small>
       <h2>{game.phase === 'match-result' ? '東南圈完成' : game.result?.message}</h2>
       {game.result?.winner != null && (game.count === 3 && game.result.raw >= 10
-        ? <><strong>爆番 ×2</strong><small>原始 {game.result.raw} 番 · 爆番基準 10 × 2 · 結算值 {game.result.fan}</small></>
+        ? <><strong>爆番 ×2</strong><small>原始番數 {game.result.raw} 番 · 爆番倍率 ×2 · 本局結算值 {game.result.fan}</small></>
         : <strong>{game.result.fan} 番</strong>)}
       {game.result && game.count === 4 && game.result.raw > game.result.fan && <small>原始 {game.result.raw} 番，實際按 {game.result.fan} 番結算</small>}
       <div>{game.result?.items.map((item, index) => <p key={index}>{item.name}<b>+{item.fan}</b></p>)}</div>
-      <div className="scores">{game.players.map((player, index) => <span key={index}>{player.name} {player.score >= 0 ? '+' : ''}{player.score}</span>)}</div>
+      <small className="score-caption">本局輸贏</small><div className="scores round-payments">{game.players.map((player, index) => <span key={index}>{player.name} {(game.result?.payments[index] ?? 0) >= 0 ? '+' : ''}{game.result?.payments[index] ?? 0}</span>)}</div>
+      <small className="score-caption">累計分數</small><div className="scores">{game.players.map((player, index) => <span key={index}>{player.name} {player.score >= 0 ? '+' : ''}{player.score}</span>)}</div>
       {inRoom && game.result && (network.offline.active
         ? <p className="wallet-settlement">無網局只記本局分數，線上媽幣不入帳</p>
         : game.result.mamoneyDeltas

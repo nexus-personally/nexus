@@ -160,32 +160,42 @@ async function settleRoom(room) {
   if (!game || game.phase !== 'result' || !game.result || game.result.winner === null || room.settledHands.has(game.handId)) return
   if (room.settlement?.handId === game.handId) return room.settlement.promise
   const eligible = room.seats.map((member, seat) => Boolean(member && sockets.has(member.id) && !game.players[seat].ai))
-  const deltas = settlementDeltas(game.result, eligible)
   const eventId = `room-${game.handId}`
-  const entries = room.seats.flatMap((member, seat) => member && deltas[seat] ? [{ account: accounts.find(item => item.id === member.id), delta: deltas[seat] }] : [])
+  const accountAtSeat = room.seats.map(member => member ? accounts.find(item => item.id === member.id) : undefined)
   const promise = (async () => {
-    if (pool && entries.length) {
+    let deltas
+    let entries = []
+    if (pool) {
       const client = await pool.connect()
       const balances = new Map()
       try {
         await client.query('BEGIN')
+        const participantIds = accountAtSeat.flatMap((account, seat) => account && eligible[seat] ? [account.id] : [])
+        const locked = participantIds.length
+          ? await client.query('SELECT id, mamoney FROM mahjong_accounts WHERE id = ANY($1::text[]) FOR UPDATE', [participantIds])
+          : { rows: [] }
+        const lockedBalances = new Map(locked.rows.map(row => [row.id, Number(row.mamoney)]))
+        deltas = settlementDeltas(game.result, eligible, accountAtSeat.map(account => account ? lockedBalances.get(account.id) ?? 0 : 0))
+        entries = accountAtSeat.flatMap((account, seat) => account && deltas[seat] ? [{ account, delta: deltas[seat] }] : [])
         for (const { account, delta } of entries) {
           if (!account) throw Error('结算帐号不存在')
           const inserted = await client.query('INSERT INTO mahjong_wallet_events (account_id, event_id, delta) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING RETURNING delta', [account.id, eventId, delta])
           const updated = inserted.rowCount
-            ? await client.query('UPDATE mahjong_accounts SET mamoney = mamoney + $1 WHERE id = $2 RETURNING mamoney', [delta, account.id])
+            ? await client.query('UPDATE mahjong_accounts SET mamoney = GREATEST(0, mamoney + $1) WHERE id = $2 RETURNING mamoney', [delta, account.id])
             : await client.query('SELECT mamoney FROM mahjong_accounts WHERE id = $1', [account.id])
           balances.set(account.id, Number(updated.rows[0].mamoney))
         }
         await client.query('COMMIT')
       } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
       for (const { account } of entries) account.balance = balances.get(account.id)
-    } else if (entries.length) {
+    } else {
+      deltas = settlementDeltas(game.result, eligible, accountAtSeat.map(account => Number(account?.balance ?? 0)))
+      entries = accountAtSeat.flatMap((account, seat) => account && deltas[seat] ? [{ account, delta: deltas[seat] }] : [])
       const changes = new Map()
       for (const { account, delta } of entries) {
         if (!account) throw Error('结算帐号不存在')
         if (account.walletEvents?.includes(eventId)) continue
-        changes.set(account.id, { balance: Number(account.balance ?? 500) + delta, walletEvents: [...(account.walletEvents || []), eventId].slice(-2000) })
+        changes.set(account.id, { balance: Math.max(0, Number(account.balance ?? 500) + delta), walletEvents: [...(account.walletEvents || []), eventId].slice(-2000) })
       }
       if (changes.size) {
         const snapshot = accounts.map(account => changes.has(account.id) ? { ...account, ...changes.get(account.id) } : account)

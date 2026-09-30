@@ -204,6 +204,7 @@ button,.lobby-3d,.game-screen{-webkit-user-select:none;user-select:none}
 .wallet-badge{display:inline-flex;align-items:center;min-height:clamp(28px,4.3cqh,39px);padding:0 .75cqw;border:1px solid #e6c77c;border-radius:6px;background:#123d2be8;color:#ffe0a0;font-size:clamp(11px,.8cqw,15px);font-weight:900;white-space:nowrap;box-shadow:0 0 10px #dfa84c44}
 .guide-variant{display:flex;gap:6px;padding-right:42px}.guide-variant button{min-height:34px;padding:4px 12px;border:1px solid #9a8056;border-radius:6px;background:#fff8e6;color:#34513c;font-size:clamp(12px,.75cqw,15px);font-weight:800}.guide-variant button.selected{background:#1d563b;color:#ffedc5;border-color:#d8b16d}
 .wallet-settlement{padding:7px 10px;border:1px solid #d5b270;border-radius:7px;background:#173e2c;color:#ffe4a8;font-weight:800;text-align:center}
+.result-panel .score-caption{display:block;margin:.75cqh 0 .25cqh;color:#735f3e;font-weight:900;letter-spacing:.08em}.result-panel .round-payments{border-color:#b38747;background:#fff3d6}
 .guide-tiles svg{flex:none;width:clamp(15px,1.8cqw,25px);aspect-ratio:5/7;object-fit:contain;background:#f8f4e9;border:1px solid #b3aa96;border-bottom:3px solid #126444;border-radius:3px;box-shadow:1px 2px 2px #0003}
 @media(max-width:750px){.guide-tiles svg{width:clamp(14px,1.75cqw,19px)}}
 @media(max-width:1100px) and (orientation:landscape){.wallet-badge{min-height:29px;padding:0 6px;font-size:10px}.guide-variant button{min-height:28px;padding:3px 8px;font-size:10px}}

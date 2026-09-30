@@ -25,7 +25,7 @@ export const MIN_FAN = 3
 export const FAN_CAP = 13
 export const minFan = (count: 3 | 4) => count === 3 ? 5 : MIN_FAN
 export const fanCap = (count: 3 | 4) => count === 3 ? 10 : FAN_CAP
-export const settlementFan = (count: 3 | 4, raw: number) => count === 3 && raw >= 10 ? 20 : Math.min(raw, fanCap(count))
+export const settlementFan = (count: 3 | 4, raw: number) => count === 3 && raw >= 10 ? raw * 2 : Math.min(raw, fanCap(count))
 const seatWindIndex = (game: Game, seat: number): number => {
   const relativeSeat = (seat - game.dealer + game.count) % game.count
   return game.count === 3 && relativeSeat === 2 ? 3 : relativeSeat

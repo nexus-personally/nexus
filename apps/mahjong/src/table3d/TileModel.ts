@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
+import { SPECIAL_TILE_ATLAS, SPECIAL_TILE_ATLAS_SIZE, specialTileRegion } from '../specialTiles'
 
 /** One physical tile. Standing hands and face-down walls share these dimensions. */
 export class TileModel {
@@ -10,15 +11,23 @@ export class TileModel {
   private body = new RoundedBoxGeometry(.74, 1.02, .4, 6, .062)
   private back = new RoundedBoxGeometry(.742, 1.022, .2, 6, .055)
   private face = new THREE.PlaneGeometry(.59, .85)
+  private specialFace = new THREE.PlaneGeometry(.67, .85)
   private ivory = new THREE.MeshPhysicalMaterial({ color: 0xf0e3c9, roughness: .3, metalness: 0, clearcoat: .4, clearcoatRoughness: .24, envMapIntensity: .65 })
   private jade = new THREE.MeshPhysicalMaterial({ color: 0x004c2a, roughness: .3, metalness: 0, clearcoat: .65, clearcoatRoughness: .24, envMapIntensity: .65 })
   private textures = new Map<string, THREE.MeshStandardMaterial>()
   private loader = new THREE.TextureLoader()
+  private specialAtlas: THREE.Texture | null = null
 
   private ink(code: string) {
     let material = this.textures.get(code)
     if (!material) {
-      const map = this.loader.load(`/mahjong/assets/tiles/${code}.svg`)
+      const region = specialTileRegion(code)
+      const map = region ? (this.specialAtlas ??= this.loader.load(SPECIAL_TILE_ATLAS)).clone() : this.loader.load(`/mahjong/assets/tiles/${code}.svg`)
+      if (region) {
+        map.repeat.set(region.width / SPECIAL_TILE_ATLAS_SIZE.width, region.height / SPECIAL_TILE_ATLAS_SIZE.height)
+        map.offset.set(region.x / SPECIAL_TILE_ATLAS_SIZE.width, 1 - (region.y + region.height) / SPECIAL_TILE_ATLAS_SIZE.height)
+        map.needsUpdate = true
+      }
       map.colorSpace = THREE.SRGBColorSpace
       map.anisotropy = 16
       material = new THREE.MeshStandardMaterial({ map, transparent: true, roughness: .48, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 })
@@ -37,7 +46,7 @@ export class TileModel {
     body.receiveShadow = back.receiveShadow = true
     tile.add(body, back)
     if (code) {
-      const face = new THREE.Mesh(this.face, this.ink(code))
+      const face = new THREE.Mesh(specialTileRegion(code) ? this.specialFace : this.face, this.ink(code))
       face.position.z = .226
       tile.add(face)
     }
@@ -105,9 +114,10 @@ export class TileModel {
   }
 
   dispose() {
-    this.body.dispose(); this.back.dispose(); this.face.dispose()
+    this.body.dispose(); this.back.dispose(); this.face.dispose(); this.specialFace.dispose()
     this.ivory.dispose(); this.jade.dispose()
     for (const material of this.textures.values()) { material.map?.dispose(); material.dispose() }
+    this.specialAtlas?.dispose()
     this.textures.clear()
   }
 }

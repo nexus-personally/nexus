@@ -9,11 +9,21 @@ import { FullscreenButton } from './fullscreen-button'
 import {
   aiChooseDiscard, aiClaim, buildTiles, declareSelfKong, declareSelfWin, discard,
   currentFanPreview, evaluateWin, label, newGame, nextHand, resolveReaction, seatWind, selfKongs,
-  sortTiles, WIND, type Claim, type Game,
+  sortTiles, WIND, type Claim, type Game, type Tile,
 } from './engine'
 const ThreeTable = lazy(() => import('./table3d/ThreeTable').then(module => ({ default: module.ThreeTable })))
 
 const STORAGE = 'gangque.match.v2'
+
+function claimLabel(claim: Claim, hand: Tile[]): string {
+  if (claim.kind !== '碰' && claim.kind !== '吃') return claim.kind
+  const used = claim.tiles.map(id => hand.find(tile => tile.id === id)?.code)
+  if (claim.kind === '吃') return `吃 ${used.map(code => code ? label(code) : '?').join('·')}`
+  const flies = used.filter(code => code === 'x1').length
+  if (flies === 2) return '碰 飛×2'
+  const code = used.find(code => code && code !== 'x1')
+  return `碰 ${code ? label(code) : '?'}${flies ? '＋飛' : '×2'}`
+}
 
 function mamoneyDelta(game: Game, seat: number): number {
   return game.result?.mamoneyDeltas?.[seat] ?? 0
@@ -245,7 +255,7 @@ function App() {
     <div className="wall-note">{turnStatus}{secondsLeft !== null && !isMyTurn && !claims.length ? ` · ${secondsLeft} 秒` : ''}</div>
     <div className="hand-access" aria-label="你的手牌">{sortTiles([...me.hand]).map(tile => <button key={tile.id} className={selectedId === tile.id ? 'chosen' : ''} onClick={() => setSelectedId(tile.id)} disabled={!isMyTurn} aria-label={`選擇 ${label(tile.code)}`}>{label(tile.code)}</button>)}</div>
     <div className="action-row"><span className="turn-note">{isMyTurn ? '輪到你出牌' : claims.length ? '請選擇應牌' : '等待牌友出牌'}</span>
-      {claims.length ? <>{claims.map((claim, index) => <button key={index} className={`action-ready${claim.kind === '胡' ? ' hot' : ''}`} data-action-kind={claim.kind} onClick={() => act('claim', index)}>{claim.kind}{claim.kind === '吃' ? ` ${claim.tiles.map(id => label(me.hand.find(tile => tile.id === id)!.code)).join('·')}` : ''}</button>)}<button onClick={() => act('pass')}>過</button></> : <><button disabled>吃</button><button disabled>碰</button>{kongs.length ? kongs.map((_, index) => <button key={index} className="action-ready" data-action-kind="槓" onClick={() => act('kong', index)}>槓</button>) : <button disabled>槓</button>}<button className={selfWin ? 'action-ready hot' : ''} data-action-kind="胡" disabled={!selfWin} onClick={() => act('win')}>胡</button><button disabled>過</button></>}
+      {claims.length ? <>{claims.map((claim, index) => <button key={index} className={`action-ready${claim.kind === '胡' ? ' hot' : ''}`} data-action-kind={claim.kind} onClick={() => act('claim', index)}>{claimLabel(claim, me.hand)}</button>)}<button onClick={() => act('pass')}>過</button></> : <><button disabled>吃</button><button disabled>碰</button>{kongs.length ? kongs.map((_, index) => <button key={index} className="action-ready" data-action-kind="槓" onClick={() => act('kong', index)}>槓</button>) : <button disabled>槓</button>}<button className={selfWin ? 'action-ready hot' : ''} data-action-kind="胡" disabled={!selfWin} onClick={() => act('win')}>胡</button><button disabled>過</button></>}
       <button className="discard-button" disabled={!isMyTurn || selectedId === null} onClick={() => act('discard')}>出牌 →</button><button className="hint-button" disabled={!isMyTurn} onClick={() => act('hint')}>建議</button>
     </div>
     {guide && <Guide onClose={() => setGuide(false)} />}

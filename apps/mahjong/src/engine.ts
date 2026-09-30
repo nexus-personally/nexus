@@ -377,7 +377,7 @@ export function currentFanPreview(game: Game, seat: number): { items: FanItem[];
 export function selfKongs(game: Game, seat: number): Claim[] {
   const player = game.players[seat], map = counts(player.hand), claims: Claim[] = []
   for (const [code, n] of map) if (code !== 'x1' && n === 4) claims.push({ kind: '槓', tiles: player.hand.filter(t => t.code === code).map(t => t.id) })
-  for (const meld of player.melds) if (meld.kind === '碰') {
+  for (const meld of player.melds) if (meld.kind === '碰' && meld.tiles.every(tile => tile.code !== 'x1')) {
     const tile = player.hand.find(t => t.code === meld.tiles[0].code)
     if (tile) claims.push({ kind: '槓', tiles: [tile.id] })
   }

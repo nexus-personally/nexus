@@ -6,6 +6,7 @@ import { audio, loadAudioSettings, type AudioCue, type AudioSettings } from './a
 import { RoomPanel, useRoomNetwork } from './rooms'
 import { LandscapeGate } from './landscape-gate'
 import { FullscreenButton } from './fullscreen-button'
+import { SPECIAL_TILE_ATLAS, SPECIAL_TILE_ATLAS_SIZE, specialTileRegion } from './specialTiles'
 import {
   aiChooseDiscard, aiClaim, buildTiles, declareSelfKong, declareSelfWin, discard,
   currentFanPreview, evaluateWin, label, newGame, nextHand, resolveReaction, seatWind, selfKongs,
@@ -14,15 +15,42 @@ import {
 const ThreeTable = lazy(() => import('./table3d/ThreeTable').then(module => ({ default: module.ThreeTable })))
 
 const STORAGE = 'gangque.match.v2'
+const CLAIM_PREVIEW_VALUE = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('claim-preview') : null
+const CLAIM_PREVIEW = CLAIM_PREVIEW_VALUE !== null
 
-function claimLabel(claim: Claim, hand: Tile[]): string {
-  if (claim.kind !== '碰' && claim.kind !== '吃') return claim.kind
-  const used = claim.tiles.map(id => hand.find(tile => tile.id === id)?.code)
-  if (claim.kind === '吃') return `吃 ${used.map(code => code ? label(code) : '?').join('·')}`
-  const flies = used.filter(code => code === 'x1').length
-  if (flies === 2) return '碰 飛×2'
-  const code = used.find(code => code && code !== 'x1')
-  return `碰 ${code ? label(code) : '?'}${flies ? '＋飛' : '×2'}`
+function claimPreviewGame(): Game {
+  const game = newGame(3, 0, undefined, 0, 0, 0, 1, 930)
+  const handCodes = ['p1', 'p2', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'z1', 'z5', 'x1']
+  game.players[0].hand = handCodes.map((code, index) => ({ id: 9000 + index, code }))
+  const incoming = { id: 9999, code: 'p2' }
+  game.players[1].river.push(incoming)
+  game.lastDiscard = { tile: incoming, from: 1 }
+  game.latestRiverTileId = incoming.id
+  game.phase = 'reaction'
+  game.active = 1
+  game.reaction = { 0: [
+    { kind: '碰', tiles: [9001, 9002] },
+    { kind: '碰', tiles: [9001, 9012], represented: ['p2', 'p2'] },
+  ] }
+  return game
+}
+
+type ReactionDecision = { index: number; kind: Claim['kind'] } | 'pass' | null
+
+function ClaimTileFace({ code, incoming = false }: { code: string; incoming?: boolean }) {
+  const region = specialTileRegion(code)
+  return <span className={`claim-tile${incoming ? ' incoming' : ''}`} aria-label={`${label(code)}${incoming ? '，牌友打出的牌' : ''}`}>
+    {region
+      ? <svg viewBox={`${region.x} ${region.y} ${region.width} ${region.height}`} role="img" aria-hidden="true"><image href={SPECIAL_TILE_ATLAS} width={SPECIAL_TILE_ATLAS_SIZE.width} height={SPECIAL_TILE_ATLAS_SIZE.height} /></svg>
+      : <img src={`/mahjong/assets/tiles/${code}.svg`} alt="" />}
+  </span>
+}
+
+function ClaimCombination({ claim, hand, incoming, onChoose }: { claim: Claim; hand: Tile[]; incoming: Tile; onChoose: () => void }) {
+  const tiles = claim.tiles.map(id => hand.find(tile => tile.id === id)).filter((tile): tile is Tile => Boolean(tile))
+  return <button className="claim-combination" onClick={onChoose} aria-label={`${claim.kind}：${[...tiles, incoming].map(tile => label(tile.code)).join('、')}`}>
+    <span className="claim-tile-row">{tiles.map(tile => <ClaimTileFace key={tile.id} code={tile.code} />)}<ClaimTileFace code={incoming.code} incoming /></span>
+  </button>
 }
 
 function mamoneyDelta(game: Game, seat: number): number {
@@ -58,8 +86,8 @@ function savedGame(accountId: string): Game | null {
 
 function App() {
   const network = useRoomNetwork()
-  const [game, setGame] = useState<Game | null>(null)
-  const [lobby, setLobby] = useState(true)
+  const [game, setGame] = useState<Game | null>(() => CLAIM_PREVIEW ? claimPreviewGame() : null)
+  const [lobby, setLobby] = useState(!CLAIM_PREVIEW)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [guide, setGuide] = useState(false)
   const [audioSettings, setAudioSettings] = useState(loadAudioSettings)
@@ -67,12 +95,15 @@ function App() {
   const [lobbyMode, setLobbyMode] = useState<'solo' | 'room'>('room')
   const [toast, setToast] = useState('')
   const [clockNow, setClockNow] = useState(Date.now())
+  const [claimMode, setClaimMode] = useState<'吃' | '碰' | null>(() => CLAIM_PREVIEW_VALUE === 'picker' ? '碰' : null)
+  const [reactionDecision, setReactionDecision] = useState<ReactionDecision>(() => CLAIM_PREVIEW_VALUE === 'waiting' ? { index: 0, kind: '碰' } : null)
   const gameRef = useRef<Game | null>(game)
   const lastRoomLog = useRef('')
   const hadRoomGame = useRef(false)
   const inRoom = !!network.room?.started
 
   useEffect(() => {
+    if (CLAIM_PREVIEW) return
     if (!network.account) { gameRef.current = null; setGame(null); setLobby(true); return }
     if (network.room?.started) return
     const restored = savedGame(network.account.id)
@@ -140,6 +171,11 @@ function App() {
   }, [inRoom, network.room?.deadlineAt])
 
   useEffect(() => {
+    setClaimMode(CLAIM_PREVIEW_VALUE === 'picker' ? '碰' : null)
+    setReactionDecision(CLAIM_PREVIEW_VALUE === 'waiting' ? { index: 0, kind: '碰' } : null)
+  }, [game?.phase, game?.lastDiscard?.tile.id])
+
+  useEffect(() => {
     if (!game || inRoom || lobby || guide || showAudioSettings || game.phase === 'result' || game.phase === 'match-result') return
     if (game.phase === 'discard' && game.active === 0) return
     if (game.phase === 'reaction' && (game.reaction[0] ?? []).length) return
@@ -195,6 +231,10 @@ function App() {
         message(`建議打出 ${label(current.players[0].hand.find(tile => tile.id === id)!.code)}`)
         return
       }
+      if (action === 'claim') {
+        const claim = current.reaction[0]?.[index]
+        if (claim) setReactionDecision({ index, kind: claim.kind })
+      } else if (action === 'pass' || action === 'withdraw') setReactionDecision('pass')
       network.send({ type: 'action', action, index, tileId: selectedId })
       if (action === 'discard') setSelectedId(null)
       return
@@ -242,7 +282,15 @@ function App() {
   const fanPreview = currentFanPreview(game, 0)
   const round = `${WIND[game.prevailing]}圈 · 第 ${game.handNumber} 局 · ${game.count} 人`
   const turnStatus = game.phase === 'result' ? game.result?.message : isMyTurn ? '輪到你出牌' : claims.length ? '你可以應牌' : game.phase === 'reaction' ? '等待牌友應牌' : `${game.players[game.active].name} 思考中…`
-  const secondsLeft = inRoom && network.room?.deadlineAt ? Math.max(0, Math.ceil((network.room.deadlineAt - clockNow) / 1000)) : null
+  const secondsLeft = CLAIM_PREVIEW ? 8 : inRoom && network.room?.deadlineAt ? Math.max(0, Math.ceil((network.room.deadlineAt - clockNow) / 1000)) : null
+  const visualClaimKinds = (['吃', '碰'] as const).filter(kind => claims.some(claim => claim.kind === kind))
+  const directClaims = claims.map((claim, index) => ({ claim, index })).filter(({ claim }) => claim.kind !== '吃' && claim.kind !== '碰')
+  const choiceClaims = claimMode
+    ? claims.map((claim, index) => ({ claim, index, flyCount: claim.tiles.filter(id => me.hand.some(tile => tile.id === id && tile.code === 'x1')).length }))
+      .filter(({ claim }) => claim.kind === claimMode)
+      .sort((a, b) => a.flyCount - b.flyCount)
+    : []
+  const submittedClaim = typeof reactionDecision === 'object' && reactionDecision ? claims[reactionDecision.index] : null
   return <div className="play-page"><div className={`game-screen${isMyTurn ? ' is-my-turn' : ''}`}>
     <Suspense fallback={<div className="loading-scene">正在砌牌牆…</div>}><ThreeTable game={game} selectedId={selectedId} onSelect={setSelectedId} /></Suspense>
     <div className="table-vignette" />
@@ -250,21 +298,30 @@ function App() {
     {game.players.slice(1).map((player, index) => <div key={index} className={`seat-info seat-${index + 1}${game.count === 3 ? ' three-player-seat' : ''}`}><span>{seatWind(game, index + 1)}</span><div><b>{player.name}</b><small>{seatWind(game, index + 1)}位 · {player.score >= 0 ? '+' : ''}{player.score} 分</small></div></div>)}
     <div className="center-status"><small>莊家</small><strong>{seatWind(game, game.dealer)}</strong><span>連莊 {game.repeat}</span></div>
     <div className="my-status"><span>{seatWind(game, 0)}</span><div><b>{inRoom ? me.name : '你'}</b><small>{seatWind(game, 0)}位 · {me.score >= 0 ? '+' : ''}{me.score} 分</small><small className="current-fan" title={fanPreview.items.map(item => `${item.name} ${item.fan}番`).join('、') || '目前未有番型'}>目前參考 {fanPreview.fan} 番</small></div></div>
-    {(isMyTurn || claims.length > 0) && <div className="turn-banner" role="status" aria-live="polite"><strong>{isMyTurn ? '輪到你出牌' : '你可以應牌'}</strong><span>{isMyTurn ? '選一張手牌，再按「出牌」' : '請選擇吃、碰、槓、胡或過'}</span>{secondsLeft !== null && <time aria-hidden="true">{secondsLeft} 秒</time>}</div>}
+    {(isMyTurn || claims.length > 0) && !claimMode && reactionDecision === null && <div className="turn-banner" role="status" aria-live="polite"><strong>{isMyTurn ? '輪到你出牌' : '你可以應牌'}</strong><span>{isMyTurn ? '選一張手牌，再按「出牌」' : '請選擇吃、碰、槓、胡或過'}</span>{secondsLeft !== null && <time aria-hidden="true">{secondsLeft} 秒</time>}</div>}
     <div className="flowers">花牌 {me.flowers.length}{me.flowers.map(tile => <span key={tile.id}>{label(tile.code)}</span>)}</div>
     <div className="wall-note">{turnStatus}{secondsLeft !== null && !isMyTurn && !claims.length ? ` · ${secondsLeft} 秒` : ''}</div>
     <div className="hand-access" aria-label="你的手牌">{sortTiles([...me.hand]).map(tile => <button key={tile.id} className={selectedId === tile.id ? 'chosen' : ''} onClick={() => setSelectedId(tile.id)} disabled={!isMyTurn} aria-label={`選擇 ${label(tile.code)}`}>{label(tile.code)}</button>)}</div>
-    <div className="action-row"><span className="turn-note">{isMyTurn ? '輪到你出牌' : claims.length ? '請選擇應牌' : '等待牌友出牌'}</span>
-      {claims.length ? <>{claims.map((claim, index) => <button key={index} className={`action-ready${claim.kind === '胡' ? ' hot' : ''}`} data-action-kind={claim.kind} onClick={() => act('claim', index)}>{claimLabel(claim, me.hand)}</button>)}<button onClick={() => act('pass')}>過</button></> : <><button disabled>吃</button><button disabled>碰</button>{kongs.length ? kongs.map((_, index) => <button key={index} className="action-ready" data-action-kind="槓" onClick={() => act('kong', index)}>槓</button>) : <button disabled>槓</button>}<button className={selfWin ? 'action-ready hot' : ''} data-action-kind="胡" disabled={!selfWin} onClick={() => act('win')}>胡</button><button disabled>過</button></>}
+    {claims.length > 0 && claimMode && game.lastDiscard && reactionDecision === null && <section className="claim-picker" aria-label={`選擇${claimMode}牌`}>
+      <header><strong>選擇{claimMode}牌</strong>{secondsLeft !== null && <time>{secondsLeft}秒</time>}</header>
+      <div className="claim-picker-body"><button className="claim-picker-back" onClick={() => setClaimMode(null)}>‹ 返回</button><div className="claim-options">{choiceClaims.map(({ claim, index }) => <ClaimCombination key={index} claim={claim} hand={me.hand} incoming={game.lastDiscard!.tile} onChoose={() => act('claim', index)} />)}</div><button className="claim-picker-pass" onClick={() => act('pass')}>過</button></div>
+    </section>}
+    {claims.length > 0 && reactionDecision !== null && <section className="claim-picker claim-waiting" role="status" aria-live="polite">
+      {reactionDecision === 'pass' || !submittedClaim || !game.lastDiscard ? <><strong>已過牌</strong><span>等待其他玩家</span></> : <><header><strong>已選擇：{submittedClaim.kind}</strong>{secondsLeft !== null && <time>{secondsLeft}秒</time>}</header><div className="claim-waiting-body"><ClaimCombination claim={submittedClaim} hand={me.hand} incoming={game.lastDiscard.tile} onChoose={() => {}} /><span>等待其他玩家回應</span><button onClick={() => act('withdraw')}>撤回</button></div></>}
+    </section>}
+    {(!claims.length || (!claimMode && reactionDecision === null)) && <div className="action-row"><span className="turn-note">{isMyTurn ? '輪到你出牌' : claims.length ? '請選擇應牌' : '等待牌友出牌'}</span>
+      {claims.length ? <>{visualClaimKinds.map(kind => <button key={kind} className="action-ready" data-action-kind={kind} onClick={() => setClaimMode(kind)}>{kind}</button>)}{directClaims.map(({ claim, index }) => <button key={`${claim.kind}-${index}`} className={`action-ready${claim.kind === '胡' ? ' hot' : ''}`} data-action-kind={claim.kind} onClick={() => act('claim', index)}>{claim.kind}</button>)}<button onClick={() => act('pass')}>過</button></> : <><button disabled>吃</button><button disabled>碰</button>{kongs.length ? kongs.map((_, index) => <button key={index} className="action-ready" data-action-kind="槓" onClick={() => act('kong', index)}>槓</button>) : <button disabled>槓</button>}<button className={selfWin ? 'action-ready hot' : ''} data-action-kind="胡" disabled={!selfWin} onClick={() => act('win')}>胡</button><button disabled>過</button></>}
       <button className="discard-button" disabled={!isMyTurn || selectedId === null} onClick={() => act('discard')}>出牌 →</button><button className="hint-button" disabled={!isMyTurn} onClick={() => act('hint')}>建議</button>
-    </div>
+    </div>}
     {guide && <Guide onClose={() => setGuide(false)} />}
     {showAudioSettings && <AudioSettingsPanel settings={audioSettings} onChange={updateAudio} onClose={() => setShowAudioSettings(false)} />}
     {(game.phase === 'result' || game.phase === 'match-result') && <div className="modal-shade"><div className="result-panel">
       <small>本局結算</small>
       <h2>{game.phase === 'match-result' ? '東南圈完成' : game.result?.message}</h2>
-      {game.result?.winner != null && <strong>{game.result.fan} 番{game.count === 3 && game.result.raw >= 10 ? ' · 爆番' : ''}</strong>}
-      {game.result && game.result.raw > game.result.fan && <small>原始 {game.result.raw} 番，實際按 {game.result.fan} 番結算</small>}
+      {game.result?.winner != null && (game.count === 3 && game.result.raw >= 10
+        ? <><strong>爆番 ×2</strong><small>原始 {game.result.raw} 番 · 爆番基準 10 × 2 · 結算值 {game.result.fan}</small></>
+        : <strong>{game.result.fan} 番</strong>)}
+      {game.result && game.count === 4 && game.result.raw > game.result.fan && <small>原始 {game.result.raw} 番，實際按 {game.result.fan} 番結算</small>}
       <div>{game.result?.items.map((item, index) => <p key={index}>{item.name}<b>+{item.fan}</b></p>)}</div>
       <div className="scores">{game.players.map((player, index) => <span key={index}>{player.name} {player.score >= 0 ? '+' : ''}{player.score}</span>)}</div>
       {inRoom && game.result && (network.offline.active

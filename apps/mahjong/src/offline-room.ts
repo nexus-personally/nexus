@@ -200,6 +200,13 @@ class PhoneHost {
         declareSelfKong(game, seat, claim)
       } else throw Error('当前操作无效')
     } else if (game.phase === 'reaction' && (game.reaction[seat] || []).length) {
+      if (action === 'withdraw') {
+        if (!(seat in this.choices) || this.choices[seat] === null) throw Error('目前没有可撤回的应牌')
+        this.choices[seat] = null
+        if (this.timer) window.clearTimeout(this.timer)
+        this.timer = null
+        this.broadcast(); this.schedule(); return
+      }
       if (seat in this.choices) throw Error('已选择应牌')
       if (action !== 'pass' && action !== 'claim') throw Error('请选择应牌或过')
       const claim = action === 'claim' ? game.reaction[seat][Number(message.index)] : null

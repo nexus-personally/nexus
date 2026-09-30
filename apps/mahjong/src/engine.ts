@@ -25,6 +25,7 @@ export const MIN_FAN = 3
 export const FAN_CAP = 13
 export const minFan = (count: 3 | 4) => count === 3 ? 5 : MIN_FAN
 export const fanCap = (count: 3 | 4) => count === 3 ? 10 : FAN_CAP
+export const settlementFan = (count: 3 | 4, raw: number) => count === 3 && raw >= 10 ? 20 : Math.min(raw, fanCap(count))
 const seatWindIndex = (game: Game, seat: number): number => {
   const relativeSeat = (seat - game.dealer + game.count) % game.count
   return game.count === 3 && relativeSeat === 2 ? 3 : relativeSeat
@@ -321,7 +322,7 @@ export function evaluateWin(game: Game, seat: number, incoming?: Tile, selfDraw 
   const items = fanBreakdown(game, seat, tiles, selfDraw)
   if (!items) return null
   const raw = items.reduce((sum, item) => sum + item.fan, 0)
-  return raw >= minFan(game.count) ? { items, raw, fan: Math.min(raw, fanCap(game.count)) } : null
+  return raw >= minFan(game.count) ? { items, raw, fan: settlementFan(game.count, raw) } : null
 }
 
 // A private, provisional readout for the player's current tiles. Winning-only
@@ -424,7 +425,7 @@ function settleWin(game: Game, winner: number, from: number | null): void {
   } else { payments[from] -= info.fan; payments[winner] += info.fan }
   for (let i = 0; i < game.count; i++) game.players[i].score += payments[i]
   game.result = { winner, from, ...info, payments, message: from === null ? `${game.players[winner].name} 自摸！` : `${game.players[winner].name} 胡 ${game.players[from].name} 的牌！` }
-  game.phase = 'result'; log(game, `${game.result.message} ${info.fan} 番`)
+  game.phase = 'result'; log(game, game.count === 3 && info.raw >= 10 ? `${game.result.message} 爆番 ×2（結算值 ${info.fan}）` : `${game.result.message} ${info.fan} 番`)
 }
 function endDraw(game: Game): void {
   const dealer = game.dealer
@@ -486,7 +487,7 @@ export function resolveReaction(game: Game, choices: Record<number, Claim | null
   }
   if (!game.lastDiscard) throw Error('沒有待處理的出牌')
   const { tile, from } = game.lastDiscard
-  const ranking: Record<Claim['kind'], number> = { 胡: 3, 槓: 2, 碰: 2, 吃: 1 }
+  const ranking: Record<Claim['kind'], number> = { 胡: 4, 槓: 3, 碰: 2, 吃: 1 }
   const candidates = Object.entries(choices).flatMap(([s, claim]) => {
     const seat = Number(s)
     const legal = game.reaction[seat]?.some(c => c.kind === claim?.kind && JSON.stringify(c.tiles) === JSON.stringify(claim?.tiles))

@@ -277,6 +277,12 @@ async function roomAction(room, account, action, payload) {
     else if (action === 'kong') { const claim = selfKongs(game, seat)[Number(payload.index)]; if (!claim) throw Error('没有可杠的牌'); declareSelfKong(game, seat, claim) }
     else throw Error('当前操作无效')
   } else if (game.phase === 'reaction' && (game.reaction[seat] || []).length) {
+    if (action === 'withdraw') {
+      if (!(seat in room.choices) || room.choices[seat] === null) throw Error('目前沒有可撤回的應牌')
+      room.choices[seat] = null
+      if (room.timer) { clearTimeout(room.timer); room.timer = null }
+      await publishRoom(room); schedule(room); return
+    }
     if (seat in room.choices) throw Error('已选择应牌')
     if (action !== 'pass' && action !== 'claim') throw Error('请选择应牌或过')
     const claim = action === 'claim' ? game.reaction[seat][Number(payload.index)] : null

@@ -11,6 +11,7 @@ export type OfflineRoom = {
   count: 3 | 4
   hostId: string
   started: boolean
+  deadlineAt?: number | null
   seats: ({ id: string; name: string; connected: boolean } | null)[]
 }
 type Update = (room: OfflineRoom | null, game: Game | null, connected: boolean) => void
@@ -85,6 +86,7 @@ class PhoneHost {
   private peers = new Map<number, { peer: RTCPeerConnection; channel: RTCDataChannel }>()
   private pending: { peer: RTCPeerConnection; channel: RTCDataChannel; session: string } | null = null
   private timer: number | null = null
+  private deadlineKey: string | null = null
   constructor(private account: OfflineAccount, count: 3 | 4, private update: Update, private onError: (value: string) => void) {
     this.room = { code: randomCode(), count, hostId: account.id, started: false, seats: Array(count).fill(null) }
     this.room.seats[0] = { id: account.id, name: account.name, connected: true }
@@ -92,10 +94,21 @@ class PhoneHost {
   }
   private broadcast() {
     this.room.started = !!this.game
+    this.room.deadlineAt = this.ensureDeadline()
     this.update({ ...this.room, seats: [...this.room.seats] }, this.game ? playerView(this.game, 0) : null, true)
     for (const [seat, { channel }] of this.peers) if (channel.readyState === 'open') {
       channel.send(JSON.stringify({ type: 'room', room: this.room, game: this.game ? playerView(this.game, seat) : null }))
     }
+  }
+  private ensureDeadline(): number | null {
+    const game = this.game
+    if (!game || !['discard', 'reaction'].includes(game.phase)) { this.deadlineKey = null; return null }
+    const key = `${game.handId}:${game.phase}:${game.active}:${game.lastDiscard?.tile.id ?? ''}:${game.history[0] ?? ''}`
+    if (this.deadlineKey !== key) {
+      this.deadlineKey = key
+      this.room.deadlineAt = Date.now() + (game.phase === 'reaction' ? 15000 : 60000)
+    }
+    return this.room.deadlineAt ?? null
   }
   async invite(): Promise<string> {
     if (this.game) throw Error('牌局进行中不能加入新玩家，请房主先取消本局')
@@ -130,6 +143,8 @@ class PhoneHost {
             this.peers.delete(seat)
             if (this.game) this.room.seats[seat] = { ...this.room.seats[seat]!, connected: false }
             else this.room.seats[seat] = null
+            if (this.timer) window.clearTimeout(this.timer)
+            this.timer = null
             this.broadcast(); this.schedule()
           }
         }
@@ -156,6 +171,7 @@ class PhoneHost {
     }
     if (message.type === 'cancel') {
       if (seat !== 0 || !this.game) throw Error('只有房主可取消本局')
+      if (this.game.phase === 'result' || this.game.phase === 'match-result') throw Error('本局已经结算，请开始下一局')
       if (this.timer) clearTimeout(this.timer)
       this.timer = null; this.game = null; this.choices = {}; this.broadcast(); return
     }
@@ -190,10 +206,18 @@ class PhoneHost {
       if (action === 'claim' && !claim) throw Error('没有这个应牌选项')
       this.choices[seat] = claim
     } else throw Error('尚未轮到你')
+    if (this.timer) window.clearTimeout(this.timer)
+    this.timer = null
     this.broadcast(); this.schedule()
   }
   private schedule() {
     if (!this.game || this.timer) return
+    const game = this.game
+    if (game.phase === 'result' || game.phase === 'match-result') return
+    const deadline = this.ensureDeadline()
+    const waitingHuman = game.phase === 'reaction'
+      ? this.room.seats.some((member, seat) => member?.connected && (game.reaction[seat] || []).length && !(seat in this.choices))
+      : Boolean(this.room.seats[game.active]?.connected)
     this.timer = window.setTimeout(() => {
       this.timer = null
       const game = this.game
@@ -201,21 +225,25 @@ class PhoneHost {
       try {
         if (game.phase === 'reaction') {
           const waiting = this.room.seats.some((member, seat) => member?.connected && (game.reaction[seat] || []).length && !(seat in this.choices))
-          if (waiting) return
+          if (waiting && Date.now() < (this.room.deadlineAt ?? 0)) { this.schedule(); return }
           const choices = { ...this.choices }
-          for (let seat = 0; seat < this.room.count; seat++) if (!this.room.seats[seat]?.connected) choices[seat] = aiClaim(game, seat)
+          for (let seat = 0; seat < this.room.count; seat++) {
+            if (!this.room.seats[seat]?.connected) choices[seat] = aiClaim(game, seat)
+            else if (!(seat in choices)) choices[seat] = null
+          }
           resolveReaction(game, choices); this.choices = {}
-        } else if (!this.room.seats[game.active]?.connected) {
+        } else {
+          if (this.room.seats[game.active]?.connected && Date.now() < (this.room.deadlineAt ?? 0)) { this.schedule(); return }
           if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
           else {
             const kong = game.wall.length ? selfKongs(game, game.active)[0] : undefined
             if (kong) declareSelfKong(game, game.active, kong)
             else discard(game, game.active, aiChooseDiscard(game, game.active))
           }
-        } else return
+        }
         this.broadcast(); this.schedule()
       } catch (error) { this.onError(error instanceof Error ? error.message : '电脑操作失败') }
-    }, 650)
+    }, waitingHuman ? Math.max(1, (deadline ?? Date.now()) - Date.now()) : 650)
   }
   close() {
     if (this.timer) clearTimeout(this.timer)

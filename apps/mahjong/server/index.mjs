@@ -5,6 +5,7 @@ import { isIP } from 'node:net'
 import { WebSocketServer, WebSocket } from 'ws'
 import { Pool } from 'pg'
 import { aiChooseDiscard, aiClaim, declareSelfKong, declareSelfWin, discard, evaluateWin, newGame, nextHand, resolveReaction, selfKongs } from '../src/engine.ts'
+import { settlementDeltas } from '../src/wallet.ts'
 
 const ROOT = resolve(import.meta.dirname, '../dist')
 const DATA = resolve(process.env.GANGQUE_DATA_DIR || join(import.meta.dirname, 'data'))
@@ -30,7 +31,7 @@ async function loadAccounts() {
 }
 async function saveAccount(account) {
   if (pool) {
-    await pool.query('INSERT INTO mahjong_accounts (id, login, name, password, mamoney) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, password = EXCLUDED.password, mamoney = EXCLUDED.mamoney', [account.id, account.login, account.name, account.password, account.balance ?? 500])
+    await pool.query('INSERT INTO mahjong_accounts (id, login, name, password, mamoney) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, password = EXCLUDED.password', [account.id, account.login, account.name, account.password, account.balance ?? 500])
     return
   }
   const temp = `${ACCOUNTS}.tmp`
@@ -117,33 +118,7 @@ async function handleApi(req, res, path, parsedBody) {
     }
     if (!account) return json(res, 401, { error: '请先登录' })
     if (path === '/api/me') return json(res, 200, { account: publicAccount(account) })
-    if (path === '/api/wallet/sync') {
-      if (!Array.isArray(body.events) || body.events.length > 100) throw Error('妈币结算资料无效')
-      const applied = []
-      if (pool) {
-        const client = await pool.connect()
-        try {
-          await client.query('BEGIN')
-          for (const event of body.events) {
-            if (typeof event?.eventId !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(event.eventId) || !Number.isInteger(event.delta) || Math.abs(event.delta) > 10000) throw Error('妈币结算资料无效')
-            const inserted = await client.query('INSERT INTO mahjong_wallet_events (account_id, event_id, delta) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING RETURNING delta', [account.id, event.eventId, event.delta])
-            if (inserted.rowCount) { await client.query('UPDATE mahjong_accounts SET mamoney = mamoney + $1 WHERE id = $2', [event.delta, account.id]); applied.push(event.eventId) }
-          }
-          const balance = await client.query('SELECT mamoney FROM mahjong_accounts WHERE id = $1', [account.id])
-          await client.query('COMMIT')
-          account.balance = Number(balance.rows[0]?.mamoney ?? account.balance ?? 500)
-        } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
-      } else {
-        account.walletEvents ||= []
-        for (const event of body.events) {
-          if (typeof event?.eventId !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(event.eventId) || !Number.isInteger(event.delta) || Math.abs(event.delta) > 10000) throw Error('妈币结算资料无效')
-          if (!account.walletEvents.includes(event.eventId)) { account.balance = Number(account.balance ?? 500) + event.delta; account.walletEvents.push(event.eventId); applied.push(event.eventId) }
-        }
-        account.walletEvents = account.walletEvents.slice(-2000)
-        await saveAccount(account)
-      }
-      return json(res, 200, { account: publicAccount(account), applied })
-    }
+    if (path === '/api/wallet/sync') return json(res, 410, { error: '旧版客户端结算已停用；线上牌局由房间主机自动入账' })
     if (path === '/api/profile') {
       if (!matches(String(body.password || ''), account.password)) throw Error('当前密码错误')
       if (body.name !== undefined) { if (!validateName(body.name)) throw Error('用户名须为 1～20 字'); account.name = body.name.trim() }
@@ -159,14 +134,78 @@ async function handleApi(req, res, path, parsedBody) {
 
 function send(ws, type, payload = {}) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...payload })) }
 function roomOf(accountId) { return [...rooms.values()].find(room => room.seats.some(seat => seat?.id === accountId)) }
-function roomInfo(room) { return { code: room.code, count: room.count, hostId: room.hostId, started: !!room.game, seats: room.seats.map(seat => seat && { id: seat.id, name: seat.name, connected: sockets.has(seat.id) }) } }
+const REACTION_MS = 15000
+const TURN_MS = 60000
+function ensureDeadline(room) {
+  const game = room.game
+  if (!game || !['discard', 'reaction'].includes(game.phase)) { room.deadlineKey = null; room.deadlineAt = null; return null }
+  const key = `${game.handId}:${game.phase}:${game.active}:${game.lastDiscard?.tile.id ?? ''}:${game.history[0] ?? ''}`
+  if (room.deadlineKey !== key) {
+    room.deadlineKey = key
+    room.deadlineAt = Date.now() + (game.phase === 'reaction' ? REACTION_MS : TURN_MS)
+  }
+  return room.deadlineAt
+}
+function roomInfo(room) { return { code: room.code, count: room.count, hostId: room.hostId, started: !!room.game, deadlineAt: ensureDeadline(room), seats: room.seats.map(seat => seat && { id: seat.id, name: seat.name, connected: sockets.has(seat.id) }) } }
 function viewFor(game, seat) {
   const rotate = value => (value - seat + game.count) % game.count
   const players = Array.from({ length: game.count }, (_, index) => {
     const source = game.players[(seat + index) % game.count]
     return { ...source, hand: index === 0 ? source.hand : source.hand.map(tile => ({ id: tile.id, code: 'hidden' })) }
   })
-  return { ...game, players, wall: game.wall.map(tile => ({ id: tile.id, code: 'hidden' })), active: rotate(game.active), dealer: rotate(game.dealer), lastDiscard: game.lastDiscard && { ...game.lastDiscard, from: rotate(game.lastDiscard.from) }, reaction: { 0: game.reaction[seat] || [] }, pendingKong: null, result: game.result && { ...game.result, winner: game.result.winner === null ? null : rotate(game.result.winner), from: game.result.from === null ? null : rotate(game.result.from), payments: Array.from({ length: game.count }, (_, index) => game.result.payments[(seat + index) % game.count]) } }
+  return { ...game, players, wall: game.wall.map(tile => ({ id: tile.id, code: 'hidden' })), active: rotate(game.active), dealer: rotate(game.dealer), lastDiscard: game.lastDiscard && { ...game.lastDiscard, from: rotate(game.lastDiscard.from) }, reaction: { 0: game.reaction[seat] || [] }, pendingKong: null, result: game.result && { ...game.result, winner: game.result.winner === null ? null : rotate(game.result.winner), from: game.result.from === null ? null : rotate(game.result.from), payments: Array.from({ length: game.count }, (_, index) => game.result.payments[(seat + index) % game.count]), mamoneyDeltas: game.result.mamoneyDeltas && Array.from({ length: game.count }, (_, index) => game.result.mamoneyDeltas[(seat + index) % game.count]) } }
+}
+async function settleRoom(room) {
+  const game = room.game
+  if (!game || game.phase !== 'result' || !game.result || game.result.winner === null || room.settledHands.has(game.handId)) return
+  if (room.settlement?.handId === game.handId) return room.settlement.promise
+  const eligible = room.seats.map((member, seat) => Boolean(member && sockets.has(member.id) && !game.players[seat].ai))
+  const deltas = settlementDeltas(game.result, eligible)
+  const eventId = `room-${game.handId}`
+  const entries = room.seats.flatMap((member, seat) => member && deltas[seat] ? [{ account: accounts.find(item => item.id === member.id), delta: deltas[seat] }] : [])
+  const promise = (async () => {
+    if (pool && entries.length) {
+      const client = await pool.connect()
+      const balances = new Map()
+      try {
+        await client.query('BEGIN')
+        for (const { account, delta } of entries) {
+          if (!account) throw Error('结算帐号不存在')
+          const inserted = await client.query('INSERT INTO mahjong_wallet_events (account_id, event_id, delta) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING RETURNING delta', [account.id, eventId, delta])
+          const updated = inserted.rowCount
+            ? await client.query('UPDATE mahjong_accounts SET mamoney = mamoney + $1 WHERE id = $2 RETURNING mamoney', [delta, account.id])
+            : await client.query('SELECT mamoney FROM mahjong_accounts WHERE id = $1', [account.id])
+          balances.set(account.id, Number(updated.rows[0].mamoney))
+        }
+        await client.query('COMMIT')
+      } catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
+      for (const { account } of entries) account.balance = balances.get(account.id)
+    } else if (entries.length) {
+      const changes = new Map()
+      for (const { account, delta } of entries) {
+        if (!account) throw Error('结算帐号不存在')
+        if (account.walletEvents?.includes(eventId)) continue
+        changes.set(account.id, { balance: Number(account.balance ?? 500) + delta, walletEvents: [...(account.walletEvents || []), eventId].slice(-2000) })
+      }
+      if (changes.size) {
+        const snapshot = accounts.map(account => changes.has(account.id) ? { ...account, ...changes.get(account.id) } : account)
+        const temp = `${ACCOUNTS}.tmp`
+        writeFileSync(temp, JSON.stringify(snapshot), { mode: 0o600 })
+        renameSync(temp, ACCOUNTS)
+        for (const account of accounts) if (changes.has(account.id)) Object.assign(account, changes.get(account.id))
+      }
+    }
+    game.result.mamoneyDeltas = deltas
+    room.settledHands.add(game.handId)
+    for (const { account } of entries) send(sockets.get(account.id), 'wallet', { account: publicAccount(account) })
+  })()
+  room.settlement = { handId: game.handId, promise }
+  try { await promise } finally { if (room.settlement?.promise === promise) room.settlement = null }
+}
+async function publishRoom(room) {
+  try { await settleRoom(room) }
+  catch (error) { broadcast(room); throw error }
+  broadcast(room)
 }
 function broadcast(room) {
   for (let seat = 0; seat < room.count; seat++) {
@@ -187,39 +226,50 @@ function leaveRoom(accountId) {
 }
 function schedule(room) {
   if (!room.game || room.timer) return
-  room.timer = setTimeout(() => {
+  const game = room.game
+  if (game.phase === 'result' || game.phase === 'match-result') return
+  const deadline = ensureDeadline(room)
+  const waitingHuman = game.phase === 'reaction'
+    ? room.seats.some((member, seat) => member && sockets.has(member.id) && (game.reaction[seat] || []).length && !(seat in room.choices))
+    : Boolean(room.seats[game.active] && sockets.has(room.seats[game.active].id))
+  room.timer = setTimeout(async () => {
     room.timer = null
     const game = room.game
     if (!game || game.phase === 'result' || game.phase === 'match-result') return
     try {
       if (game.phase === 'reaction') {
         const pendingHumans = room.seats.some((member, seat) => member && sockets.has(member.id) && (game.reaction[seat] || []).length && !(seat in room.choices))
-        if (pendingHumans) return
+        if (pendingHumans && Date.now() < room.deadlineAt) { schedule(room); return }
         const choices = { ...room.choices }
-        for (let seat = 0; seat < room.count; seat++) if (!room.seats[seat] || !sockets.has(room.seats[seat].id)) choices[seat] = aiClaim(game, seat)
+        for (let seat = 0; seat < room.count; seat++) {
+          if (!room.seats[seat] || !sockets.has(room.seats[seat].id)) choices[seat] = aiClaim(game, seat)
+          else if (!(seat in choices)) choices[seat] = null
+        }
         resolveReaction(game, choices); room.choices = {}
-      } else if (!room.seats[game.active] || !sockets.has(room.seats[game.active].id)) {
+      } else {
+        if (room.seats[game.active] && sockets.has(room.seats[game.active].id) && Date.now() < room.deadlineAt) { schedule(room); return }
         if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
         else {
           const kong = game.wall.length ? selfKongs(game, game.active)[0] : undefined
           if (kong) declareSelfKong(game, game.active, kong)
           else discard(game, game.active, aiChooseDiscard(game, game.active))
         }
-      } else return
-      broadcast(room); schedule(room)
+      }
+      await publishRoom(room); schedule(room)
     } catch (error) { console.error('Room AI error:', error) }
-  }, 650)
+  }, waitingHuman ? Math.max(1, deadline - Date.now()) : 650)
 }
-function roomAction(room, account, action, payload) {
+async function roomAction(room, account, action, payload) {
   const game = room.game
   if (!game) throw Error('牌局尚未开始')
   const seat = room.seats.findIndex(member => member?.id === account.id)
   if (seat < 0) throw Error('你不在房间里')
   if (action === 'next') {
     if (account.id !== room.hostId || !['result', 'match-result'].includes(game.phase)) throw Error('只有房主可开始下一局')
+    await settleRoom(room)
     room.game = game.phase === 'match-result' ? newGame(room.count) : nextHand(game)
     room.game.players.forEach((player, index) => { player.name = room.seats[index]?.name || `电脑 ${index + 1}`; player.ai = !room.seats[index] })
-    room.choices = {}; broadcast(room); schedule(room); return
+    room.choices = {}; await publishRoom(room); schedule(room); return
   }
   if (game.phase === 'discard' && game.active === seat) {
     if (action === 'discard') discard(game, seat, Number(payload.tileId))
@@ -233,16 +283,17 @@ function roomAction(room, account, action, payload) {
     if (action === 'claim' && !claim) throw Error('没有这个应牌选项')
     room.choices[seat] = claim
   } else throw Error('尚未轮到你')
-  broadcast(room); schedule(room)
+  if (room.timer) { clearTimeout(room.timer); room.timer = null }
+  await publishRoom(room); schedule(room)
 }
 function code() { let value; do { value = randomBytes(4).toString('hex').toUpperCase() } while (rooms.has(value)); return value }
-function handleSocket(ws, message, account) {
+async function handleSocket(ws, message, account) {
   const room = roomOf(account.id)
-  if (message.type === 'resume') { if (room) { broadcast(room); schedule(room) } else send(ws, 'room', { room: null, game: null }); return }
+  if (message.type === 'resume') { if (room) { await publishRoom(room); schedule(room) } else send(ws, 'room', { room: null, game: null }); return }
   if (message.type === 'create') {
     if (room) throw Error('请先离开当前房间')
     const count = message.count === 3 ? 3 : 4
-    const created = { code: code(), count, hostId: account.id, seats: Array(count).fill(null), game: null, choices: {}, timer: null }
+    const created = { code: code(), count, hostId: account.id, seats: Array(count).fill(null), game: null, choices: {}, timer: null, deadlineKey: null, deadlineAt: null, settledHands: new Set(), settlement: null }
     created.seats[0] = publicAccount(account); rooms.set(created.code, created); broadcast(created); return
   }
   if (message.type === 'join') {
@@ -258,6 +309,7 @@ function handleSocket(ws, message, account) {
   if (message.type === 'cancel') {
     if (room.hostId !== account.id) throw Error('只有房主可取消本局')
     if (!room.game) throw Error('目前没有进行中的牌局')
+    if (room.game.phase === 'result' || room.game.phase === 'match-result') throw Error('本局已经结算，请开始下一局')
     if (room.timer) clearTimeout(room.timer)
     room.timer = null
     room.game = null
@@ -299,13 +351,13 @@ function onSocket(ws) {
         sockets.set(account.id, ws)
         send(ws, 'auth', { account: publicAccount(account) })
         const room = roomOf(account.id)
-        if (room) broadcast(room)
+        if (room) await publishRoom(room)
         return
       }
-      handleSocket(ws, message, account)
+      await handleSocket(ws, message, account)
     } catch (error) { send(ws, 'error', { error: error.message || '操作失败' }) }
   })
-  ws.on('close', () => { if (account && sockets.get(account.id) === ws) { sockets.delete(account.id); const room = roomOf(account.id); if (room) { broadcast(room); schedule(room) } } })
+  ws.on('close', () => { if (account && sockets.get(account.id) === ws) { sockets.delete(account.id); const room = roomOf(account.id); if (room) { if (room.timer) clearTimeout(room.timer); room.timer = null; void publishRoom(room).catch(error => console.error('Room settlement error:', error)); schedule(room) } } })
 }
 
 export async function registerMahjong(fastify) {

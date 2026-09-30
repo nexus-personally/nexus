@@ -16,11 +16,7 @@ const ThreeTable = lazy(() => import('./table3d/ThreeTable').then(module => ({ d
 const STORAGE = 'gangque.match.v2'
 
 function mamoneyDelta(game: Game, seat: number): number {
-  const result = game.result
-  if (!result || result.winner === null || game.players[seat]?.ai || game.players[result.winner]?.ai) return 0
-  return result.winner === seat
-    ? result.payments.reduce((sum, value, index) => sum + (index !== seat && !game.players[index].ai ? value : 0), 0)
-    : result.payments[seat]
+  return game.result?.mamoneyDeltas?.[seat] ?? 0
 }
 
 function cueFromHistory(message: string): AudioCue {
@@ -60,10 +56,10 @@ function App() {
   const [showAudioSettings, setShowAudioSettings] = useState(false)
   const [lobbyMode, setLobbyMode] = useState<'solo' | 'room'>('room')
   const [toast, setToast] = useState('')
+  const [clockNow, setClockNow] = useState(Date.now())
   const gameRef = useRef<Game | null>(game)
   const lastRoomLog = useRef('')
   const hadRoomGame = useRef(false)
-  const lastWalletEvent = useRef('')
   const inRoom = !!network.room?.started
 
   useEffect(() => {
@@ -100,39 +96,6 @@ function App() {
     setLobby(true)
   }, [network.room?.started, network.room?.code, network.account?.id])
 
-  useEffect(() => {
-    if (!network.account || !network.connected || network.offline.active) return
-    const key = `gangque.wallet.pending.${network.account.id}`
-    let pending: { eventId: string; delta: number }[] = []
-    try { pending = JSON.parse(localStorage.getItem(key) || '[]') } catch { pending = [] }
-    if (!pending.length) return
-    void network.api('wallet/sync', { events: pending }).then(result => {
-      network.setAccount(result.account)
-      localStorage.removeItem(key)
-    }).catch(() => {})
-  }, [network.account?.id, network.connected, network.offline.active])
-
-  useEffect(() => {
-    if (!game || !inRoom || !network.room || game.phase !== 'result' || !game.result || game.result.winner === null || !network.account) return
-    const eventId = `mahjong-${game.handId}`
-    if (lastWalletEvent.current === eventId) return
-    lastWalletEvent.current = eventId
-    const delta = mamoneyDelta(game, 0)
-    if (!delta) return
-    const event = { eventId, delta }
-    const key = `gangque.wallet.pending.${network.account.id}`
-    const queue = () => {
-      let pending: typeof event[] = []
-      try { pending = JSON.parse(localStorage.getItem(key) || '[]') } catch { pending = [] }
-      if (!pending.some(item => item.eventId === eventId)) {
-        localStorage.setItem(key, JSON.stringify([...pending, event]))
-        network.setAccount({ ...network.account!, mamoney: (network.account!.mamoney ?? 500) + delta })
-      }
-    }
-    if (network.offline.active || !network.connected) queue()
-    else void network.api('wallet/sync', { events: [event] }).then(result => network.setAccount(result.account)).catch(queue)
-  }, [game?.phase, game?.handNumber, inRoom, network.room?.code, network.account?.id, network.connected, network.offline.active])
-
   function cancelRoomGame() {
     if (network.room?.hostId !== network.account?.id || !network.room?.started) return
     if (window.confirm('取消本局并返回房间？本局分数不计，朋友可加入后再由房主开局。')) network.send({ type: 'cancel' })
@@ -158,6 +121,13 @@ function App() {
   useEffect(() => {
     audio.setScene(lobby || !game ? 'lobby' : game.phase === 'result' || game.phase === 'match-result' ? 'result' : game.wall.length <= 20 ? 'tense' : 'gameplay')
   }, [lobby, game?.phase, game?.wall.length])
+
+  useEffect(() => {
+    if (!inRoom || !network.room?.deadlineAt) return
+    setClockNow(Date.now())
+    const timer = window.setInterval(() => setClockNow(Date.now()), 500)
+    return () => window.clearInterval(timer)
+  }, [inRoom, network.room?.deadlineAt])
 
   useEffect(() => {
     if (!game || inRoom || lobby || guide || showAudioSettings || game.phase === 'result' || game.phase === 'match-result') return
@@ -262,16 +232,17 @@ function App() {
   const fanPreview = currentFanPreview(game, 0)
   const round = `${WIND[game.prevailing]}圈 · 第 ${game.handNumber} 局 · ${game.count} 人`
   const turnStatus = game.phase === 'result' ? game.result?.message : isMyTurn ? '輪到你出牌' : claims.length ? '你可以應牌' : game.phase === 'reaction' ? '等待牌友應牌' : `${game.players[game.active].name} 思考中…`
+  const secondsLeft = inRoom && network.room?.deadlineAt ? Math.max(0, Math.ceil((network.room.deadlineAt - clockNow) / 1000)) : null
   return <div className="play-page"><div className={`game-screen${isMyTurn ? ' is-my-turn' : ''}`}>
     <Suspense fallback={<div className="loading-scene">正在砌牌牆…</div>}><ThreeTable game={game} selectedId={selectedId} onSelect={setSelectedId} /></Suspense>
     <div className="table-vignette" />
-    <header className="game-header"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 茶樓牌局</small></div><div className="round-tag">{round}<span>餘牌 {game.wall.length}</span></div><div className="header-actions"><span className="wallet-badge">媽幣 {network.account?.mamoney ?? 500}</span><FullscreenButton /><button onClick={() => setGuide(true)}>說明</button><button onClick={() => updateAudio({ bgmEnabled: !audioSettings.bgmEnabled })} aria-label={`背景音樂${audioSettings.bgmEnabled ? '開啟中，按下關閉' : '已關閉，按下開啟'}`}>{audioSettings.bgmEnabled ? '音樂開' : '音樂關'}</button><button onClick={() => { void audio.unlock(); setShowAudioSettings(true) }}>音量</button>{inRoom && network.room?.hostId === network.account?.id && <button className="cancel-room-game" onClick={cancelRoomGame}>取消本局</button>}<button onClick={() => setLobby(true)}>首頁</button></div></header>
+    <header className="game-header"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 茶樓牌局</small></div><div className="round-tag">{round}<span>餘牌 {game.wall.length}</span></div><div className="header-actions"><span className="wallet-badge">媽幣 {network.account?.mamoney ?? 500}</span><FullscreenButton /><button onClick={() => setGuide(true)}>說明</button><button onClick={() => updateAudio({ bgmEnabled: !audioSettings.bgmEnabled })} aria-label={`背景音樂${audioSettings.bgmEnabled ? '開啟中，按下關閉' : '已關閉，按下開啟'}`}>{audioSettings.bgmEnabled ? '音樂開' : '音樂關'}</button><button onClick={() => { void audio.unlock(); setShowAudioSettings(true) }}>音量</button>{inRoom && network.room?.hostId === network.account?.id && game.phase !== 'result' && game.phase !== 'match-result' && <button className="cancel-room-game" onClick={cancelRoomGame}>取消本局</button>}<button onClick={() => setLobby(true)}>首頁</button></div></header>
     {game.players.slice(1).map((player, index) => <div key={index} className={`seat-info seat-${index + 1}${game.count === 3 ? ' three-player-seat' : ''}`}><span>{seatWind(game, index + 1)}</span><div><b>{player.name}</b><small>{seatWind(game, index + 1)}位 · {player.score >= 0 ? '+' : ''}{player.score} 分</small></div></div>)}
     <div className="center-status"><small>莊家</small><strong>{seatWind(game, game.dealer)}</strong><span>連莊 {game.repeat}</span></div>
     <div className="my-status"><span>{seatWind(game, 0)}</span><div><b>{inRoom ? me.name : '你'}</b><small>{seatWind(game, 0)}位 · {me.score >= 0 ? '+' : ''}{me.score} 分</small><small className="current-fan" title={fanPreview.items.map(item => `${item.name} ${item.fan}番`).join('、') || '目前未有番型'}>目前參考 {fanPreview.fan} 番</small></div></div>
-    {(isMyTurn || claims.length > 0) && <div className="turn-banner" role="status" aria-live="polite"><strong>{isMyTurn ? '輪到你出牌' : '你可以應牌'}</strong><span>{isMyTurn ? '選一張手牌，再按「出牌」' : '請選擇吃、碰、槓、胡或過'}</span></div>}
+    {(isMyTurn || claims.length > 0) && <div className="turn-banner" role="status" aria-live="polite"><strong>{isMyTurn ? '輪到你出牌' : '你可以應牌'}</strong><span>{isMyTurn ? '選一張手牌，再按「出牌」' : '請選擇吃、碰、槓、胡或過'}</span>{secondsLeft !== null && <time aria-hidden="true">{secondsLeft} 秒</time>}</div>}
     <div className="flowers">花牌 {me.flowers.length}{me.flowers.map(tile => <span key={tile.id}>{label(tile.code)}</span>)}</div>
-    <div className="wall-note">{turnStatus}</div>
+    <div className="wall-note">{turnStatus}{secondsLeft !== null && !isMyTurn && !claims.length ? ` · ${secondsLeft} 秒` : ''}</div>
     <div className="hand-access" aria-label="你的手牌">{sortTiles([...me.hand]).map(tile => <button key={tile.id} className={selectedId === tile.id ? 'chosen' : ''} onClick={() => setSelectedId(tile.id)} disabled={!isMyTurn} aria-label={`選擇 ${label(tile.code)}`}>{label(tile.code)}</button>)}</div>
     <div className="action-row"><span className="turn-note">{isMyTurn ? '輪到你出牌' : claims.length ? '請選擇應牌' : '等待牌友出牌'}</span>
       {claims.length ? <>{claims.map((claim, index) => <button key={index} className={`action-ready${claim.kind === '胡' ? ' hot' : ''}`} data-action-kind={claim.kind} onClick={() => act('claim', index)}>{claim.kind}{claim.kind === '吃' ? ` ${claim.tiles.map(id => label(me.hand.find(tile => tile.id === id)!.code)).join('·')}` : ''}</button>)}<button onClick={() => act('pass')}>過</button></> : <><button disabled>吃</button><button disabled>碰</button>{kongs.length ? kongs.map((_, index) => <button key={index} className="action-ready" data-action-kind="槓" onClick={() => act('kong', index)}>槓</button>) : <button disabled>槓</button>}<button className={selfWin ? 'action-ready hot' : ''} data-action-kind="胡" disabled={!selfWin} onClick={() => act('win')}>胡</button><button disabled>過</button></>}
@@ -279,7 +250,20 @@ function App() {
     </div>
     {guide && <Guide onClose={() => setGuide(false)} />}
     {showAudioSettings && <AudioSettingsPanel settings={audioSettings} onChange={updateAudio} onClose={() => setShowAudioSettings(false)} />}
-    {(game.phase === 'result' || game.phase === 'match-result') && <div className="modal-shade"><div className="result-panel"><small>本局結算</small><h2>{game.phase === 'match-result' ? '東南圈完成' : game.result?.message}</h2>{game.result?.winner != null && <strong>{game.result.fan} 番</strong>}<div>{game.result?.items.map((item, index) => <p key={index}>{item.name}<b>+{item.fan}</b></p>)}</div><div className="scores">{game.players.map((player, index) => <span key={index}>{player.name} {player.score >= 0 ? '+' : ''}{player.score}</span>)}</div>{inRoom && game.result && <p className="wallet-settlement">本局媽幣 {mamoneyDelta(game, 0) >= 0 ? '+' : ''}{mamoneyDelta(game, 0)} · 帳戶餘額 {network.account?.mamoney ?? 500}</p>}{!inRoom || network.room?.hostId === network.account?.id ? <button onClick={() => !inRoom && game.phase === 'match-result' ? setLobby(true) : act('next')}>{game.phase === 'match-result' ? inRoom ? '開始新一圈' : '返回首頁' : '繼續下一局'}</button> : <p>等待房主開始下一局</p>}</div></div>}
+    {(game.phase === 'result' || game.phase === 'match-result') && <div className="modal-shade"><div className="result-panel">
+      <small>本局結算</small>
+      <h2>{game.phase === 'match-result' ? '東南圈完成' : game.result?.message}</h2>
+      {game.result?.winner != null && <strong>{game.result.fan} 番{game.count === 3 && game.result.raw >= 10 ? ' · 爆番' : ''}</strong>}
+      {game.result && game.result.raw > game.result.fan && <small>原始 {game.result.raw} 番，實際按 {game.result.fan} 番結算</small>}
+      <div>{game.result?.items.map((item, index) => <p key={index}>{item.name}<b>+{item.fan}</b></p>)}</div>
+      <div className="scores">{game.players.map((player, index) => <span key={index}>{player.name} {player.score >= 0 ? '+' : ''}{player.score}</span>)}</div>
+      {inRoom && game.result && (network.offline.active
+        ? <p className="wallet-settlement">無網局只記本局分數，線上媽幣不入帳</p>
+        : game.result.mamoneyDeltas
+          ? <p className="wallet-settlement">本局媽幣 {mamoneyDelta(game, 0) >= 0 ? '+' : ''}{mamoneyDelta(game, 0)} · 帳戶餘額 {network.account?.mamoney ?? 500}</p>
+          : <p className="wallet-settlement">媽幣結算尚未完成，請稍後由房主重試</p>)}
+      {!inRoom || network.room?.hostId === network.account?.id ? <button onClick={() => !inRoom && game.phase === 'match-result' ? setLobby(true) : act('next')}>{game.phase === 'match-result' ? inRoom ? '開始新一圈' : '返回首頁' : '繼續下一局'}</button> : <p>等待房主開始下一局</p>}
+    </div></div>}
     {toast && <div className="toast">{toast}</div>}
   </div><LandscapeGate /></div>
 }

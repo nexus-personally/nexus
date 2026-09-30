@@ -5,7 +5,7 @@ export type Meld = { kind: '吃' | '碰' | '明槓' | '暗槓' | '加槓'; tiles
 export type Player = { name: string; hand: Tile[]; melds: Meld[]; flowers: Tile[]; river: Tile[]; score: number; ai: boolean }
 export type Claim = { kind: '胡' | '槓' | '碰' | '吃'; tiles: number[]; represented?: string[] }
 export type FanItem = { name: string; fan: number }
-export type Result = { winner: number | null; from: number | null; items: FanItem[]; raw: number; fan: number; payments: number[]; message: string; dealerTenpai?: boolean }
+export type Result = { winner: number | null; from: number | null; items: FanItem[]; raw: number; fan: number; payments: number[]; mamoneyDeltas?: number[]; message: string; dealerTenpai?: boolean }
 export type Phase = 'discard' | 'reaction' | 'result' | 'match-result'
 export type Game = {
   version: 2; handId: string; count: 3 | 4; players: Player[]; wall: Tile[]; wallOrder?: number[]; wallBreak?: number; active: number; dealer: number;
@@ -281,7 +281,6 @@ function scoreResolved(game: Game, seat: number, solution: ResolvedHand, selfDra
     const windPungs = ['z1', 'z2', 'z3', 'z4'].filter(code => (dotCounts.get(code) || 0) >= 3).length
     if (windPungs >= 3 && ['z1', 'z2', 'z3', 'z4'].some(code => (dotCounts.get(code) || 0) >= 2)) add('三風刻', 10)
     if (game.wall.length === 0) add('海底／河底', 10)
-    if (items.reduce((sum, item) => sum + item.fan, 0) >= 10) add('爆番', 10)
     return items
   }
   if (selfDraw) add('自摸', 1)

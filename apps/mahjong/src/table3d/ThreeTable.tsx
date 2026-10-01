@@ -24,6 +24,8 @@ class MahjongScene {
   private slots: WallTileState[] = []
   private previousRemaining = -1
   private previousVisible = new Set<number>()
+  private previousFlowerIds = new Set<number>()
+  private flowersInitialized = false
   private raycaster = new THREE.Raycaster()
   private pointer = new THREE.Vector2()
   private raf = 0
@@ -138,9 +140,33 @@ class MahjongScene {
     gsap.to(fly.position, { x: target[0], y: target[1], z: target[2], duration: .43, ease: 'power2.inOut', onComplete: () => { this.scene.remove(fly); this.flights.delete(fly) } })
   }
 
+  private flowerTransform(seat: number, index: number, total: number, count: number) {
+    const column = index % 4
+    const row = Math.floor(index / 4)
+    const scale = total > 8 ? .56 : .68
+    if (seat === 0) return { x: 5.05 + column * .56, z: 1.65 - row * .68, scale }
+    if (seat === 2) return { x: 11.15 - column * .56, z: -7.15 - row * .58, scale }
+    if (seat === 1) return { x: (count === 4 ? 10.15 : 10.4) + row * .58, z: 6.85 - column * .58, scale }
+    return { x: -10.15 - row * .58, z: -6.85 + column * .58, scale }
+  }
+
+  private animateNewFlower(mesh: THREE.Group, from: WallTileState | undefined, target: { x: number; y?: number; z: number }) {
+    const glow = this.model.createGlow()
+    mesh.add(glow)
+    if (from) {
+      mesh.position.set(from.x, Math.max(1.25, from.y + .7), from.z)
+      mesh.scale.multiplyScalar(.82)
+      gsap.to(mesh.position, { x: target.x, y: target.y ?? .45, z: target.z, duration: .62, ease: 'power2.inOut' })
+      gsap.to(mesh.scale, { x: mesh.scale.x / .82, y: mesh.scale.y / .82, z: mesh.scale.z / .82, duration: .62, ease: 'back.out(1.5)' })
+    }
+    gsap.to(glow.scale, { x: 1.18, y: 1.18, z: 1.18, duration: .28, repeat: 1, yoyo: true, onComplete: () => { glow.visible = false } })
+  }
+
   update(game: Game, selectedId: number | null) {
     this.slots = getWallState(game)
     const remaining = game.wall.length
+    const newlyDrawnSlots = this.slots.filter(slot => slot.drawn && this.previousVisible.has(slot.id))
+    const flowerSource = newlyDrawnSlots.at(0)
     if (this.previousRemaining >= 0 && this.previousRemaining > remaining && this.previousRemaining - remaining <= 4) {
       for (const slot of this.slots) if (slot.drawn && this.previousVisible.has(slot.id)) this.animateDraw(slot, game)
     }
@@ -152,6 +178,7 @@ class MahjongScene {
     this.dynamic = new THREE.Group()
     this.scene.add(this.dynamic)
     this.canSelect = game.active === 0 && game.phase === 'discard'
+    const revealHands = game.phase === 'result' || game.phase === 'match-result'
     const me = game.players[0]
     const drawnTile = game.phase === 'discard' && game.lastDraw?.seat === 0
       ? me.hand.find(tile => tile.id === game.lastDraw?.tileId)
@@ -160,32 +187,25 @@ class MahjongScene {
     if (drawnTile) hand.push(drawnTile)
     const handSpan = Math.max(0, hand.length - 1) * 1.12 + (drawnTile ? .58 : 0)
     hand.forEach((tile, index) => {
-      const mesh = this.standingTile(tile, true, 1.45)
-      mesh.rotation.x = -.12
-      const x = -handSpan / 2 + index * 1.12 + (drawnTile && tile.id === drawnTile.id ? .58 : 0)
-      mesh.position.set(x, tile.id === selectedId ? 1.31 : 1.07, 6.55)
+      const mesh = revealHands ? this.flatTile(tile, .72) : this.standingTile(tile, true, 1.45)
+      if (!revealHands) mesh.rotation.x = -.12
+      const x = revealHands
+        ? (index - (hand.length - 1) / 2) * .58
+        : -handSpan / 2 + index * 1.12 + (drawnTile && tile.id === drawnTile.id ? .58 : 0)
+      mesh.position.set(x, revealHands ? .45 : tile.id === selectedId ? 1.31 : 1.07, 6.55)
       if (tile.id === selectedId) mesh.add(this.model.createGlow())
       mesh.userData.handTileId = tile.id
       this.dynamic.add(mesh)
     })
 
-    me.flowers.forEach((tile, index) => {
-      const mesh = this.standingTile(tile, true, .86)
-      mesh.rotation.x = -.2
-      const column = index % 4
-      const row = Math.floor(index / 4)
-      mesh.position.set(5.05 + column * .62, .84, 1.65 - row * .78)
-      this.dynamic.add(mesh)
-    })
-
     const meldSpan = (seat: number) => game.players[seat].melds.reduce((n, meld) => n + meld.tiles.length * .56 + .15, 0)
-
     if (game.players[2]) {
       const player = game.players[2]
-      player.hand.forEach((_, index) => {
-        const mesh = this.standingTile(null, false, 1.05)
-        mesh.position.set((index - (player.hand.length - 1) / 2) * .79 - meldSpan(2) / 2, .82, -9.8)
-        mesh.rotation.y = Math.PI
+      player.hand.forEach((tile, index) => {
+        const mesh = revealHands ? this.flatTile(tile, .72) : this.standingTile(null, false, 1.05)
+        mesh.position.set((index - (player.hand.length - 1) / 2) * (revealHands ? .58 : .79) - meldSpan(2) / 2, revealHands ? .45 : .82, -9.8)
+        if (revealHands) mesh.rotation.z = Math.PI
+        else mesh.rotation.y = Math.PI
         this.dynamic.add(mesh)
       })
     }
@@ -193,13 +213,29 @@ class MahjongScene {
     const sideSeats = game.count === 4 ? [{ seat: 1, x: 10, angle: Math.PI / 2 }, { seat: 3, x: -10, angle: -Math.PI / 2 }] : [{ seat: 1, x: 10.25, angle: Math.PI / 2 }]
     sideSeats.forEach(({ seat, x, angle }) => {
       const player = game.players[seat]
-      player.hand.forEach((_, index) => {
-        const mesh = this.standingTile(null, false, 1.05)
-        mesh.rotation.y = angle
-        mesh.position.set(x, .81, -1.3 + (index - (player.hand.length - 1) / 2) * .81 - meldSpan(seat) / 2)
+      player.hand.forEach((tile, index) => {
+        const mesh = revealHands ? this.flatTile(tile, .72) : this.standingTile(null, false, 1.05)
+        if (revealHands) mesh.rotation.z = seat === 3 ? -Math.PI / 2 : Math.PI / 2
+        else mesh.rotation.y = angle
+        mesh.position.set(x, revealHands ? .45 : .81, -1.3 + (index - (player.hand.length - 1) / 2) * (revealHands ? .58 : .81) - meldSpan(seat) / 2)
         this.dynamic.add(mesh)
       })
     })
+
+    // Bonus tiles are public information. Opponents keep theirs in the three marked
+    // edge zones and orient the faces toward their own seat, like physical play.
+    game.players.forEach((player, seat) => {
+      player.flowers.forEach((tile, index) => {
+        const target = { ...this.flowerTransform(seat, index, player.flowers.length, game.count), y: seat === 2 ? .58 : .45 }
+        const mesh = this.flatTile(tile, target.scale)
+        mesh.rotation.z = seat === 1 ? Math.PI / 2 : seat === 2 ? Math.PI : seat === 3 ? -Math.PI / 2 : 0
+        mesh.position.set(target.x, target.y, target.z)
+        this.dynamic.add(mesh)
+        if (this.flowersInitialized && !this.previousFlowerIds.has(tile.id)) this.animateNewFlower(mesh, flowerSource, target)
+      })
+    })
+    this.previousFlowerIds = new Set(game.players.flatMap(player => player.flowers.map(tile => tile.id)))
+    this.flowersInitialized = true
 
     this.latestGlow.visible = false
     const selectedCode = me.hand.find(tile => tile.id === selectedId)?.code

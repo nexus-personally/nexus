@@ -4,6 +4,7 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypt
 import { isIP } from 'node:net'
 import { WebSocketServer, WebSocket } from 'ws'
 import { Pool } from 'pg'
+import { AccessToken } from 'livekit-server-sdk'
 import { aiChooseDiscard, aiClaim, declareSelfKong, declareSelfWin, discard, evaluateWin, newGame, nextHand, resolveReaction, selfKongs } from '../src/engine.ts'
 import { settlementDeltas } from '../src/wallet.ts'
 
@@ -146,12 +147,27 @@ function ensureDeadline(room) {
   }
   return room.deadlineAt
 }
-function roomInfo(room) { return { code: room.code, count: room.count, hostId: room.hostId, started: !!room.game, deadlineAt: ensureDeadline(room), seats: room.seats.map(seat => seat && { id: seat.id, name: seat.name, connected: sockets.has(seat.id), voice: room.voiceMembers.has(seat.id) }) } }
+function roomInfo(room) { return { code: room.code, count: room.count, hostId: room.hostId, started: !!room.game, deadlineAt: ensureDeadline(room), seats: room.seats.map(seat => seat && { id: seat.id, name: seat.name, connected: sockets.has(seat.id), voice: room.voiceMembers.has(seat.id), ready: room.readyMembers.has(seat.id) }) } }
+
+function allHumansReady(room) {
+  const humans = room.seats.filter(Boolean)
+  return humans.length > 0 && humans.every(member => room.readyMembers.has(member.id))
+}
+
+function startRoom(room) {
+  room.game = newGame(room.count)
+  room.handAccounts = room.seats.map(member => member && { ...member })
+  room.game.players.forEach((player, seat) => { player.name = room.seats[seat]?.name || `电脑 ${seat + 1}`; player.ai = !room.seats[seat] })
+  room.readyMembers.clear()
+  broadcast(room)
+  schedule(room)
+}
 function viewFor(game, seat) {
   const rotate = value => (value - seat + game.count) % game.count
+  const revealHands = game.phase === 'result' || game.phase === 'match-result'
   const players = Array.from({ length: game.count }, (_, index) => {
     const source = game.players[(seat + index) % game.count]
-    return { ...source, hand: index === 0 ? source.hand : source.hand.map(tile => ({ id: tile.id, code: 'hidden' })) }
+    return { ...source, hand: index === 0 || revealHands ? source.hand : source.hand.map(tile => ({ id: tile.id, code: 'hidden' })) }
   })
   return { ...game, players, wall: game.wall.map(tile => ({ id: tile.id, code: 'hidden' })), active: rotate(game.active), dealer: rotate(game.dealer), lastDiscard: game.lastDiscard && { ...game.lastDiscard, from: rotate(game.lastDiscard.from) }, lastDraw: game.lastDraw && { ...game.lastDraw, seat: rotate(game.lastDraw.seat) }, reaction: { 0: game.reaction[seat] || [] }, pendingKong: null, result: game.result && { ...game.result, winner: game.result.winner === null ? null : rotate(game.result.winner), from: game.result.from === null ? null : rotate(game.result.from), payments: Array.from({ length: game.count }, (_, index) => game.result.payments[(seat + index) % game.count]), mamoneyDeltas: game.result.mamoneyDeltas && Array.from({ length: game.count }, (_, index) => game.result.mamoneyDeltas[(seat + index) % game.count]) } }
 }
@@ -232,7 +248,8 @@ function leaveRoom(accountId) {
   const seat = room.seats.findIndex(member => member?.id === accountId)
   room.seats[seat] = null
   room.voiceMembers.delete(accountId)
-  if (room.game) room.game.players[seat].ai = true
+  room.readyMembers.delete(accountId)
+  if (room.game) { room.game.players[seat].ai = true; room.game.players[seat].name = `电脑 ${seat + 1}` }
   if (room.hostId === accountId) room.hostId = room.seats.find(member => member && sockets.has(member.id))?.id || room.seats.find(Boolean)?.id || null
   if (!room.game && !room.hostId) rooms.delete(room.code)
   else {
@@ -321,7 +338,7 @@ async function handleSocket(ws, message, account) {
   if (message.type === 'create') {
     if (room) throw Error('请先离开当前房间')
     const count = message.count === 3 ? 3 : 4
-    const created = { code: code(), count, hostId: account.id, seats: Array(count).fill(null), voiceMembers: new Set(), handAccounts: null, game: null, choices: {}, timer: null, deadlineKey: null, deadlineAt: null, settledHands: new Set(), settlement: null }
+    const created = { code: code(), count, hostId: account.id, seats: Array(count).fill(null), voiceMembers: new Set(), readyMembers: new Set(), handAccounts: null, game: null, choices: {}, timer: null, deadlineKey: null, deadlineAt: null, settledHands: new Set(), settlement: null }
     created.seats[0] = publicAccount(account); rooms.set(created.code, created); broadcast(created); return
   }
   if (message.type === 'join') {
@@ -334,6 +351,24 @@ async function handleSocket(ws, message, account) {
   }
   if (message.type === 'leave') { if (!leaveRoom(account.id)) throw Error('你不在房间里'); send(ws, 'room', { room: null, game: null }); return }
   if (!room) throw Error('请先创建或加入房间')
+  if (message.type === 'ready') {
+    if (room.game) throw Error('牌局已经开始')
+    if (message.ready === false) room.readyMembers.delete(account.id)
+    else room.readyMembers.add(account.id)
+    if (allHumansReady(room)) startRoom(room)
+    else broadcast(room)
+    return
+  }
+  if (message.type === 'voice-token') {
+    const url = process.env.LIVEKIT_URL
+    const apiKey = process.env.LIVEKIT_API_KEY
+    const apiSecret = process.env.LIVEKIT_API_SECRET
+    if (!url || !apiKey || !apiSecret) throw Error('房间语音尚未配置 LiveKit')
+    const token = new AccessToken(apiKey, apiSecret, { identity: account.id, name: account.name, ttl: '2h' })
+    token.addGrant({ roomJoin: true, room: `gangque-${room.code}`, canPublish: true, canSubscribe: true })
+    send(ws, 'voice-token', { url, token: await token.toJwt() })
+    return
+  }
   if (message.type === 'voice-state') {
     if (message.enabled) room.voiceMembers.add(account.id)
     else room.voiceMembers.delete(account.id)
@@ -358,15 +393,12 @@ async function handleSocket(ws, message, account) {
     room.game = null
     room.handAccounts = null
     room.choices = {}
+    room.readyMembers.clear()
     broadcast(room)
     return
   }
   if (message.type === 'start') {
-    if (room.hostId !== account.id || room.game) throw Error('只有房主可开局')
-    room.game = newGame(room.count)
-    room.handAccounts = room.seats.map(member => member && { ...member })
-    room.game.players.forEach((player, seat) => { player.name = room.seats[seat]?.name || `电脑 ${seat + 1}`; player.ai = !room.seats[seat] })
-    broadcast(room); schedule(room); return
+    throw Error('请等待所有玩家按下准备')
   }
   if (message.type === 'action') return roomAction(room, account, message.action, message)
   throw Error('未知房间操作')

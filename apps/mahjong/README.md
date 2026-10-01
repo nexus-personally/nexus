@@ -18,6 +18,8 @@
 
 ## 线上房间语音
 
-线上牌局的顶栏提供「加入语音」、静音和退出语音。语音使用浏览器原生 WebRTC，在房内 2～4 位玩家之间点对点传输；服务器只通过现有 WebSocket 转发连接信令，不保存或转发音频。浏览器会在加入时请求麦克风权限，因此正式环境必须使用 HTTPS（本机 `localhost`／`127.0.0.1` 可用于开发）。
+线上牌局的顶栏提供「加入语音」、静音和退出语音。语音使用开源 LiveKit SFU，不再让每台手机分别建立多条点对点连接。服务器用 `LIVEKIT_URL`、`LIVEKIT_API_KEY`、`LIVEKIT_API_SECRET` 签发限当前麻将房间使用的短期令牌；浏览器会在加入时请求麦克风权限，因此正式环境必须使用 HTTPS。开发环境可运行 `docker compose -f docker-compose.local.yml up livekit`，并使用 `.env.example` 中的开发密钥。若用手机测试，请把 `LIVEKIT_URL` 的 `localhost` 改为电脑的局域网 IP。
+
+朋友房在牌局开始前由每位真人玩家点击中央圆形「准备」按钮；全员准备后自动开局，空座由电脑补位。进行中主动离开的座位会立刻改由电脑接管并显示电脑名称。桌面会公开显示四家已经补出的花牌。
 
 默认使用 Cloudflare 公共 STUN。生产环境若要提高公司网络、校园网或严格 NAT 下的连接成功率，请自行部署 TURN（例如 coturn），并在构建前设置 `.env.example` 所列的 `VITE_MAHJONG_TURN_*` 变量。TURN 软件可以免费自托管，但服务器和音频流量仍会产生费用。

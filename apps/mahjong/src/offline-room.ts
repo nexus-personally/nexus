@@ -12,7 +12,7 @@ export type OfflineRoom = {
   hostId: string
   started: boolean
   deadlineAt?: number | null
-  seats: ({ id: string; name: string; connected: boolean } | null)[]
+  seats: ({ id: string; name: string; connected: boolean; ready?: boolean } | null)[]
 }
 type Update = (room: OfflineRoom | null, game: Game | null, connected: boolean) => void
 type Signal = { version: 1; kind: 'offer' | 'answer'; session: string; room: string; sdp: string }
@@ -61,9 +61,10 @@ function waitForIce(peer: RTCPeerConnection): Promise<string> {
 
 function playerView(game: Game, seat: number): Game {
   const rotate = (value: number) => (value - seat + game.count) % game.count
+  const revealHands = game.phase === 'result' || game.phase === 'match-result'
   const players = Array.from({ length: game.count }, (_, index) => {
     const source = game.players[(seat + index) % game.count]
-    return { ...source, hand: index === 0 ? source.hand : source.hand.map(tile => ({ id: tile.id, code: 'hidden' })) }
+    return { ...source, hand: index === 0 || revealHands ? source.hand : source.hand.map(tile => ({ id: tile.id, code: 'hidden' })) }
   }) as Game['players']
   return {
     ...game, players,
@@ -111,6 +112,16 @@ class PhoneHost {
     }
     return this.room.deadlineAt ?? null
   }
+  private allHumansReady() {
+    const humans = this.room.seats.filter(Boolean)
+    return humans.length > 0 && humans.every(member => member!.ready)
+  }
+  private startGame() {
+    this.game = newGame(this.room.count)
+    this.game.players.forEach((player, index) => { player.name = this.room.seats[index]?.name || `电脑 ${index + 1}`; player.ai = !this.room.seats[index] })
+    this.room.seats.forEach(member => { if (member) member.ready = false })
+    this.broadcast(); this.schedule()
+  }
   async invite(): Promise<string> {
     if (this.game) throw Error('牌局进行中不能加入新玩家，请房主先取消本局')
     if (this.room.seats.every(Boolean)) throw Error('房间已满')
@@ -142,7 +153,7 @@ class PhoneHost {
         peer.onconnectionstatechange = () => {
           if (['failed', 'disconnected', 'closed'].includes(peer.connectionState) && this.peers.get(seat)?.peer === peer) {
             this.peers.delete(seat)
-            if (this.game) this.room.seats[seat] = { ...this.room.seats[seat]!, connected: false }
+            if (this.game) this.room.seats[seat] = { ...this.room.seats[seat]!, connected: false, ready: false }
             else this.room.seats[seat] = null
             if (this.timer) window.clearTimeout(this.timer)
             this.timer = null
@@ -168,9 +179,18 @@ class PhoneHost {
     if (message.type === 'leave') {
       if (seat === 0) return
       this.peers.get(seat)?.peer.close(); this.peers.delete(seat); this.room.seats[seat] = null
-      if (this.game) this.game.players[seat].ai = true
+      if (this.game) { this.game.players[seat].ai = true; this.game.players[seat].name = `电脑 ${seat + 1}` }
       if (this.timer) window.clearTimeout(this.timer)
       this.timer = null; this.broadcast(); this.schedule(); return
+    }
+    if (message.type === 'ready') {
+      if (this.game) throw Error('牌局已经开始')
+      const member = this.room.seats[seat]
+      if (!member) throw Error('你不在房间里')
+      member.ready = message.ready !== false
+      if (this.allHumansReady()) this.startGame()
+      else this.broadcast()
+      return
     }
     if (message.type === 'cancel') {
       if (seat !== 0 || !this.game) throw Error('只有房主可取消本局')
@@ -179,10 +199,7 @@ class PhoneHost {
       this.timer = null; this.game = null; this.choices = {}; this.broadcast(); return
     }
     if (message.type === 'start') {
-      if (seat !== 0 || this.game) throw Error('只有房主可开局')
-      this.game = newGame(this.room.count)
-      this.game.players.forEach((player, index) => { player.name = this.room.seats[index]?.name || `电脑 ${index + 1}`; player.ai = !this.room.seats[index] })
-      this.broadcast(); this.schedule(); return
+      throw Error('请等待所有玩家按下准备')
     }
     if (message.type !== 'action') throw Error('未知房间操作')
     const game = this.game

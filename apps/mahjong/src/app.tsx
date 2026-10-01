@@ -130,7 +130,7 @@ function App() {
       lastRoomLog.current = latest
       gameRef.current = network.game
       setGame(network.game)
-      setSelectedId(null)
+      setSelectedId(current => current !== null && network.game!.players[0].hand.some(tile => tile.id === current && tile.code !== 'x1') ? current : null)
       setLobby(false)
     }
   }, [network.game, network.room?.code])
@@ -383,7 +383,7 @@ function App() {
     <div className="my-status"><span>{seatWind(game, 0)}</span><div><b>{inRoom ? me.name : '你'}</b><small>{seatWind(game, 0)}位 · {me.score >= 0 ? '+' : ''}{me.score} 分</small><button className="current-fan" onClick={() => setShowFanDetails(true)}>目前成立 {fanPreview.fan} 番</button>{fanPreview.transientFan > 0 && <small className="transient-fan">现在自摸可加 {fanPreview.transientFan} 番</small>}</div></div>
     {(isMyTurn || claims.length > 0) && !claimMode && reactionDecision === null && <div className="turn-banner" role="status" aria-live="polite"><strong>{isMyTurn ? '輪到你出牌' : '你可以應牌'}</strong><span>{isMyTurn ? '選一張手牌，再按「出牌」' : '請選擇吃、碰、槓、胡或過'}</span>{secondsLeft !== null && <time aria-hidden="true">{secondsLeft} 秒</time>}</div>}
     <div className="wall-note">{turnStatus}{secondsLeft !== null && !isMyTurn && !claims.length ? ` · ${secondsLeft} 秒` : ''}</div>
-    <div className="hand-access" aria-label="你的手牌">{sortTiles([...me.hand]).map(tile => <button key={tile.id} className={selectedId === tile.id ? 'chosen' : ''} onClick={() => setSelectedId(tile.id)} disabled={!isMyTurn || tile.code === 'x1'} aria-label={tile.code === 'x1' ? '飛牌不可打出' : `選擇 ${label(tile.code)}`}>{label(tile.code)}</button>)}</div>
+    <div className="hand-access" aria-label="你的手牌">{sortTiles([...me.hand]).map(tile => <button key={tile.id} className={selectedId === tile.id ? 'chosen' : ''} onClick={() => setSelectedId(tile.id)} disabled={game.phase === 'result' || game.phase === 'match-result' || tile.code === 'x1'} aria-label={tile.code === 'x1' ? '飛牌不可選擇' : `選擇 ${label(tile.code)}`}>{label(tile.code)}</button>)}</div>
     {claims.length > 0 && claimMode && game.lastDiscard && reactionDecision === null && <section className="claim-picker" aria-label={`選擇${claimMode}牌`}>
       <header><strong>選擇{claimMode}牌</strong>{secondsLeft !== null && <time>{secondsLeft}秒</time>}</header>
       <div className="claim-picker-body"><button className="claim-picker-back" onClick={() => setClaimMode(null)}>‹ 返回</button><div className={`claim-options${choiceClaims.length > 2 ? ' scrollable' : ''}`}>{choiceClaims.map(({ claim, index }) => <ClaimCombination key={index} claim={claim} hand={me.hand} incoming={game.lastDiscard!.tile} onChoose={() => act('claim', index)} />)}</div><button className="claim-picker-pass" onClick={() => act('pass')}>過</button></div>

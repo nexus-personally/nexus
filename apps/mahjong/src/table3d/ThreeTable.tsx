@@ -177,7 +177,7 @@ class MahjongScene {
     this.scene.remove(this.dynamic)
     this.dynamic = new THREE.Group()
     this.scene.add(this.dynamic)
-    this.canSelect = game.active === 0 && game.phase === 'discard'
+    this.canSelect = game.phase !== 'result' && game.phase !== 'match-result'
     const revealHands = game.phase === 'result' || game.phase === 'match-result'
     const me = game.players[0]
     const drawnTile = game.phase === 'discard' && game.lastDraw?.seat === 0

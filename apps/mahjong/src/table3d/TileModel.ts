@@ -105,8 +105,8 @@ export class TileModel {
   /** Same approved tile geometry, positioned from authoritative per-tile slots. */
   updateWall(row: THREE.Group, slots: readonly { x: number; y: number; z: number; rotation: number; drawn: boolean }[]) {
     if (!row.children.length) {
-      const bodies = new THREE.InstancedMesh(this.body, this.ivory, 148)
-      const backs = new THREE.InstancedMesh(this.back, this.jade, 148)
+      const bodies = new THREE.InstancedMesh(this.body, this.ivory, 152)
+      const backs = new THREE.InstancedMesh(this.back, this.jade, 152)
       bodies.castShadow = backs.castShadow = true
       bodies.receiveShadow = backs.receiveShadow = true
       row.add(bodies, backs)
@@ -117,7 +117,7 @@ export class TileModel {
     const bodyOffset = new THREE.Matrix4().makeTranslation(0, 0, .025)
     const backOffset = new THREE.Matrix4().makeTranslation(0, 0, -.155)
     const matrix = new THREE.Matrix4()
-    for (let i = 0; i < 148; i++) {
+    for (let i = 0; i < 152; i++) {
       const slot = slots[i]
       if (slot && !slot.drawn) {
         transform.position.set(slot.x, slot.y, slot.z)

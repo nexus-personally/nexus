@@ -22,10 +22,9 @@ export type Game = {
 export const WIND = ['東', '南', '西', '北']
 export const DRAGON: Record<string, string> = { z5: '中', z6: '發', z7: '白' }
 export const MIN_FAN = 3
-export const FAN_CAP = 13
 export const minFan = (count: 3 | 4) => count === 3 ? 5 : MIN_FAN
-export const fanCap = (count: 3 | 4) => count === 3 ? 10 : FAN_CAP
-export const settlementFan = (count: 3 | 4, raw: number) => count === 3 && raw >= 10 ? raw * 2 : Math.min(raw, fanCap(count))
+export const fanCap = (_count: 3 | 4) => Number.POSITIVE_INFINITY
+export const settlementFan = (_count: 3 | 4, raw: number) => raw >= 10 ? raw * 2 : raw
 const seatWindIndex = (game: Game, seat: number): number => {
   const relativeSeat = (seat - game.dealer + game.count) % game.count
   return game.count === 3 && relativeSeat === 2 ? 3 : relativeSeat
@@ -56,7 +55,8 @@ export function buildTiles(count: 3 | 4): Tile[] {
   }
   for (let n = 1; n <= 7; n++) add(`z${n}`, 4)
   for (const group of ['f', 'j']) for (let n = 1; n <= 4; n++) add(`${group}${n}`, 1)
-  if (count === 3) for (const group of ['a', 'h']) for (let n = 1; n <= 4; n++) add(`${group}${n}`, 1)
+  for (let n = 1; n <= 4; n++) add(`a${n}`, 1)
+  if (count === 3) for (let n = 1; n <= 4; n++) add(`h${n}`, 1)
   add('x1', 4)
   return tiles
 }
@@ -114,7 +114,7 @@ export function newGame(count: 3 | 4, dealer = randomDealer(count), scores?: num
   const wall = shuffle(tiles, seed)
   const dice = seed === undefined ? (() => { const values = new Uint32Array(2); crypto.getRandomValues(values); return values })() : new Uint32Array([seed >>> 0, Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0])
   const diceTotal = dice[0] % 6 + dice[1] % 6 + 2
-  const stacksPerSide = count === 4 ? [19, 19, 18, 18] : [14, 14, 14]
+  const stacksPerSide = count === 4 ? [19, 19, 19, 19] : [14, 14, 14]
   const side = (dealer + diceTotal - 1) % count
   const wallBreak = stacksPerSide.slice(0, side).reduce((sum, n) => sum + n, 0) + diceTotal % stacksPerSide[side]
   const game: Game = {
@@ -214,8 +214,6 @@ function allTriplets(tiles: Tile[], melds: Meld[]): boolean {
 }
 function fanBreakdown(game: Game, seat: number, tiles: Tile[], selfDraw: boolean): FanItem[] | null {
   const player = game.players[seat]
-  const special = game.count === 4 && player.melds.length === 0 && thirteenOrphans(tiles, game.count)
-  if (special) return [{ name: '十三么', fan: 13 }]
   const solutions = resolvedStandards(tiles, player.melds.length, game.count)
   if (game.count === 3 && player.melds.length === 0 && isSevenPairs(tiles)) {
     const existing = tiles.find(tile => tile.code !== 'x1')?.code || 'p1'
@@ -285,28 +283,38 @@ function scoreResolved(game: Game, seat: number, solution: ResolvedHand, selfDra
     return items
   }
   if (selfDraw) add('自摸', 1)
-  if (selfDraw && player.melds.every(m => m.kind === '暗槓')) add('門前清自摸', 1)
-  if (player.flowers.length === 0) add('無花', 1)
+  if (player.melds.every(m => m.kind === '暗槓')) add('門前清', 1)
+  if (selfDraw && game.lastDraw?.seat === seat && game.lastDraw.reason === 'kong') add('槓上開花', 1)
+  if (!selfDraw && game.winContext === 'rob-kong') add('搶槓胡', 1)
+  if (game.wall.length === 0) add('海底／河底', 1)
+  if (player.flowers.length === 0) add('無花', 10)
   for (const flower of player.flowers) {
     const rank = Number(flower.code[1]) - 1
     if (flower.code[0] === 'f' && rank === seatWindIndex(game, seat)) add(`正花 ${label(flower.code)}`, 1)
-    if (flower.code[0] === 'j' && rank === game.prevailing) add(`正季 ${label(flower.code)}`, 1)
+    if (flower.code[0] === 'j' && rank === seatWindIndex(game, seat)) add(`正季 ${label(flower.code)}`, 1)
+    if (flower.code[0] === 'a') add(label(flower.code), 1)
+  }
+  for (const [group, name] of [['f', '一臺花'], ['j', '一臺季'], ['a', '一臺動物']] as const) {
+    if (player.flowers.filter(tile => tile.code[0] === group).length === 4) add(name, 2)
   }
   const suits = new Set(all.filter(t => 'mps'.includes(t.code[0])).map(t => t.code[0]))
   const honors = all.some(t => t.code[0] === 'z')
+  if (suits.size === 2) add('缺一門', 2)
   if (suits.size === 1) add(honors ? '混一色' : '清一色', honors ? 3 : 7)
-  const fourKongs = player.melds.filter(m => m.kind.includes('槓')).length === 4
-  if (fourKongs) add('四槓', 13)
-  else if (solution.allTriplets && player.melds.every(meld => meld.kind !== '吃')) add('對對胡', 3)
+  if (solution.allTriplets && player.melds.every(meld => meld.kind !== '吃')) add('對對胡', 3)
+  if (solution.allChows && player.melds.every(meld => meld.kind === '吃')) add('平胡', 1)
+  for (const meld of player.melds) {
+    if (meld.kind === '暗槓') add(`暗槓 ${label(meld.represented?.[0] || meld.tiles[0].code)}`, 2)
+    if (meld.kind === '明槓' || meld.kind === '加槓') add(`明槓 ${label(meld.represented?.[0] || meld.tiles[0].code)}`, 1)
+  }
   const map = counts(all)
   const dragons = ['z5', 'z6', 'z7'].map(c => map.get(c) || 0)
-  if (dragons.every(n => n >= 3)) add('大三元', 13)
+  if (dragons.every(n => n >= 3)) add('大三元', 8)
   else if (dragons.filter(n => n >= 3).length === 2 && dragons.includes(2)) add('小三元', 5)
   const winds = ['z1', 'z2', 'z3', 'z4'].map(c => map.get(c) || 0)
-  if (winds.every(n => n >= 3)) add('大四喜', 13)
-  else if (winds.filter(n => n >= 3).length === 3 && winds.includes(2)) add('小四喜', 13)
-  if (all.every(t => t.code[0] === 'z')) add('字一色', 13)
-  if (all.every(t => 'mps'.includes(t.code[0]) && (t.code[1] === '1' || t.code[1] === '9'))) add('清么九', 13)
+  if (winds.every(n => n >= 3)) add('大四喜', 10)
+  else if (winds.filter(n => n >= 3).length === 3 && winds.includes(2)) add('小四喜', 8)
+  if (all.every(t => t.code[0] === 'z')) add('字一色', 10)
   if (!items.some(item => item.name === '大三元' || item.name === '小三元')) {
     for (const [code, name] of [['z5', '紅中'], ['z6', '發財'], ['z7', '白板']] as const) if ((map.get(code) || 0) >= 3) add(name, 1)
   }
@@ -335,7 +343,6 @@ export function currentFanPreview(game: Game, seat: number): { items: FanItem[];
     if (game.lastDraw.reason === 'kong') transientItems.push({ name: '槓後補牌自摸', fan: 1 })
   }
   const transientFan = transientItems.reduce((sum, item) => sum + item.fan, 0)
-  if (game.count === 4 && !player.melds.length && thirteenOrphans(player.hand, game.count)) return { items: [{ name: '十三么', fan: 13 }], raw: 13, fan: 13, transientItems, transientFan }
   if (game.count === 3) {
     const items: FanItem[] = []
     for (const flower of player.flowers) {
@@ -346,37 +353,43 @@ export function currentFanPreview(game: Game, seat: number): { items: FanItem[];
     if (all.length && all.every(tile => tile.code[0] === 'p' || tile.code === 'x1')) items.push({ name: '清一色參考', fan: 3 })
     for (const code of ['z1', 'z4', 'z5', 'z6', 'z7']) if (all.filter(tile => tile.code === code).length >= 3) items.push({ name: `${label(code)}刻`, fan: 1 })
     const raw = items.reduce((sum, item) => sum + item.fan, 0)
-    return { items, raw, fan: Math.min(raw, 10), transientItems, transientFan }
+    return { items, raw, fan: settlementFan(3, raw), transientItems, transientFan }
   }
   const all = [...player.hand, ...player.melds.flatMap(meld => meld.tiles.map((tile, index) => ({ ...tile, code: meld.represented?.[index] || tile.code })))]
   const map = counts(all)
   const items: FanItem[] = []
   const add = (name: string, fan: number) => items.push({ name, fan })
-  if (!player.flowers.length) add('無花', 1)
+  if (player.melds.every(meld => meld.kind === '暗槓')) add('門前清', 1)
+  if (!player.flowers.length) add('無花', 10)
   for (const flower of player.flowers) {
     const rank = Number(flower.code[1]) - 1
     if (flower.code[0] === 'f' && rank === seatWindIndex(game, seat)) add('正花', 1)
-    if (flower.code[0] === 'j' && rank === game.prevailing) add('正季', 1)
+    if (flower.code[0] === 'j' && rank === seatWindIndex(game, seat)) add('正季', 1)
+    if (flower.code[0] === 'a') add(label(flower.code), 1)
   }
+  for (const [group, name] of [['f', '一臺花'], ['j', '一臺季'], ['a', '一臺動物']] as const) if (player.flowers.filter(tile => tile.code[0] === group).length === 4) add(name, 2)
   const suits = new Set(all.filter(t => 'mps'.includes(t.code[0])).map(t => t.code[0]))
+  if (suits.size === 2) add('缺一門', 2)
   if (suits.size === 1) add(all.some(t => t.code[0] === 'z') ? '混一色' : '清一色', all.some(t => t.code[0] === 'z') ? 3 : 7)
-  if (player.melds.filter(m => m.kind.includes('槓')).length === 4) add('四槓', 13)
-  else if (allTriplets(player.hand, player.melds)) add('對對胡', 3)
+  if (allTriplets(player.hand, player.melds)) add('對對胡', 3)
+  for (const meld of player.melds) {
+    if (meld.kind === '暗槓') add(`暗槓 ${label(meld.represented?.[0] || meld.tiles[0].code)}`, 2)
+    if (meld.kind === '明槓' || meld.kind === '加槓') add(`明槓 ${label(meld.represented?.[0] || meld.tiles[0].code)}`, 1)
+  }
   const dragons = ['z5', 'z6', 'z7'].map(code => map.get(code) || 0)
-  if (dragons.every(n => n >= 3)) add('大三元', 13)
+  if (dragons.every(n => n >= 3)) add('大三元', 8)
   else if (dragons.filter(n => n >= 3).length === 2 && dragons.includes(2)) add('小三元', 5)
   else for (const [code, name] of [['z5', '紅中'], ['z6', '發財'], ['z7', '白板']] as const) if ((map.get(code) || 0) >= 3) add(name, 1)
   const winds = ['z1', 'z2', 'z3', 'z4'].map(code => map.get(code) || 0)
-  if (winds.every(n => n >= 3)) add('大四喜', 13)
-  else if (winds.filter(n => n >= 3).length === 3 && winds.includes(2)) add('小四喜', 13)
+  if (winds.every(n => n >= 3)) add('大四喜', 10)
+  else if (winds.filter(n => n >= 3).length === 3 && winds.includes(2)) add('小四喜', 8)
   else {
     if ((map.get(`z${seatWindIndex(game, seat) + 1}`) || 0) >= 3) add('門風', 1)
     if ((map.get(`z${game.prevailing + 1}`) || 0) >= 3) add('圈風', 1)
   }
-  if (all.length && all.every(t => t.code[0] === 'z')) add('字一色', 13)
-  if (all.length && all.every(t => 'mps'.includes(t.code[0]) && (t.code[1] === '1' || t.code[1] === '9'))) add('清么九', 13)
+  if (all.length && all.every(t => t.code[0] === 'z')) add('字一色', 10)
   const raw = items.reduce((sum, item) => sum + item.fan, 0)
-  return { items, raw, fan: Math.min(raw, FAN_CAP), transientItems, transientFan }
+  return { items, raw, fan: settlementFan(4, raw), transientItems, transientFan }
 }
 
 export function selfKongs(game: Game, seat: number): Claim[] {

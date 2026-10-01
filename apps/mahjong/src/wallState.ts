@@ -20,7 +20,7 @@ const SIDE_ROTATION: Record<WallSide, number> = {
 /** Clockwise around the physical square; seat order is independent of this path. */
 function stackPath(count: 3 | 4): { side: WallSide; stack: number; x: number; z: number }[] {
   const sides: [WallSide, number][] = count === 4
-    ? [['south', 19], ['west', 19], ['north', 18], ['east', 18]]
+    ? [['south', 19], ['west', 19], ['north', 19], ['east', 19]]
     : [['south', 14], ['east', 14], ['north', 14]]
   return sides.flatMap(([side, length]) => Array.from({ length }, (_, stack) => {
     const direction = side === 'south' || side === 'west' ? 1 : -1

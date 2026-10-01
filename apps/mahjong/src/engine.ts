@@ -12,7 +12,7 @@ export type Game = {
   prevailing: number; dealerCycle: number; repeat: number; handNumber: number; phase: Phase;
   lastDiscard: { tile: Tile; from: number } | null; reaction: Record<number, Claim[]>;
   latestRiverTileId?: number | null;
-  lastDraw?: { seat: number; reason: 'wall' | 'flower' | 'kong' };
+  lastDraw?: { seat: number; tileId?: number; reason: 'wall' | 'flower' | 'kong' };
   consecutiveKongs?: number;
   winContext?: 'rob-kong' | null;
   pendingKong?: { seat: number; tile: Tile; meldIndex: number } | null;
@@ -39,7 +39,7 @@ export function label(code: string): string {
   if (code[0] === 'z') return WIND[Number(code[1]) - 1] || DRAGON[code] || '?'
   if (code[0] === 'f') return `花${code[1]}`
   if (code[0] === 'j') return `季${code[1]}`
-  if (code[0] === 'a') return ['貓', '鼠', '雞', '蟲'][Number(code[1]) - 1] || '動物'
+  if (code[0] === 'a') return ['貓', '鼠', '雞', '蜈蚣'][Number(code[1]) - 1] || '動物'
   if (code[0] === 'h') return `人頭${code[1]}`
   if (code === 'x1') return '飛'
   return '?'
@@ -92,7 +92,7 @@ function take(game: Game, seat: number, supplement = false, reason: 'wall' | 'fl
     const tile = supplement ? takeSupplement(game) : game.wall.pop()!
     if (isFlower(tile)) { player.flowers.push(tile); log(game, `${player.name} 補花：${label(tile.code)}`); supplement = true; reason = 'flower'; continue }
     player.hand.push(tile); sortTiles(player.hand)
-    game.lastDraw = { seat, reason }
+    game.lastDraw = { seat, tileId: tile.id, reason }
     game.winContext = null
     return true
   }
@@ -277,7 +277,7 @@ function scoreResolved(game: Game, seat: number, solution: ResolvedHand, selfDra
       [...dotCounts.values()].reduce((sum, amount) => sum + amount, 0) === 14 && selfDraw
     if (nineGates) add('九蓮寶燈', 10)
     if (player.flowers.length === 16) add('十六花', 10)
-    if (solution.allTriplets && player.melds.every(meld => meld.kind === '暗槓')) add('四暗刻', 10)
+    if (selfDraw && solution.allTriplets && player.melds.every(meld => meld.kind === '暗槓')) add('四暗刻', 10)
     if (game.consecutiveKongs !== undefined && game.consecutiveKongs >= 2 && selfDraw && game.lastDraw?.seat === seat && game.lastDraw.reason === 'kong') add('連續兩槓補牌胡', 10)
     const windPungs = ['z1', 'z2', 'z3', 'z4'].filter(code => (dotCounts.get(code) || 0) >= 3).length
     if (windPungs >= 3 && ['z1', 'z2', 'z3', 'z4'].some(code => (dotCounts.get(code) || 0) >= 2)) add('三風刻', 10)
@@ -327,24 +327,28 @@ export function evaluateWin(game: Game, seat: number, incoming?: Tile, selfDraw 
 
 // A private, provisional readout for the player's current tiles. Winning-only
 // bonuses are awarded by evaluateWin once the complete hand is checked.
-export function currentFanPreview(game: Game, seat: number): { items: FanItem[]; raw: number; fan: number } {
+export function currentFanPreview(game: Game, seat: number): { items: FanItem[]; raw: number; fan: number; transientItems: FanItem[]; transientFan: number } {
   const player = game.players[seat]
-  if (game.count === 4 && !player.melds.length && thirteenOrphans(player.hand, game.count)) return { items: [{ name: '十三么', fan: 13 }], raw: 13, fan: 13 }
+  const transientItems: FanItem[] = []
+  if (game.phase === 'discard' && game.active === seat && game.lastDraw?.seat === seat) {
+    if (game.lastDraw.reason === 'flower') transientItems.push({ name: '花牌補牌自摸', fan: 1 })
+    if (game.lastDraw.reason === 'kong') transientItems.push({ name: '槓後補牌自摸', fan: 1 })
+  }
+  const transientFan = transientItems.reduce((sum, item) => sum + item.fan, 0)
+  if (game.count === 4 && !player.melds.length && thirteenOrphans(player.hand, game.count)) return { items: [{ name: '十三么', fan: 13 }], raw: 13, fan: 13, transientItems, transientFan }
   if (game.count === 3) {
     const items: FanItem[] = []
     for (const flower of player.flowers) {
       const rank = Number(flower.code[1]) - 1
       if ('ah'.includes(flower.code[0]) || rank === seatWindIndex(game, seat) || rank === 3) items.push({ name: label(flower.code), fan: 1 })
     }
-    const all = [...player.hand, ...player.melds.flatMap(meld => meld.tiles)]
+    const all = [...player.hand, ...player.melds.flatMap(meld => meld.tiles.map((tile, index) => ({ ...tile, code: meld.represented?.[index] || tile.code })))]
     if (all.length && all.every(tile => tile.code[0] === 'p' || tile.code === 'x1')) items.push({ name: '清一色參考', fan: 3 })
-    if (game.lastDraw?.seat === seat && game.lastDraw.reason === 'flower') items.push({ name: '花牌補牌自摸（待胡）', fan: 1 })
-    if (game.lastDraw?.seat === seat && game.lastDraw.reason === 'kong') items.push({ name: '槓後補牌自摸（待胡）', fan: 1 })
     for (const code of ['z1', 'z4', 'z5', 'z6', 'z7']) if (all.filter(tile => tile.code === code).length >= 3) items.push({ name: `${label(code)}刻`, fan: 1 })
     const raw = items.reduce((sum, item) => sum + item.fan, 0)
-    return { items, raw, fan: Math.min(raw, 10) }
+    return { items, raw, fan: Math.min(raw, 10), transientItems, transientFan }
   }
-  const all = [...player.hand, ...player.melds.flatMap(m => m.tiles)]
+  const all = [...player.hand, ...player.melds.flatMap(meld => meld.tiles.map((tile, index) => ({ ...tile, code: meld.represented?.[index] || tile.code })))]
   const map = counts(all)
   const items: FanItem[] = []
   const add = (name: string, fan: number) => items.push({ name, fan })
@@ -372,7 +376,7 @@ export function currentFanPreview(game: Game, seat: number): { items: FanItem[];
   if (all.length && all.every(t => t.code[0] === 'z')) add('字一色', 13)
   if (all.length && all.every(t => 'mps'.includes(t.code[0]) && (t.code[1] === '1' || t.code[1] === '9'))) add('清么九', 13)
   const raw = items.reduce((sum, item) => sum + item.fan, 0)
-  return { items, raw, fan: Math.min(raw, FAN_CAP) }
+  return { items, raw, fan: Math.min(raw, FAN_CAP), transientItems, transientFan }
 }
 
 export function selfKongs(game: Game, seat: number): Claim[] {
@@ -445,6 +449,7 @@ export function discard(game: Game, seat: number, tileId: number): void {
   if (player.hand[index].code === 'x1') throw Error('飛牌必須留在手中，不能打出')
   const [tile] = player.hand.splice(index, 1)
   player.river.push(tile); game.lastDiscard = { tile, from: seat }; game.latestRiverTileId = tile.id; game.selected = null
+  game.lastDraw = undefined
   game.consecutiveKongs = 0
   game.reaction = {}
   for (let i = 0; i < game.count; i++) if (i !== seat) game.reaction[i] = reactionOptions(game, i, tile, seat)

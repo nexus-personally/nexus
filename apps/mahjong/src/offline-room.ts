@@ -70,6 +70,7 @@ function playerView(game: Game, seat: number): Game {
     wall: game.wall.map(tile => ({ id: tile.id, code: 'hidden' })) as Game['wall'],
     active: rotate(game.active), dealer: rotate(game.dealer),
     lastDiscard: game.lastDiscard && { ...game.lastDiscard, from: rotate(game.lastDiscard.from) },
+    lastDraw: game.lastDraw && { ...game.lastDraw, seat: rotate(game.lastDraw.seat) },
     reaction: { 0: game.reaction[seat] || [] }, pendingKong: null,
     result: game.result && { ...game.result,
       winner: game.result.winner === null ? null : rotate(game.result.winner),
@@ -106,7 +107,7 @@ class PhoneHost {
     const key = `${game.handId}:${game.phase}:${game.active}:${game.lastDiscard?.tile.id ?? ''}:${game.history[0] ?? ''}`
     if (this.deadlineKey !== key) {
       this.deadlineKey = key
-      this.room.deadlineAt = Date.now() + (game.phase === 'reaction' ? 15000 : 60000)
+      this.room.deadlineAt = Date.now() + 15000
     }
     return this.room.deadlineAt ?? null
   }
@@ -166,8 +167,10 @@ class PhoneHost {
   action(seat: number, message: Record<string, unknown>) {
     if (message.type === 'leave') {
       if (seat === 0) return
-      if (this.game) throw Error('牌局进行中无法离开，断线后由电脑接手')
-      this.peers.get(seat)?.peer.close(); this.peers.delete(seat); this.room.seats[seat] = null; this.broadcast(); return
+      this.peers.get(seat)?.peer.close(); this.peers.delete(seat); this.room.seats[seat] = null
+      if (this.game) this.game.players[seat].ai = true
+      if (this.timer) window.clearTimeout(this.timer)
+      this.timer = null; this.broadcast(); this.schedule(); return
     }
     if (message.type === 'cancel') {
       if (seat !== 0 || !this.game) throw Error('只有房主可取消本局')
@@ -240,8 +243,10 @@ class PhoneHost {
           }
           resolveReaction(game, choices); this.choices = {}
         } else {
-          if (this.room.seats[game.active]?.connected && Date.now() < (this.room.deadlineAt ?? 0)) { this.schedule(); return }
-          if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
+          const connectedHuman = Boolean(this.room.seats[game.active]?.connected)
+          if (connectedHuman && Date.now() < (this.room.deadlineAt ?? 0)) { this.schedule(); return }
+          if (connectedHuman) discard(game, game.active, aiChooseDiscard(game, game.active))
+          else if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
           else {
             const kong = game.wall.length ? selfKongs(game, game.active)[0] : undefined
             if (kong) declareSelfKong(game, game.active, kong)
@@ -345,7 +350,7 @@ export function useOfflineRoom(account: OfflineAccount | null) {
     } catch (cause) { setError(cause instanceof Error ? cause.message : '操作失败') }
   }
   const leave = () => {
-    if (guest.current && !room?.started) { try { guest.current.send({ type: 'leave' }) } catch { /* disconnected */ } }
+    if (guest.current) { try { guest.current.send({ type: 'leave' }) } catch { /* disconnected */ } }
     close()
   }
   return { active, room, game, connected, error, setError, pairing, isHost: !!host.current,

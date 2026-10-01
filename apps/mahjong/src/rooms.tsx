@@ -5,7 +5,8 @@ import { useOfflineRoom } from './offline-room'
 import { PairingCode, PairingScanner } from './offline-pairing'
 
 type Account = { id: string; login: string; name: string; mamoney: number }
-type Seat = { id: string; name: string; connected: boolean } | null
+type Seat = { id: string; name: string; connected: boolean; voice?: boolean } | null
+export type VoiceSignalMessage = { fromId: string; signal: { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit } }
 export type Room = { code: string; count: 3 | 4; hostId: string; started: boolean; deadlineAt?: number | null; seats: Seat[] }
 const KEY = 'gangque.room.token'
 const ACCOUNT_KEY = 'gangque.room.cached-account'
@@ -21,6 +22,7 @@ export function useRoomNetwork() {
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState('')
   const socket = useRef<WebSocket | null>(null)
+  const voiceListeners = useRef(new Set<(message: VoiceSignalMessage) => void>())
   const retry = useRef<number | null>(null)
   const offline = useOfflineRoom(account)
   const connect = useCallback((token: string) => {
@@ -43,6 +45,7 @@ export function useRoomNetwork() {
       if (message.type === 'auth') { setAccount(message.account); localStorage.setItem(ACCOUNT_KEY, JSON.stringify(message.account)) }
       if (message.type === 'wallet') { setAccount(message.account); localStorage.setItem(ACCOUNT_KEY, JSON.stringify(message.account)) }
       if (message.type === 'room') { setRoom(message.room); setGame(message.game); setError('') }
+      if (message.type === 'voice-signal') voiceListeners.current.forEach(listener => listener(message as VoiceSignalMessage))
     }
     ws.onclose = () => {
       if (socket.current !== ws) return
@@ -74,9 +77,13 @@ export function useRoomNetwork() {
     if (!socket.current || socket.current.readyState !== WebSocket.OPEN) { setError('与房间主机的连接尚未建立'); return }
     socket.current.send(JSON.stringify(message))
   }
+  const onVoiceSignal = useCallback((listener: (message: VoiceSignalMessage) => void) => {
+    voiceListeners.current.add(listener)
+    return () => { voiceListeners.current.delete(listener) }
+  }, [])
   return { account, room: offline.active ? offline.room : room, game: offline.active ? offline.game : game,
     connected: offline.active ? offline.connected : connected, error: offline.active ? offline.error : error,
-    setError: offline.active ? offline.setError : setError, api, authenticate, logout, send, setAccount: updateAccount, offline }
+    setError: offline.active ? offline.setError : setError, api, authenticate, logout, send, onVoiceSignal, setAccount: updateAccount, offline }
 }
 
 export type RoomNetwork = ReturnType<typeof useRoomNetwork>
@@ -95,6 +102,18 @@ export function RoomPanel({ network, onReturn, authOnly = false }: { network: Ro
   const run = async (work: () => Promise<void>) => { setBusy(true); network.setError(''); setNotice(''); try { await work() } catch (error) { network.setError(error instanceof Error ? error.message : '操作失败') } finally { setBusy(false) } }
   const room = network.room
   const offline = network.offline
+  const leaveRoom = () => {
+    if (!room) return true
+    const warning = room.started
+      ? offline.active && offline.isHost
+        ? '离开会结束整个无网房，未完成的本局不计分。确定离开？'
+        : '离开后将由电脑接管你的牌，本局仍会正常结算。确定离开房间？'
+      : '确定离开房间？'
+    if (!window.confirm(warning)) return false
+    if (offline.active) offline.leave()
+    else network.send({ type: 'leave' })
+    return true
+  }
   const scanOffer = useCallback((data: string) => { void offline.acceptOffer(data).catch(error => offline.setError(error instanceof Error ? error.message : '配对失败')) }, [offline])
   const scanAnswer = useCallback((data: string) => { void offline.acceptAnswer(data).catch(error => offline.setError(error instanceof Error ? error.message : '配对失败')) }, [offline])
   return <section className="room-panel">
@@ -113,7 +132,7 @@ export function RoomPanel({ network, onReturn, authOnly = false }: { network: Ro
       </form>}
       {page === 'reset' && <small className="room-warning">仅凭登录名即可重设密码，任何知道登录名的人都可能接管账号。请勿在此账号保存敏感信息。</small>}
     </> : <>
-      <div className="room-account"><b>{network.account.name}</b><span>@{network.account.login} · {offline.active ? network.connected ? '无网房间已连接' : '等待手机配对' : network.connected ? '线上主机已连接' : '离线可用'} · 妈币 {network.account.mamoney ?? 500}</span><button disabled={offline.active || !network.connected} onClick={() => { setPage(page === 'profile' ? 'login' : 'profile'); setName(network.account?.name || '') }}>修改资料</button><button onClick={() => { if (room && !room.started) network.send({ type: 'leave' }); network.logout(); setPage('login') }}>退出登录</button></div>
+      <div className="room-account"><b>{network.account.name}</b><span>@{network.account.login} · {offline.active ? network.connected ? '无网房间已连接' : '等待手机配对' : network.connected ? '线上主机已连接' : '离线可用'} · 妈币 {network.account.mamoney ?? 500}</span><button disabled={offline.active || !network.connected} onClick={() => { setPage(page === 'profile' ? 'login' : 'profile'); setName(network.account?.name || '') }}>修改资料</button><button onClick={() => { if (room && !leaveRoom()) return; network.logout(); setPage('login') }}>退出登录</button></div>
       {page === 'profile' && <form onSubmit={event => { event.preventDefault(); void run(async () => { const result = await network.api('profile', { name, password, newPassword }); network.setAccount(result.account); setPassword(''); setNewPassword(''); setNotice('资料已更新') }) }}>
         <label>用户名<input required maxLength={20} value={name} onChange={event => setName(event.target.value)} /></label>
         <label>当前密码<input required type="password" value={password} onChange={event => setPassword(event.target.value)} /></label>
@@ -133,7 +152,7 @@ export function RoomPanel({ network, onReturn, authOnly = false }: { network: Ro
         <div className="room-code">{offline.active ? '无网房间' : '线上房间码'} <strong>{room.code}</strong>{!offline.active && <button onClick={() => navigator.clipboard?.writeText(room.code)}>复制</button>}</div>
         {offline.active && offline.isHost && !room.started && <><button onClick={() => void offline.invite().catch(error => offline.setError(error instanceof Error ? error.message : '无法邀请'))}>邀请朋友扫码</button>{offline.pairing?.kind === 'offer' && <><PairingCode data={offline.pairing.data} title="请朋友扫描邀请二维码" /><PairingScanner title="再扫描朋友手机的回应码" onScan={scanAnswer} /></>}</>}
         <div className="room-seats">{room.seats.map((seat, index) => <div key={index}><span>{index + 1}</span><b>{seat?.name || '电脑补位'}</b><small>{seat ? seat.connected ? '已连接 · 开局后定风位' : '暂时断线' : '开局时由电脑入座'}</small></div>)}</div>
-        {room.started ? <div className="room-controls"><button onClick={() => { void audio.unlock(); onReturn() }}>返回正在进行的牌局</button>{room.hostId === network.account.id && network.game?.phase !== 'result' && network.game?.phase !== 'match-result' && <button onClick={() => { if (window.confirm('取消本局并返回房间？本局分数不计，朋友可加入后再由房主开局。')) network.send({ type: 'cancel' }) }}>取消本局</button>}</div> : <div className="room-controls">{room.hostId === network.account.id && <button onClick={() => { void audio.unlock(); network.send({ type: 'start' }) }}>开始牌局</button>}<button onClick={() => offline.active ? offline.leave() : network.send({ type: 'leave' })}>离开房间</button></div>}
+        {room.started ? <div className="room-controls"><button onClick={() => { void audio.unlock(); onReturn() }}>返回正在进行的牌局</button>{room.hostId === network.account.id && network.game?.phase !== 'result' && network.game?.phase !== 'match-result' && <button onClick={() => { if (window.confirm('取消本局并返回房间？本局分数不计，朋友可加入后再由房主开局。')) network.send({ type: 'cancel' }) }}>取消本局</button>}<button onClick={leaveRoom}>离开房间</button></div> : <div className="room-controls">{room.hostId === network.account.id && <button onClick={() => { void audio.unlock(); network.send({ type: 'start' }) }}>开始牌局</button>}<button onClick={leaveRoom}>离开房间</button></div>}
       </div>)}
     </>}
     {notice && <p className="room-notice">{notice}</p>}{network.error && <p className="room-error">{network.error}</p>}

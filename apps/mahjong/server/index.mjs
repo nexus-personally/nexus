@@ -135,7 +135,7 @@ async function handleApi(req, res, path, parsedBody) {
 function send(ws, type, payload = {}) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...payload })) }
 function roomOf(accountId) { return [...rooms.values()].find(room => room.seats.some(seat => seat?.id === accountId)) }
 const REACTION_MS = 15000
-const TURN_MS = 60000
+const TURN_MS = 15000
 function ensureDeadline(room) {
   const game = room.game
   if (!game || !['discard', 'reaction'].includes(game.phase)) { room.deadlineKey = null; room.deadlineAt = null; return null }
@@ -146,22 +146,23 @@ function ensureDeadline(room) {
   }
   return room.deadlineAt
 }
-function roomInfo(room) { return { code: room.code, count: room.count, hostId: room.hostId, started: !!room.game, deadlineAt: ensureDeadline(room), seats: room.seats.map(seat => seat && { id: seat.id, name: seat.name, connected: sockets.has(seat.id) }) } }
+function roomInfo(room) { return { code: room.code, count: room.count, hostId: room.hostId, started: !!room.game, deadlineAt: ensureDeadline(room), seats: room.seats.map(seat => seat && { id: seat.id, name: seat.name, connected: sockets.has(seat.id), voice: room.voiceMembers.has(seat.id) }) } }
 function viewFor(game, seat) {
   const rotate = value => (value - seat + game.count) % game.count
   const players = Array.from({ length: game.count }, (_, index) => {
     const source = game.players[(seat + index) % game.count]
     return { ...source, hand: index === 0 ? source.hand : source.hand.map(tile => ({ id: tile.id, code: 'hidden' })) }
   })
-  return { ...game, players, wall: game.wall.map(tile => ({ id: tile.id, code: 'hidden' })), active: rotate(game.active), dealer: rotate(game.dealer), lastDiscard: game.lastDiscard && { ...game.lastDiscard, from: rotate(game.lastDiscard.from) }, reaction: { 0: game.reaction[seat] || [] }, pendingKong: null, result: game.result && { ...game.result, winner: game.result.winner === null ? null : rotate(game.result.winner), from: game.result.from === null ? null : rotate(game.result.from), payments: Array.from({ length: game.count }, (_, index) => game.result.payments[(seat + index) % game.count]), mamoneyDeltas: game.result.mamoneyDeltas && Array.from({ length: game.count }, (_, index) => game.result.mamoneyDeltas[(seat + index) % game.count]) } }
+  return { ...game, players, wall: game.wall.map(tile => ({ id: tile.id, code: 'hidden' })), active: rotate(game.active), dealer: rotate(game.dealer), lastDiscard: game.lastDiscard && { ...game.lastDiscard, from: rotate(game.lastDiscard.from) }, lastDraw: game.lastDraw && { ...game.lastDraw, seat: rotate(game.lastDraw.seat) }, reaction: { 0: game.reaction[seat] || [] }, pendingKong: null, result: game.result && { ...game.result, winner: game.result.winner === null ? null : rotate(game.result.winner), from: game.result.from === null ? null : rotate(game.result.from), payments: Array.from({ length: game.count }, (_, index) => game.result.payments[(seat + index) % game.count]), mamoneyDeltas: game.result.mamoneyDeltas && Array.from({ length: game.count }, (_, index) => game.result.mamoneyDeltas[(seat + index) % game.count]) } }
 }
 async function settleRoom(room) {
   const game = room.game
   if (!game || game.phase !== 'result' || !game.result || game.result.winner === null || room.settledHands.has(game.handId)) return
   if (room.settlement?.handId === game.handId) return room.settlement.promise
-  const eligible = room.seats.map((member, seat) => Boolean(member && sockets.has(member.id) && !game.players[seat].ai))
+  const handAccounts = room.handAccounts || room.seats
+  const eligible = handAccounts.map(member => Boolean(member))
   const eventId = `room-${game.handId}`
-  const accountAtSeat = room.seats.map(member => member ? accounts.find(item => item.id === member.id) : undefined)
+  const accountAtSeat = handAccounts.map(member => member ? accounts.find(item => item.id === member.id) : undefined)
   const promise = (async () => {
     let deltas
     let entries = []
@@ -216,6 +217,7 @@ async function publishRoom(room) {
   try { await settleRoom(room) }
   catch (error) { broadcast(room); throw error }
   broadcast(room)
+  if (!room.seats.some(Boolean) && room.game && ['result', 'match-result'].includes(room.game.phase)) rooms.delete(room.code)
 }
 function broadcast(room) {
   for (let seat = 0; seat < room.count; seat++) {
@@ -226,12 +228,19 @@ function broadcast(room) {
 }
 function leaveRoom(accountId) {
   const room = roomOf(accountId)
-  if (!room || room.game) return false
+  if (!room) return false
   const seat = room.seats.findIndex(member => member?.id === accountId)
   room.seats[seat] = null
-  if (room.hostId === accountId) room.hostId = room.seats.find(Boolean)?.id || null
-  if (!room.hostId) rooms.delete(room.code)
-  else broadcast(room)
+  room.voiceMembers.delete(accountId)
+  if (room.game) room.game.players[seat].ai = true
+  if (room.hostId === accountId) room.hostId = room.seats.find(member => member && sockets.has(member.id))?.id || room.seats.find(Boolean)?.id || null
+  if (!room.game && !room.hostId) rooms.delete(room.code)
+  else {
+    if (room.timer) clearTimeout(room.timer)
+    room.timer = null
+    broadcast(room)
+    schedule(room)
+  }
   return true
 }
 function schedule(room) {
@@ -257,8 +266,10 @@ function schedule(room) {
         }
         resolveReaction(game, choices); room.choices = {}
       } else {
-        if (room.seats[game.active] && sockets.has(room.seats[game.active].id) && Date.now() < room.deadlineAt) { schedule(room); return }
-        if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
+        const connectedHuman = Boolean(room.seats[game.active] && sockets.has(room.seats[game.active].id))
+        if (connectedHuman && Date.now() < room.deadlineAt) { schedule(room); return }
+        if (connectedHuman) discard(game, game.active, aiChooseDiscard(game, game.active))
+        else if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
         else {
           const kong = game.wall.length ? selfKongs(game, game.active)[0] : undefined
           if (kong) declareSelfKong(game, game.active, kong)
@@ -267,7 +278,7 @@ function schedule(room) {
       }
       await publishRoom(room); schedule(room)
     } catch (error) { console.error('Room AI error:', error) }
-  }, waitingHuman ? Math.max(1, deadline - Date.now()) : 650)
+  }, waitingHuman ? Math.max(1, deadline - Date.now()) : room.seats.some(Boolean) ? 650 : 25)
 }
 async function roomAction(room, account, action, payload) {
   const game = room.game
@@ -278,6 +289,7 @@ async function roomAction(room, account, action, payload) {
     if (account.id !== room.hostId || !['result', 'match-result'].includes(game.phase)) throw Error('只有房主可开始下一局')
     await settleRoom(room)
     room.game = game.phase === 'match-result' ? newGame(room.count) : nextHand(game)
+    room.handAccounts = room.seats.map(member => member && { ...member })
     room.game.players.forEach((player, index) => { player.name = room.seats[index]?.name || `电脑 ${index + 1}`; player.ai = !room.seats[index] })
     room.choices = {}; await publishRoom(room); schedule(room); return
   }
@@ -309,7 +321,7 @@ async function handleSocket(ws, message, account) {
   if (message.type === 'create') {
     if (room) throw Error('请先离开当前房间')
     const count = message.count === 3 ? 3 : 4
-    const created = { code: code(), count, hostId: account.id, seats: Array(count).fill(null), game: null, choices: {}, timer: null, deadlineKey: null, deadlineAt: null, settledHands: new Set(), settlement: null }
+    const created = { code: code(), count, hostId: account.id, seats: Array(count).fill(null), voiceMembers: new Set(), handAccounts: null, game: null, choices: {}, timer: null, deadlineKey: null, deadlineAt: null, settledHands: new Set(), settlement: null }
     created.seats[0] = publicAccount(account); rooms.set(created.code, created); broadcast(created); return
   }
   if (message.type === 'join') {
@@ -320,8 +332,23 @@ async function handleSocket(ws, message, account) {
     if (seat < 0) throw Error('房间已满')
     target.seats[seat] = publicAccount(account); broadcast(target); return
   }
-  if (message.type === 'leave') { if (!leaveRoom(account.id)) throw Error('牌局进行中无法离开，断线后可重连'); send(ws, 'room', { room: null, game: null }); return }
+  if (message.type === 'leave') { if (!leaveRoom(account.id)) throw Error('你不在房间里'); send(ws, 'room', { room: null, game: null }); return }
   if (!room) throw Error('请先创建或加入房间')
+  if (message.type === 'voice-state') {
+    if (message.enabled) room.voiceMembers.add(account.id)
+    else room.voiceMembers.delete(account.id)
+    broadcast(room)
+    return
+  }
+  if (message.type === 'voice-signal') {
+    if (!room.voiceMembers.has(account.id)) throw Error('请先加入房间语音')
+    const target = room.seats.find(member => member?.id === message.targetId)
+    if (!target || !room.voiceMembers.has(target.id)) throw Error('语音对象不在房间里')
+    const signal = message.signal
+    if (!signal || typeof signal !== 'object' || (!signal.description && !signal.candidate)) throw Error('语音连接资料无效')
+    send(sockets.get(target.id), 'voice-signal', { fromId: account.id, signal })
+    return
+  }
   if (message.type === 'cancel') {
     if (room.hostId !== account.id) throw Error('只有房主可取消本局')
     if (!room.game) throw Error('目前没有进行中的牌局')
@@ -329,6 +356,7 @@ async function handleSocket(ws, message, account) {
     if (room.timer) clearTimeout(room.timer)
     room.timer = null
     room.game = null
+    room.handAccounts = null
     room.choices = {}
     broadcast(room)
     return
@@ -336,6 +364,7 @@ async function handleSocket(ws, message, account) {
   if (message.type === 'start') {
     if (room.hostId !== account.id || room.game) throw Error('只有房主可开局')
     room.game = newGame(room.count)
+    room.handAccounts = room.seats.map(member => member && { ...member })
     room.game.players.forEach((player, seat) => { player.name = room.seats[seat]?.name || `电脑 ${seat + 1}`; player.ai = !room.seats[seat] })
     broadcast(room); schedule(room); return
   }
@@ -373,7 +402,7 @@ function onSocket(ws) {
       await handleSocket(ws, message, account)
     } catch (error) { send(ws, 'error', { error: error.message || '操作失败' }) }
   })
-  ws.on('close', () => { if (account && sockets.get(account.id) === ws) { sockets.delete(account.id); const room = roomOf(account.id); if (room) { if (room.timer) clearTimeout(room.timer); room.timer = null; void publishRoom(room).catch(error => console.error('Room settlement error:', error)); schedule(room) } } })
+  ws.on('close', () => { if (account && sockets.get(account.id) === ws) { sockets.delete(account.id); const room = roomOf(account.id); if (room) { room.voiceMembers.delete(account.id); if (room.timer) clearTimeout(room.timer); room.timer = null; void publishRoom(room).catch(error => console.error('Room settlement error:', error)); schedule(room) } } })
 }
 
 export async function registerMahjong(fastify) {

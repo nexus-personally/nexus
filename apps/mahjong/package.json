@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc && vite build"
+    "build": "tsc && vite build",
+    "test": "node --experimental-strip-types --test src/*.test.ts"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "fflate": "^0.8.3",
     "gsap": "^3.15.0",
     "jsqr": "^1.4.0",

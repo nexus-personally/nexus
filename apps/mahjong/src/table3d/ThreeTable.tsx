@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 import { TileModel } from './TileModel'
 import gsap from 'gsap'
-import type { Game, Tile } from '../engine'
+import { sortTiles, type Game, type Tile } from '../engine'
 import { getWallState, type WallTileState } from '../wallState'
 
 type Props = { game: Game; selectedId: number | null; onSelect: (id: number) => void }
@@ -19,9 +19,9 @@ class MahjongScene {
   private floor = new THREE.Mesh(new THREE.PlaneGeometry(23, 23), new THREE.ShadowMaterial({ opacity: .22 }))
   private dynamic = new THREE.Group()
   private latestGlow = new THREE.Group()
-  private glowInner = new THREE.Mesh(new THREE.PlaneGeometry(.72, .93), new THREE.MeshBasicMaterial({ color: 0xffca59, transparent: true, opacity: .72, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }))
-  private glowOuter = new THREE.Mesh(new THREE.PlaneGeometry(.96, 1.17), new THREE.MeshBasicMaterial({ color: 0xffa832, transparent: true, opacity: .22, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }))
   private glowLight = new THREE.PointLight(0xffcf7a, 1.8, 1.65, 2)
+  private latestRing = new THREE.Mesh(new THREE.TorusGeometry(.48, .055, 10, 32), new THREE.MeshBasicMaterial({ color: 0xffd36c, transparent: true, opacity: .9, toneMapped: false }))
+  private latestArrow = new THREE.Mesh(new THREE.ConeGeometry(.22, .52, 3), new THREE.MeshBasicMaterial({ color: 0xffd15b, toneMapped: false }))
   private slots: WallTileState[] = []
   private previousRemaining = -1
   private previousVisible = new Set<number>()
@@ -67,11 +67,12 @@ class MahjongScene {
     this.floor.rotation.x = -Math.PI / 2
     this.floor.position.y = .2675
     this.floor.receiveShadow = true
-    for (const glow of [this.glowInner, this.glowOuter]) glow.rotation.x = -Math.PI / 2
-    this.glowInner.position.y = .003
-    this.glowOuter.position.y = .001
     this.glowLight.position.y = .6
-    this.latestGlow.add(this.glowOuter, this.glowInner, this.glowLight)
+    this.latestRing.rotation.x = Math.PI / 2
+    this.latestRing.position.y = .05
+    this.latestArrow.rotation.z = Math.PI
+    this.latestArrow.position.set(0, 1.15, 0)
+    this.latestGlow.add(this.glowLight, this.latestRing, this.latestArrow)
     this.latestGlow.visible = false
     this.scene.add(this.floor, this.wall, this.dynamic, this.latestGlow)
     this.renderer.domElement.addEventListener('pointerdown', this.pickTile)
@@ -93,10 +94,11 @@ class MahjongScene {
 
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop)
+    const pulse = Math.sin(performance.now() * .004)
+    this.model.pulseGlow(pulse)
     if (this.latestGlow.visible) {
-      const pulse = Math.sin(performance.now() * .004)
-      ;(this.glowOuter.material as THREE.MeshBasicMaterial).opacity = .20 + pulse * .055
       this.glowLight.intensity = 1.65 + pulse * .3
+      this.latestArrow.position.y = 1.12 + pulse * .1
     }
     this.renderer.render(this.scene, this.camera)
   }
@@ -154,11 +156,18 @@ class MahjongScene {
     this.scene.add(this.dynamic)
     this.canSelect = game.active === 0 && game.phase === 'discard'
     const me = game.players[0]
-    const hand = [...me.hand].sort((a, b) => a.code.localeCompare(b.code) || a.id - b.id)
+    const drawnTile = game.phase === 'discard' && game.lastDraw?.seat === 0
+      ? me.hand.find(tile => tile.id === game.lastDraw?.tileId)
+      : undefined
+    const hand = sortTiles(me.hand.filter(tile => tile.id !== drawnTile?.id))
+    if (drawnTile) hand.push(drawnTile)
+    const handSpan = Math.max(0, hand.length - 1) * 1.12 + (drawnTile ? .58 : 0)
     hand.forEach((tile, index) => {
       const mesh = this.standingTile(tile, true, 1.45)
       mesh.rotation.x = -.12
-      mesh.position.set((index - (hand.length - 1) / 2) * 1.12, tile.id === selectedId ? 1.31 : 1.07, 6.55)
+      const x = -handSpan / 2 + index * 1.12 + (drawnTile && tile.id === drawnTile.id ? .58 : 0)
+      mesh.position.set(x, tile.id === selectedId ? 1.31 : 1.07, 6.55)
+      if (tile.id === selectedId || tile.id === drawnTile?.id) mesh.add(this.model.createGlow())
       mesh.userData.handTileId = tile.id
       this.dynamic.add(mesh)
     })
@@ -196,6 +205,7 @@ class MahjongScene {
     })
 
     this.latestGlow.visible = false
+    const selectedCode = me.hand.find(tile => tile.id === selectedId)?.code
     game.players.forEach((player, seat) => {
       player.river.slice(-30).forEach((tile, index) => {
         const mesh = this.flatTile(tile, 1.08)
@@ -210,6 +220,7 @@ class MahjongScene {
           this.latestGlow.position.set(mesh.position.x, .275, mesh.position.z)
           this.latestGlow.visible = true
         }
+        if (tile.id === game.latestRiverTileId || selectedCode && tile.code === selectedCode) mesh.add(this.model.createGlow())
         this.dynamic.add(mesh)
       })
       const total = player.melds.reduce((sum, meld) => sum + meld.tiles.length, 0)
@@ -241,8 +252,8 @@ class MahjongScene {
     this.model.dispose()
     this.environment.dispose()
     this.floor.geometry.dispose(); this.floor.material.dispose()
-    this.glowInner.geometry.dispose(); this.glowOuter.geometry.dispose()
-    this.glowInner.material.dispose(); this.glowOuter.material.dispose()
+    this.latestRing.geometry.dispose(); this.latestRing.material.dispose()
+    this.latestArrow.geometry.dispose(); this.latestArrow.material.dispose()
     this.scene.traverse(object => { if (object instanceof THREE.DirectionalLight) object.shadow.dispose() })
   }
 }

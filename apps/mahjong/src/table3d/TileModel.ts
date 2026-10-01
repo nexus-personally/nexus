@@ -14,6 +14,8 @@ export class TileModel {
   private specialFace = new THREE.PlaneGeometry(.67, .85)
   private ivory = new THREE.MeshPhysicalMaterial({ color: 0xf0e3c9, roughness: .3, metalness: 0, clearcoat: .4, clearcoatRoughness: .24, envMapIntensity: .65 })
   private jade = new THREE.MeshPhysicalMaterial({ color: 0x004c2a, roughness: .3, metalness: 0, clearcoat: .65, clearcoatRoughness: .24, envMapIntensity: .65 })
+  private glowEdge = new THREE.MeshBasicMaterial({ color: 0xffc64d, side: THREE.BackSide, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })
+  private glowSurface = new THREE.MeshBasicMaterial({ color: 0xffdf8a, transparent: true, opacity: .16, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 })
   private textures = new Map<string, THREE.MeshStandardMaterial>()
   private loader = new THREE.TextureLoader()
   private specialAtlas: THREE.Texture | null = null
@@ -51,6 +53,27 @@ export class TileModel {
       tile.add(face)
     }
     return tile
+  }
+
+  /** A thin, tile-shaped halo that follows the physical tile's rotation and scale. */
+  createGlow() {
+    const glow = new THREE.Group()
+    const body = new THREE.Mesh(this.body, this.glowEdge)
+    body.position.z = .025
+    body.scale.set(1.12, 1.09, 1.22)
+    const back = new THREE.Mesh(this.back, this.glowEdge)
+    back.position.z = -.155
+    back.scale.set(1.12, 1.09, 1.35)
+    const surface = new THREE.Mesh(this.body, this.glowSurface)
+    surface.position.z = .025
+    surface.scale.set(1.012, 1.012, 1.012)
+    glow.add(body, back, surface)
+    return glow
+  }
+
+  pulseGlow(pulse: number) {
+    this.glowEdge.opacity = .65 + pulse * .18
+    this.glowSurface.opacity = .12 + pulse * .055
   }
 
   /** Green back upwards, white face down. Each stack contains two real tiles. */
@@ -115,7 +138,7 @@ export class TileModel {
 
   dispose() {
     this.body.dispose(); this.back.dispose(); this.face.dispose(); this.specialFace.dispose()
-    this.ivory.dispose(); this.jade.dispose()
+    this.ivory.dispose(); this.jade.dispose(); this.glowEdge.dispose(); this.glowSurface.dispose()
     for (const material of this.textures.values()) { material.map?.dispose(); material.dispose() }
     this.specialAtlas?.dispose()
     this.textures.clear()

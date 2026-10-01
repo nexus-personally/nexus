@@ -86,6 +86,31 @@ function takeSupplement(game: Game): Tile {
   const upperIsNext = first >= 0 && first % 2 === 0 && game.wall[1]?.id === game.wallOrder?.[first + 1]
   return game.wall.splice(upperIsNext ? 1 : 0, 1)[0]
 }
+export function canRedeemPongFly(game: Game, seat: number): boolean {
+  if (game.phase !== 'discard' || game.active !== seat) return false
+  const player = game.players[seat]
+  return player.hand.some(handTile => handTile.code !== 'x1' && player.melds.some(meld =>
+    meld.kind === '碰' && meld.tiles.some((tile, index) => tile.code === 'x1' && meld.represented?.[index] === handTile.code),
+  ))
+}
+
+export function redeemPongFly(game: Game, seat: number): void {
+  if (!canRedeemPongFly(game, seat)) throw Error('現在不能起飛')
+  const player = game.players[seat]
+  const eligible = player.hand.filter(handTile => handTile.code !== 'x1' && player.melds.some(meld =>
+    meld.kind === '碰' && meld.tiles.some((tile, index) => tile.code === 'x1' && meld.represented?.[index] === handTile.code),
+  ))
+  const replacement = eligible.find(tile => tile.id === game.lastDraw?.tileId) ?? eligible[0]
+  const handIndex = player.hand.findIndex(tile => tile.id === replacement.id)
+  const meld = player.melds.find(candidate => candidate.kind === '碰' && candidate.tiles.some((tile, index) => tile.code === 'x1' && candidate.represented?.[index] === replacement.code))!
+  const flyIndex = meld.tiles.findIndex((tile, index) => tile.code === 'x1' && meld.represented?.[index] === replacement.code)
+  const fly = meld.tiles[flyIndex]
+  meld.tiles[flyIndex] = replacement
+  player.hand[handIndex] = fly
+  sortTiles(player.hand)
+  if (game.lastDraw?.tileId === replacement.id) game.lastDraw = { ...game.lastDraw, tileId: fly.id }
+  log(game, `${player.name} 起飛：以 ${label(replacement.code)} 換回飛`)
+}
 function take(game: Game, seat: number, supplement = false, reason: 'wall' | 'flower' | 'kong' = 'wall'): boolean {
   const player = game.players[seat]
   while (game.wall.length) {

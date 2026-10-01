@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { compressSync, decompressSync, strFromU8, strToU8 } from 'fflate'
 import {
-  aiChooseDiscard, aiClaim, declareSelfKong, declareSelfWin, discard, evaluateWin,
-  newGame, nextHand, resolveReaction, selfKongs, type Claim, type Game,
+  aiChooseDiscard, aiClaim, canRedeemPongFly, declareSelfKong, declareSelfWin, discard, evaluateWin,
+  newGame, nextHand, redeemPongFly, resolveReaction, selfKongs, type Claim, type Game,
 } from './engine'
 
 export type OfflineAccount = { id: string; login: string; name: string }
@@ -213,6 +213,7 @@ class PhoneHost {
     }
     if (game.phase === 'discard' && game.active === seat) {
       if (action === 'discard') discard(game, seat, Number(message.tileId))
+      else if (action === 'redeem-fly') redeemPongFly(game, seat)
       else if (action === 'win') declareSelfWin(game, seat)
       else if (action === 'kong') {
         const claim = selfKongs(game, seat)[Number(message.index)]
@@ -263,11 +264,14 @@ class PhoneHost {
           const connectedHuman = Boolean(this.room.seats[game.active]?.connected)
           if (connectedHuman && Date.now() < (this.room.deadlineAt ?? 0)) { this.schedule(); return }
           if (connectedHuman) discard(game, game.active, aiChooseDiscard(game, game.active))
-          else if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
           else {
-            const kong = game.wall.length ? selfKongs(game, game.active)[0] : undefined
-            if (kong) declareSelfKong(game, game.active, kong)
-            else discard(game, game.active, aiChooseDiscard(game, game.active))
+            if (canRedeemPongFly(game, game.active)) redeemPongFly(game, game.active)
+            if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
+            else {
+              const kong = game.wall.length ? selfKongs(game, game.active)[0] : undefined
+              if (kong) declareSelfKong(game, game.active, kong)
+              else discard(game, game.active, aiChooseDiscard(game, game.active))
+            }
           }
         }
         this.broadcast(); this.schedule()

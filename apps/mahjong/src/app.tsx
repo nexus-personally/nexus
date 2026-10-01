@@ -10,9 +10,9 @@ import { VoiceChat } from './voice-chat'
 import { ArrowsOut, CaretDown, CaretUp, DotsThree, House, MusicNotes, Prohibit, Question, SignOut, SpeakerHigh } from '@phosphor-icons/react'
 import { SPECIAL_TILE_ATLAS, SPECIAL_TILE_ATLAS_SIZE, specialTileRegion } from './specialTiles'
 import {
-  aiChooseDiscard, aiClaim, buildTiles, declareSelfKong, declareSelfWin, discard,
+  aiChooseDiscard, aiClaim, buildTiles, canRedeemPongFly, declareSelfKong, declareSelfWin, discard,
   currentFanPreview, evaluateWin, label, newGame, nextHand, resolveReaction, seatWind, selfKongs,
-  sortTiles, WIND, type Claim, type Game, type Tile,
+  redeemPongFly, sortTiles, WIND, type Claim, type Game, type Tile,
 } from './engine'
 const ThreeTable = lazy(() => import('./table3d/ThreeTable').then(module => ({ default: module.ThreeTable })))
 
@@ -271,7 +271,7 @@ function App() {
         if (claim) setReactionDecision({ index, kind: claim.kind })
       } else if (action === 'pass' || action === 'withdraw') setReactionDecision('pass')
       network.send({ type: 'action', action, index, tileId: selectedId })
-      if (action === 'discard') setSelectedId(null)
+      if (action === 'discard' || action === 'redeem-fly') setSelectedId(null)
       return
     }
     try {
@@ -290,7 +290,8 @@ function App() {
         const choices: Record<number, Claim | null> = { 0: action === 'claim' ? current.reaction[0][index] : null }
         for (let seat = 1; seat < current.count; seat++) choices[seat] = aiClaim(current, seat)
         resolveReaction(current, choices)
-      } else if (action === 'next') { setSelectedId(null); commit(nextHand(current)); audio.play('tile-shuffle'); return }
+      } else if (action === 'redeem-fly') { redeemPongFly(current, 0); setSelectedId(null) }
+      else if (action === 'next') { setSelectedId(null); commit(nextHand(current)); audio.play('tile-shuffle'); return }
       else return
       commit(current)
       const cue: AudioCue = action === 'discard' ? 'tile-discard' : action === 'win' ? 'tsumo' : action === 'kong' ? 'kong' : action === 'claim' ? ({ 吃: 'chi', 碰: 'pong', 槓: 'kong', 胡: 'hu' } as const)[claimKind || '吃'] : 'button'
@@ -337,6 +338,7 @@ function App() {
   const claims = game.phase === 'reaction' ? game.reaction[0] ?? [] : []
   const kongs = isMyTurn ? selfKongs(game, 0) : []
   const selfWin = isMyTurn ? evaluateWin(game, 0, undefined, true) : null
+  const canRedeemFly = isMyTurn && canRedeemPongFly(game, 0)
   const fanPreview = currentFanPreview(game, 0)
   const round = `${WIND[game.prevailing]}圈 · 第 ${game.handNumber} 局 · ${game.count} 人`
   const turnStatus = game.phase === 'result' ? game.result?.message : isMyTurn ? '輪到你出牌' : claims.length ? '你可以應牌' : game.phase === 'reaction' ? '等待牌友應牌' : `${game.players[game.active].name} 思考中…`
@@ -391,6 +393,7 @@ function App() {
     {claims.length > 0 && reactionDecision !== null && <section className="claim-picker claim-waiting" role="status" aria-live="polite">
       {reactionDecision === 'pass' || !submittedClaim || !game.lastDiscard ? <><strong>已過牌</strong><span>等待其他玩家</span></> : <><header><strong>已選擇：{submittedClaim.kind}</strong>{secondsLeft !== null && <time>{secondsLeft}秒</time>}</header><div className="claim-waiting-body"><ClaimCombination claim={submittedClaim} hand={me.hand} incoming={game.lastDiscard.tile} onChoose={() => {}} /><span>等待其他玩家回應</span><button onClick={() => act('withdraw')}>撤回</button></div></>}
     </section>}
+    {canRedeemFly && <button className="redeem-fly-button" onClick={() => act('redeem-fly')}>起飛</button>}
     {(!claims.length || (!claimMode && reactionDecision === null)) && <div className="action-row"><span className="turn-note">{isMyTurn ? '輪到你出牌' : claims.length ? '請選擇應牌' : '等待牌友出牌'}</span>
       {claims.length ? <>{visualClaimKinds.map(kind => <button key={kind} className="action-ready" data-action-kind={kind} onClick={() => setClaimMode(kind)}>{kind}</button>)}{directClaims.map(({ claim, index }) => <button key={`${claim.kind}-${index}`} className={`action-ready${claim.kind === '胡' ? ' hot' : ''}`} data-action-kind={claim.kind} onClick={() => act('claim', index)}>{claim.kind}</button>)}<button onClick={() => act('pass')}>過</button></> : <><button disabled>吃</button><button disabled>碰</button>{kongs.length ? kongs.map((_, index) => <button key={index} className="action-ready" data-action-kind="槓" onClick={() => act('kong', index)}>槓</button>) : <button disabled>槓</button>}<button className={selfWin ? 'action-ready hot' : ''} data-action-kind="胡" disabled={!selfWin} onClick={() => act('win')}>胡</button><button disabled>過</button></>}
       <button className="discard-button" disabled={!isMyTurn || selectedId === null || me.hand.find(tile => tile.id === selectedId)?.code === 'x1'} onClick={() => act('discard')}>出牌 →</button><button className="hint-button" disabled={!isMyTurn} onClick={() => act('hint')}>建議</button>

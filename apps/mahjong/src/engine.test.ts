@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  aiChooseDiscard, buildTiles, currentFanPreview, discard, evaluateWin, newGame, reactionOptions,
+  aiChooseDiscard, buildTiles, canRedeemPongFly, currentFanPreview, discard, evaluateWin, newGame, reactionOptions, redeemPongFly, resolveReaction,
   selfKongs, settlementFan, winPayments, type Game, type Meld, type Tile,
 } from './engine.ts'
 import { getWallState } from './wallState.ts'
@@ -35,6 +35,65 @@ test('two fly tiles may represent a pair when claiming pong', () => {
   game.players[1].hand = tiles(['x1', 'x1', 'p2', 'p3'])
   const options = reactionOptions(game, 1, { id: 9999, code: 'z5' }, 0)
   assert.ok(options.some(option => option.kind === '碰' && option.tiles.length === 2 && option.represented?.every(code => code === 'z5')))
+})
+
+test('drawing the represented pong tile offers and performs one fly redemption', () => {
+  const game = newGame(3, 0, undefined, 0, 0, 0, 1, 18)
+  const player = game.players[0]
+  player.melds = [{ kind: '碰', tiles: tiles(['z5', 'x1', 'z5'], 8100), represented: ['z5', 'z5', 'z5'], from: 1 }]
+  const drawn = { id: 8200, code: 'z5' }
+  player.hand.push(drawn)
+  game.phase = 'discard'; game.active = 0; game.lastDraw = { seat: 0, tileId: drawn.id, reason: 'wall' }
+  assert.equal(canRedeemPongFly(game, 0), true)
+  redeemPongFly(game, 0)
+  assert.ok(player.hand.some(tile => tile.code === 'x1'))
+  assert.equal(player.melds[0].tiles[1], drawn)
+})
+
+test('a represented tile kept in hand may redeem the fly on a later turn', () => {
+  const game = newGame(3, 0, undefined, 0, 0, 0, 1, 181)
+  const player = game.players[0]
+  const kept = { id: 8250, code: 'z5' }
+  const latest = { id: 8251, code: 'p4' }
+  player.melds = [{ kind: '碰', tiles: tiles(['z5', 'x1', 'z5'], 8260), represented: ['z5', 'z5', 'z5'], from: 1 }]
+  player.hand = [kept, latest]
+  game.phase = 'discard'; game.active = 0; game.lastDraw = { seat: 0, tileId: latest.id, reason: 'wall' }
+  assert.equal(canRedeemPongFly(game, 0), true)
+  redeemPongFly(game, 0)
+  assert.ok(player.hand.some(tile => tile.code === 'x1'))
+  assert.equal(player.melds[0].tiles[1].id, kept.id)
+  assert.equal(game.lastDraw.tileId, latest.id)
+})
+
+test('a fly used in chow is not redeemed by drawing its represented tile', () => {
+  const game = newGame(3, 0, undefined, 0, 0, 0, 1, 19)
+  const player = game.players[0]
+  player.melds = [{ kind: '吃', tiles: tiles(['p1', 'x1', 'p3'], 8300), represented: ['p1', 'p2', 'p3'], from: 2 }]
+  const drawn = { id: 8400, code: 'p2' }
+  player.hand.push(drawn)
+  game.phase = 'discard'; game.active = 0; game.lastDraw = { seat: 0, tileId: drawn.id, reason: 'wall' }
+  assert.equal(canRedeemPongFly(game, 0), false)
+  assert.equal(player.melds[0].tiles[1].code, 'x1')
+})
+
+test('normal turn draw waits for confirmation before redeeming a fly', () => {
+  const game = newGame(3, 0, undefined, 0, 0, 0, 1, 20)
+  const player = game.players[1]
+  const fly = { id: 8500, code: 'x1' }
+  player.melds = [{ kind: '碰', tiles: [{ id: 8501, code: 'z5' }, fly, { id: 8502, code: 'z5' }], represented: ['z5', 'z5', 'z5'], from: 0 }]
+  game.wall = [{ id: 8503, code: 'z5' }]
+  game.phase = 'reaction'
+  game.lastDiscard = { tile: { id: 8504, code: 'p1' }, from: 0 }
+  game.reaction = { 1: [], 2: [] }
+  resolveReaction(game, {})
+  assert.equal(game.active, 1)
+  assert.ok(!player.hand.some(tile => tile.id === fly.id))
+  assert.equal(canRedeemPongFly(game, 1), true)
+  redeemPongFly(game, 1)
+  assert.ok(player.hand.some(tile => tile.id === fly.id))
+  assert.equal(player.melds[0].tiles[1].id, 8503)
+  assert.equal(game.lastDraw?.tileId, fly.id)
+  assert.match(game.history[0], /起飛/)
 })
 
 test('four concealed triplets is awarded only on self draw', () => {

@@ -5,7 +5,7 @@ import { isIP } from 'node:net'
 import { WebSocketServer, WebSocket } from 'ws'
 import { Pool } from 'pg'
 import { AccessToken } from 'livekit-server-sdk'
-import { aiChooseDiscard, aiClaim, declareSelfKong, declareSelfWin, discard, evaluateWin, newGame, nextHand, resolveReaction, selfKongs } from '../src/engine.ts'
+import { aiChooseDiscard, aiClaim, canRedeemPongFly, declareSelfKong, declareSelfWin, discard, evaluateWin, newGame, nextHand, redeemPongFly, resolveReaction, selfKongs } from '../src/engine.ts'
 import { settlementDeltas } from '../src/wallet.ts'
 
 const ROOT = resolve(import.meta.dirname, '../dist')
@@ -286,11 +286,14 @@ function schedule(room) {
         const connectedHuman = Boolean(room.seats[game.active] && sockets.has(room.seats[game.active].id))
         if (connectedHuman && Date.now() < room.deadlineAt) { schedule(room); return }
         if (connectedHuman) discard(game, game.active, aiChooseDiscard(game, game.active))
-        else if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
         else {
-          const kong = game.wall.length ? selfKongs(game, game.active)[0] : undefined
-          if (kong) declareSelfKong(game, game.active, kong)
-          else discard(game, game.active, aiChooseDiscard(game, game.active))
+          if (canRedeemPongFly(game, game.active)) redeemPongFly(game, game.active)
+          if (evaluateWin(game, game.active, undefined, true)) declareSelfWin(game, game.active)
+          else {
+            const kong = game.wall.length ? selfKongs(game, game.active)[0] : undefined
+            if (kong) declareSelfKong(game, game.active, kong)
+            else discard(game, game.active, aiChooseDiscard(game, game.active))
+          }
         }
       }
       await publishRoom(room); schedule(room)
@@ -312,6 +315,7 @@ async function roomAction(room, account, action, payload) {
   }
   if (game.phase === 'discard' && game.active === seat) {
     if (action === 'discard') discard(game, seat, Number(payload.tileId))
+    else if (action === 'redeem-fly') redeemPongFly(game, seat)
     else if (action === 'win') declareSelfWin(game, seat)
     else if (action === 'kong') { const claim = selfKongs(game, seat)[Number(payload.index)]; if (!claim) throw Error('没有可杠的牌'); declareSelfKong(game, seat, claim) }
     else throw Error('当前操作无效')

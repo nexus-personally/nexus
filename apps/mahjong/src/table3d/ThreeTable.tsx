@@ -20,7 +20,6 @@ class MahjongScene {
   private dynamic = new THREE.Group()
   private latestGlow = new THREE.Group()
   private glowLight = new THREE.PointLight(0xffcf7a, 1.8, 1.65, 2)
-  private latestRing = new THREE.Mesh(new THREE.TorusGeometry(.48, .055, 10, 32), new THREE.MeshBasicMaterial({ color: 0xffd36c, transparent: true, opacity: .9, toneMapped: false }))
   private latestArrow = new THREE.Mesh(new THREE.ConeGeometry(.22, .52, 3), new THREE.MeshBasicMaterial({ color: 0xffd15b, toneMapped: false }))
   private slots: WallTileState[] = []
   private previousRemaining = -1
@@ -68,11 +67,9 @@ class MahjongScene {
     this.floor.position.y = .2675
     this.floor.receiveShadow = true
     this.glowLight.position.y = .6
-    this.latestRing.rotation.x = Math.PI / 2
-    this.latestRing.position.y = .05
     this.latestArrow.rotation.z = Math.PI
     this.latestArrow.position.set(0, 1.15, 0)
-    this.latestGlow.add(this.glowLight, this.latestRing, this.latestArrow)
+    this.latestGlow.add(this.glowLight, this.latestArrow)
     this.latestGlow.visible = false
     this.scene.add(this.floor, this.wall, this.dynamic, this.latestGlow)
     this.renderer.domElement.addEventListener('pointerdown', this.pickTile)
@@ -167,7 +164,7 @@ class MahjongScene {
       mesh.rotation.x = -.12
       const x = -handSpan / 2 + index * 1.12 + (drawnTile && tile.id === drawnTile.id ? .58 : 0)
       mesh.position.set(x, tile.id === selectedId ? 1.31 : 1.07, 6.55)
-      if (tile.id === selectedId || tile.id === drawnTile?.id) mesh.add(this.model.createGlow())
+      if (tile.id === selectedId) mesh.add(this.model.createGlow())
       mesh.userData.handTileId = tile.id
       this.dynamic.add(mesh)
     })
@@ -225,7 +222,7 @@ class MahjongScene {
       })
       const total = player.melds.reduce((sum, meld) => sum + meld.tiles.length, 0)
       let cursor = 0
-      player.melds.forEach((meld, meldIndex) => meld.tiles.forEach(tile => {
+      player.melds.forEach((meld, meldIndex) => meld.tiles.forEach((tile, tileIndex) => {
         const mesh = this.flatTile(tile, .70)
         const along = (cursor++ - (total - 1) / 2) * .56 + (meldIndex - (player.melds.length - 1) / 2) * .15
         if (seat === 0) mesh.position.set(along, .45, 5.25)
@@ -235,6 +232,8 @@ class MahjongScene {
           const sideX = game.count === 4 ? 10 : 10.25
           mesh.position.set(seat === 3 ? -sideX : sideX, .45, -1.3 + along + player.hand.length * .81 / 2 + .2)
         }
+        const representedCode = meld.represented?.[tileIndex] || tile.code
+        if (selectedCode && representedCode === selectedCode) mesh.add(this.model.createGlow())
         this.dynamic.add(mesh)
       }))
     })
@@ -252,7 +251,6 @@ class MahjongScene {
     this.model.dispose()
     this.environment.dispose()
     this.floor.geometry.dispose(); this.floor.material.dispose()
-    this.latestRing.geometry.dispose(); this.latestRing.material.dispose()
     this.latestArrow.geometry.dispose(); this.latestArrow.material.dispose()
     this.scene.traverse(object => { if (object instanceof THREE.DirectionalLight) object.shadow.dispose() })
   }

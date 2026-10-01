@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   aiChooseDiscard, buildTiles, currentFanPreview, discard, evaluateWin, newGame, reactionOptions,
-  selfKongs, settlementFan, type Game, type Meld, type Tile,
+  selfKongs, settlementFan, winPayments, type Game, type Meld, type Tile,
 } from './engine.ts'
 import { getWallState } from './wallState.ts'
 
@@ -80,6 +80,14 @@ test('ten fan explodes once with no cap in both variants', () => {
   assert.equal(settlementFan(4, 10), 20)
   assert.equal(settlementFan(4, 18), 36)
   assert.equal(settlementFan(3, 39), 78)
+})
+
+test('four player discard win charges shooter double and others single', () => {
+  assert.deepEqual(winPayments(4, 2, 1, 7), [-7, -14, 28, -7])
+})
+
+test('four player self draw charges every opponent double', () => {
+  assert.deepEqual(winPayments(4, 2, null, 7), [-14, -14, 42, -14])
 })
 
 test('four player no-flower is ten fan and fly does not break it', () => {

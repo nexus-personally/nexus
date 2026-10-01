@@ -431,18 +431,22 @@ export function reactionOptions(game: Game, seat: number, tile: Tile, from: numb
   return options
 }
 
+export function winPayments(count: 3 | 4, winner: number, from: number | null, fan: number): number[] {
+  const payments = Array(count).fill(0)
+  if (from === null) {
+    for (let i = 0; i < count; i++) if (i !== winner) { const due = fan * 2; payments[i] -= due; payments[winner] += due }
+  } else {
+    for (let i = 0; i < count; i++) if (i !== winner) { const due = fan * (i === from ? 2 : 1); payments[i] -= due; payments[winner] += due }
+  }
+  return payments
+}
+
 function settleWin(game: Game, winner: number, from: number | null): void {
   const info = evaluateWin(game, winner, from === null ? undefined : game.lastDiscard!.tile, from === null)!
-  const payments = Array(game.count).fill(0)
-  if (from === null) {
-    const due = info.fan * (game.count === 3 ? 2 : 1)
-    for (let i = 0; i < game.count; i++) if (i !== winner) { payments[i] -= due; payments[winner] += due }
-  } else if (game.count === 3) {
-    for (let i = 0; i < game.count; i++) if (i !== winner) { const due = info.fan * (i === from ? 2 : 1); payments[i] -= due; payments[winner] += due }
-  } else { payments[from] -= info.fan; payments[winner] += info.fan }
+  const payments = winPayments(game.count, winner, from, info.fan)
   for (let i = 0; i < game.count; i++) game.players[i].score += payments[i]
   game.result = { winner, from, ...info, payments, message: from === null ? `${game.players[winner].name} 自摸！` : `${game.players[winner].name} 胡 ${game.players[from].name} 的牌！` }
-  game.phase = 'result'; log(game, game.count === 3 && info.raw >= 10 ? `${game.result.message} 爆番 ×2（結算值 ${info.fan}）` : `${game.result.message} ${info.fan} 番`)
+  game.phase = 'result'; log(game, info.raw >= 10 ? `${game.result.message} 爆番 ×2（結算值 ${info.fan}）` : `${game.result.message} ${info.fan} 番`)
 }
 function endDraw(game: Game): void {
   const dealer = game.dealer

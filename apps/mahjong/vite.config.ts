@@ -27,7 +27,7 @@ function offlineAssets() {
       const source = readFileSync(join(import.meta.dirname, 'public/sw.js'), 'utf8')
       writeFileSync(join(root, 'sw.js'), source
         .replace('__CACHE_VERSION__', digest.digest('hex').slice(0, 12))
-        .replace('__PRECACHE_FILES__', JSON.stringify(['/mahjong/', ...files.filter(file => file !== 'index.html').map(file => `/mahjong/${file}`)])))
+        .replace('globalThis.__GANGQUE_PRECACHE__ ?? []', JSON.stringify(['/mahjong/', ...files.filter(file => file !== 'index.html').map(file => `/mahjong/${file}`)])))
     },
   }
 }

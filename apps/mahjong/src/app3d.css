@@ -149,7 +149,7 @@ button,.lobby-3d,.game-screen{-webkit-user-select:none;user-select:none}
 @media(pointer:coarse){.room-flow button{min-height:36px!important}}
 .room-create>.offline-code,.room-create>.offline-scanner{display:grid}
 .offline-options>strong,.offline-options>p,.offline-options>.offline-scanner{grid-column:1/-1}.offline-options>p{margin:0;font-size:11px;line-height:1.4;color:#d4e2d6}
-.offline-code,.offline-scanner{display:grid;gap:7px;padding:9px;border:1px solid #7da697;border-radius:9px;background:#092b29;min-width:0}
+.offline-code,.offline-scanner{display:grid;gap:7px;padding:9px;border-radius:9px;min-width:0}
 .offline-code h3,.offline-scanner h3{margin:0;font-size:14px}.offline-code img{display:block;width:min(100%,270px);height:auto;margin:auto;background:white;border:5px solid white;border-radius:4px;image-rendering:pixelated}.offline-code p{font-size:11px;line-height:1.4;margin:0;color:#d4e2d6}
 .offline-scanner video{display:block;width:min(100%,280px);max-height:150px;object-fit:cover;margin:auto;border:2px solid #e3c782;border-radius:7px}.offline-paste{display:flex;gap:5px;min-width:0}.offline-paste textarea{min-width:0;flex:1;height:38px;resize:vertical;border-radius:5px;padding:5px;font:11px sans-serif}.offline-paste button{flex:none}
 @media(max-height:650px) and (orientation:landscape){.offline-options{padding:5px;gap:4px!important}.offline-options>p,.offline-code p{font-size:9px}.offline-code,.offline-scanner{padding:5px;gap:4px}.offline-code img{width:min(100%,180px)}.offline-code h3,.offline-scanner h3{font-size:11px}.offline-scanner video{max-height:100px}}

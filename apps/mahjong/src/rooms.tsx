@@ -5,6 +5,7 @@ import { useOfflineRoom } from './offline-room'
 import { PairingCode, PairingScanner } from './offline-pairing'
 import { useGameDialog } from './game-dialog'
 import { createPortal } from 'react-dom'
+import { Check, Copy, SignOut } from '@phosphor-icons/react'
 
 type Account = { id: string; login: string; name: string; mamoney: number }
 type Seat = { id: string; name: string; connected: boolean; voice?: boolean; ready?: boolean } | null
@@ -109,6 +110,7 @@ export function RoomPanel({ network, onReturn, authOnly = false, showRoomFlow = 
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [accountOpen, setAccountOpen] = useState(false)
+  const [offlineStep, setOfflineStep] = useState<'invite' | 'response'>('invite')
   const run = async (work: () => Promise<void>) => { setBusy(true); network.setError(''); setNotice(''); try { await work() } catch (error) { network.setError(error instanceof Error ? error.message : '操作失败') } finally { setBusy(false) } }
   const room = network.room
   const offline = network.offline
@@ -161,9 +163,25 @@ export function RoomPanel({ network, onReturn, authOnly = false, showRoomFlow = 
           </section></div>, document.body)}
         </>}
         {offline.active && offline.pairing?.kind === 'answer' && <div className="room-flow-panel"><PairingCode data={offline.pairing.data} title="让房主扫描此回应码" /><button onClick={offline.leave}>取消配对</button></div>}
+      </div> : offline.active && offline.isHost && !room.started ? <div className="room-lobby offline-room-lobby">
+        <header className="offline-room-summary"><span>无网房间</span><i /><strong>{room.code}</strong><i /><em aria-hidden="true" /><small>等待朋友加入</small><button aria-label="复制房间码" onClick={() => void navigator.clipboard?.writeText(room.code)}><Copy weight="bold" /></button></header>
+        <div className="offline-room-layout">
+          <section className="offline-invite-card">
+            <nav className="offline-step-tabs" aria-label="无网配对步骤"><button className={offlineStep === 'invite' ? 'active' : ''} onClick={() => setOfflineStep('invite')}><b>1</b>邀请朋友</button><button className={offlineStep === 'response' ? 'active' : ''} onClick={() => setOfflineStep('response')}><b>2</b>扫描回应</button></nav>
+            {offlineStep === 'invite' ? offline.pairing?.kind === 'offer' ? <PairingCode data={offline.pairing.data} title="请朋友用手机扫描该二维码加入房间" variant="room" /> : <div className="offline-invite-empty"><p>邀请朋友用手机扫码加入房间</p><button onClick={() => void offline.invite().catch(error => offline.setError(error instanceof Error ? error.message : '无法邀请'))}>生成邀请二维码</button></div> : <PairingScanner title="扫描朋友手机的回应码" onScan={scanAnswer} />}
+          </section>
+          <aside className="offline-seat-card"><header><span><b>房间座位</b><small>满员后即可进入牌桌</small></span><strong>{room.seats.length}/{room.seats.length}</strong></header><div>{room.seats.map((seat, index) => <section key={index} className={seat?.ready ? 'is-ready' : ''}><span>{index + 1}</span><p><b>{seat?.name || '电脑补位'}</b><small>{seat ? seat.connected ? seat.ready ? '已准备' : '等待准备' : '暂时断线' : '开局时由电脑入座'}</small></p></section>)}</div></aside>
+        </div>
+        <div className="offline-room-actions"><button className="primary" onClick={() => { void audio.unlock(); onReturn() }}><Check weight="bold" />进入牌桌准备</button><button onClick={() => void leaveRoom()}><SignOut weight="bold" />离开房间</button></div>
+      </div> : !offline.active && !room.started ? <div className="room-lobby offline-room-lobby online-room-lobby">
+        <header className="offline-room-summary"><span>线上房间码</span><i /><strong>{room.code}</strong><i /><em aria-hidden="true" /><small>等待朋友加入</small><button aria-label="复制房间码" onClick={() => void navigator.clipboard?.writeText(room.code)}><Copy weight="bold" /></button></header>
+        <div className="offline-room-layout">
+          <section className="offline-invite-card online-share-card"><div className="online-share-heading"><b>邀请朋友</b><small>将房间码发送给朋友</small></div><div className="online-share-content"><span>线上房间码</span><strong>{room.code}</strong><p>朋友选择“线上房间”，输入这组 8 位房间码即可加入。</p><button onClick={() => void navigator.clipboard?.writeText(room.code)}><Copy weight="bold" />复制房间码</button></div></section>
+          <aside className="offline-seat-card"><header><span><b>房间座位</b><small>满员后即可进入牌桌</small></span><strong>{room.seats.length}/{room.seats.length}</strong></header><div>{room.seats.map((seat, index) => <section key={index} className={seat?.ready ? 'is-ready' : ''}><span>{index + 1}</span><p><b>{seat?.name || '电脑补位'}</b><small>{seat ? seat.connected ? seat.ready ? '已准备' : '等待准备' : '暂时断线' : '开局时由电脑入座'}</small></p></section>)}</div></aside>
+        </div>
+        <div className="offline-room-actions"><button className="primary" onClick={() => { void audio.unlock(); onReturn() }}><Check weight="bold" />进入牌桌准备</button><button onClick={() => void leaveRoom()}><SignOut weight="bold" />离开房间</button></div>
       </div> : <div className="room-lobby">
         <div className="room-code">{offline.active ? '无网房间' : '线上房间码'} <strong>{room.code}</strong>{!offline.active && <button onClick={() => navigator.clipboard?.writeText(room.code)}>复制</button>}</div>
-        {offline.active && offline.isHost && !room.started && <><button onClick={() => void offline.invite().catch(error => offline.setError(error instanceof Error ? error.message : '无法邀请'))}>邀请朋友扫码</button>{offline.pairing?.kind === 'offer' && <><PairingCode data={offline.pairing.data} title="请朋友扫描邀请二维码" /><PairingScanner title="再扫描朋友手机的回应码" onScan={scanAnswer} /></>}</>}
         <div className="room-seats">{room.seats.map((seat, index) => <div key={index} className={seat?.ready ? 'is-ready' : ''}><span>{index + 1}</span><b>{seat?.name || '电脑补位'}</b><small>{seat ? seat.connected ? seat.ready ? '已准备' : '等待准备' : '暂时断线' : '开局时由电脑入座'}</small></div>)}</div>
         {room.started ? <div className="room-controls"><button onClick={() => { void audio.unlock(); onReturn() }}>返回正在进行的牌局</button>{room.hostId === network.account.id && network.game?.phase !== 'result' && network.game?.phase !== 'match-result' && <button onClick={() => { void confirmDialog({ eyebrow: '港雀 · 房主管理', title: '取消本局？', message: '本局分数不会记录，所有玩家将返回房间，之后可重新准备开局。', confirmLabel: '取消本局', cancelLabel: '继续牌局', tone: 'danger' }).then(confirmed => { if (confirmed) network.send({ type: 'cancel' }) }) }}>取消本局</button>}<button onClick={() => void leaveRoom()}>离开房间</button></div> : <div className="room-controls"><button onClick={() => { void audio.unlock(); onReturn() }}>进入牌桌准备</button><button onClick={() => void leaveRoom()}>离开房间</button></div>}
       </div>)}

@@ -11,6 +11,8 @@
     "dev": "npm run build --workspace @nexus/shared && npm-run-all --parallel dev:web dev:api",
     "dev:web": "npm --workspace @nexus/web run dev",
     "dev:api": "npm --workspace @nexus/api run dev",
+    "dev:mahjong": "npm-run-all --parallel dev:api dev:mahjong:web",
+    "dev:mahjong:web": "npm --workspace @nexus/mahjong run dev",
     "db:up": "docker compose -f docker-compose.local.yml up -d postgres",
     "db:down": "docker compose -f docker-compose.local.yml down",
     "db:local:up": "powershell -NoProfile -ExecutionPolicy Bypass -File infra/postgres-local.ps1 start",

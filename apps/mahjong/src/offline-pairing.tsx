@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
 
-export function PairingCode({ data, title }: { data: string; title: string }) {
+export function PairingCode({ data, title, variant }: { data: string; title: string; variant?: 'room' }) {
   const [image, setImage] = useState('')
   useEffect(() => { void QRCode.toDataURL(data, { width: 420, margin: 2, errorCorrectionLevel: 'L' }).then(setImage) }, [data])
-  return <div className="offline-code"><h3>{title}</h3>{image && <img src={image} alt="无网配对二维码" />}
-    <p>让另一台手机扫描这张码。两台手机须连接同一热点，并保持本页打开。</p>
-    <button onClick={() => void navigator.clipboard?.writeText(data)}>复制配对文字</button>
+  return <div className={`offline-code${variant === 'room' ? ' offline-code-room' : ''}`}><h3>{title}</h3>{image && <img src={image} alt="无网配对二维码" />}
+    <p>{variant === 'room' ? '请朋友用手机扫描该二维码加入房间' : '让另一台手机扫描这张码。两台手机须连接同一热点，并保持本页打开。'}</p>
+    <button onClick={() => void navigator.clipboard?.writeText(data)}><CopyIcon />复制配对文字</button>
   </div>
 }
+
+function CopyIcon() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8V5.5A1.5 1.5 0 0 1 10.5 4h7A1.5 1.5 0 0 1 19 5.5v10a1.5 1.5 0 0 1-1.5 1.5H15M6.5 8h7A1.5 1.5 0 0 1 15 9.5v10a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 19.5v-10A1.5 1.5 0 0 1 6.5 8Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg> }
 
 export function PairingScanner({ title, onScan }: { title: string; onScan: (data: string) => void }) {
   const video = useRef<HTMLVideoElement>(null)

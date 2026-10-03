@@ -1,5 +1,7 @@
 const CACHE = 'gangque-__CACHE_VERSION__'
-const PRECACHE = __PRECACHE_FILES__
+// This source file is served directly by Vite during development. Keep it valid
+// there as well as in production, where the build replaces the fallback.
+const PRECACHE = globalThis.__GANGQUE_PRECACHE__ ?? []
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(PRECACHE)).then(() => self.skipWaiting()))
 })

@@ -24,6 +24,8 @@ const ThreeTable = lazy(() => import('./table3d/ThreeTable').then(module => ({ d
 const STORAGE = 'gangque.match.v2'
 const CLAIM_PREVIEW_VALUE = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('claim-preview') : null
 const CLAIM_PREVIEW = CLAIM_PREVIEW_VALUE !== null
+const ACTION_SPLASH_PREVIEW = import.meta.env.DEV && new URLSearchParams(window.location.search).get('action-preview') === '1'
+const GAME_PREVIEW = CLAIM_PREVIEW || ACTION_SPLASH_PREVIEW
 
 function claimPreviewGame(): Game {
   const game = newGame(3, 0, undefined, 0, 0, 0, 1, 930)
@@ -47,6 +49,21 @@ function claimPreviewGame(): Game {
 }
 
 type ReactionDecision = { index: number; kind: Claim['kind'] } | 'pass' | null
+type ActionSplashKind = 'chi' | 'pong' | 'kong'
+type ActionSplash = { id: number; kind: ActionSplashKind; seat: number }
+
+const ACTION_SPLASH_ASSET: Record<ActionSplashKind, string> = {
+  chi: '/mahjong/assets/action-splashes/chi.png',
+  pong: '/mahjong/assets/action-splashes/pong.png',
+  kong: '/mahjong/assets/action-splashes/kong.png',
+}
+
+function splashKindFromHistory(message: string): ActionSplashKind | null {
+  if (message.includes('槓')) return 'kong'
+  if (message.includes('碰')) return 'pong'
+  if (message.includes('吃')) return 'chi'
+  return null
+}
 
 function ClaimTileFace({ code, incoming = false }: { code: string; incoming?: boolean }) {
   const region = specialTileRegion(code)
@@ -98,8 +115,8 @@ function savedGame(accountId: string): Game | null {
 function App() {
   const network = useRoomNetwork()
   const confirmDialog = useGameDialog()
-  const [game, setGame] = useState<Game | null>(() => CLAIM_PREVIEW ? claimPreviewGame() : null)
-  const [lobby, setLobby] = useState(!CLAIM_PREVIEW)
+  const [game, setGame] = useState<Game | null>(() => CLAIM_PREVIEW ? claimPreviewGame() : ACTION_SPLASH_PREVIEW ? newGame(4) : null)
+  const [lobby, setLobby] = useState(!GAME_PREVIEW)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [guide, setGuide] = useState(false)
   const [audioSettings, setAudioSettings] = useState(loadAudioSettings)
@@ -114,13 +131,15 @@ function App() {
   const [showFanDetails, setShowFanDetails] = useState(false)
   const [resultCollapsed, setResultCollapsed] = useState(false)
   const [roundReadyScreen, setRoundReadyScreen] = useState(false)
+  const [actionSplash, setActionSplash] = useState<ActionSplash | null>(null)
   const gameRef = useRef<Game | null>(game)
+  const splashSignature = useRef('')
   const lastRoomLog = useRef('')
   const hadRoomGame = useRef(false)
   const inRoom = !!network.room?.started
 
   useEffect(() => {
-    if (CLAIM_PREVIEW) return
+    if (GAME_PREVIEW) return
     if (!network.account) { gameRef.current = null; setGame(null); setLobby(true); return }
     if (network.room?.started) return
     const restored = savedGame(network.account.id)
@@ -153,6 +172,22 @@ function App() {
     setLobbyMode('room')
     setLobby(true)
   }, [network.room?.started, network.room?.code, network.account?.id])
+
+  useEffect(() => {
+    if (!game || lobby) return
+    const latest = game.history[0] || ''
+    const signature = `${latest}\u0000${game.history[1] || ''}`
+    if (!latest || signature === splashSignature.current) return
+    splashSignature.current = signature
+    const kind = splashKindFromHistory(latest)
+    if (!kind) return
+    const namedSeat = game.players.findIndex(player => latest.startsWith(player.name))
+    const seat = namedSeat >= 0 ? namedSeat : game.result?.winner ?? game.active
+    const id = Date.now()
+    setActionSplash({ id, kind, seat })
+    const timer = window.setTimeout(() => setActionSplash(current => current?.id === id ? null : current), 1550)
+    return () => window.clearTimeout(timer)
+  }, [game, lobby])
 
   async function cancelRoomGame() {
     if (network.room?.hostId !== network.account?.id || !network.room?.started) return
@@ -335,7 +370,7 @@ function App() {
     </div><LandscapeGate /></div>
   }
 
-  if ((!network.account && !CLAIM_PREVIEW) || lobby || !game) return <div className={`lobby-3d${!network.account ? ' is-auth' : ''}`}>
+  if ((!network.account && !GAME_PREVIEW) || lobby || !game) return <div className={`lobby-3d${!network.account ? ' is-auth' : ''}`}>
     <header className="lobby-header"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 3D 牌桌</small></div><div className="lobby-header-actions"><FullscreenButton /><button aria-label="玩法说明" title="玩法说明" onClick={() => setGuide(true)}><FontAwesomeIcon icon={faBookOpen} aria-hidden="true" /></button><button aria-label="声音设置" title="声音设置" onClick={() => { void audio.unlock(); setShowAudioSettings(true) }}><FontAwesomeIcon icon={faVolumeHigh} aria-hidden="true" /></button></div></header>
     {!network.account ? <main className="auth-stage"><section className="auth-brand"><h1>港雀</h1><p className="auth-english">HONG KONG MAHJONG</p><p className="auth-invite">一枱麻雀，<br />連繫香港的情與局。</p><img src="/mahjong/assets/lobby-tiles.png" alt="發、中、二筒三張立起的麻將牌" /></section><div className="lobby-auth"><RoomPanel network={network} authOnly onReturn={() => setLobby(false)} /></div></main> : <main className={`game-lobby-stage${network.room ? ' has-room' : ''}`}>
       <div className="game-mode-choices" role="tablist" aria-label="选择游戏模式">
@@ -424,6 +459,8 @@ function App() {
       </div></div>
     </header>
     {game.players.slice(1).map((player, index) => <div key={index} className={`seat-info seat-${index + 1}${game.count === 3 ? ' three-player-seat' : ''}${game.phase === 'discard' && game.active === index + 1 ? ' active-seat' : ''}`}><span>{seatWind(game, index + 1)}</span><div><b>{player.name}</b><small>{seatWind(game, index + 1)}位 · {player.score >= 0 ? '+' : ''}{player.score} 分</small></div></div>)}
+    {actionSplash && <div key={actionSplash.id} className={`action-splash action-splash-seat-${actionSplash.seat}`} role="status" aria-label={`${game.players[actionSplash.seat]?.name || '玩家'}完成动作`}><img src={ACTION_SPLASH_ASSET[actionSplash.kind]} alt="" /></div>}
+    {ACTION_SPLASH_PREVIEW && ([['chi', 0, '座位 0 · 你'], ['pong', 1, '座位 1 · 右'], ['kong', 2, '座位 2 · 上'], ['chi', 3, '座位 3 · 左']] as const).map(([kind, seat, caption]) => <div key={seat} className={`action-splash action-splash-seat-${seat} is-preview`}><img src={ACTION_SPLASH_ASSET[kind]} alt="" /><b>{caption}</b></div>)}
     {centerTurn && <div className="center-turn-indicator" role="status" aria-live="polite"><small>轮到</small><strong>{centerTurn.title}</strong><span>{centerTurn.note}{secondsLeft !== null ? ` · ${secondsLeft}秒` : ''}</span></div>}
     <div className="my-status"><span>{seatWind(game, 0)}</span><div><b>{inRoom ? me.name : '你'}</b><small>{seatWind(game, 0)}位 · {me.score >= 0 ? '+' : ''}{me.score} 分</small><button className="current-fan" onClick={() => setShowFanDetails(true)}>目前成立 {fanPreview.fan} 番</button>{fanPreview.transientFan > 0 && <small className="transient-fan">现在自摸可加 {fanPreview.transientFan} 番</small>}</div></div>
     {(isMyTurn || claims.length > 0) && !claimMode && reactionDecision === null && <div className="turn-banner" role="status" aria-live="polite"><strong>{isMyTurn ? '輪到你出牌' : '你可以應牌'}</strong><span>{isMyTurn ? '選一張手牌，再按「出牌」' : '請選擇吃、碰、槓、胡或過'}</span>{secondsLeft !== null && <time aria-hidden="true">{secondsLeft} 秒</time>}</div>}

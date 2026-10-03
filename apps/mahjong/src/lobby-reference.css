@@ -23,9 +23,15 @@
 
 @media (orientation:landscape) and (max-height:650px){
   .offline-room-lobby{--room-u:min(1px,.078125vw,.11274dvh);--room-y:calc(-80*var(--room-u))}
+  .offline-room-summary button{width:20px;height:20px;min-width:20px;flex:0 0 20px;align-self:center;place-content:center;padding:0;border-radius:4px;line-height:0}
+  .offline-room-summary button svg{display:block;width:12px;height:12px;min-width:12px;margin:0}
 }
 
-@media (min-width:901px){
+@media (min-width:760px) and (max-width:1199px) and (min-height:651px){
+  .offline-room-lobby{--room-u:min(.68px,.0664vw,.088dvh);--room-y:calc(20*var(--room-u))}
+}
+
+@media (min-width:1200px) and (min-height:700px){
   .lobby-3d:has(.game-lobby-stage.has-room) .lobby-header{left:70px;right:70px;top:47px;width:auto}
   .lobby-3d:has(.game-lobby-stage.has-room) .brand strong{font-size:50px}
   .lobby-3d:has(.game-lobby-stage.has-room) .brand small{margin-top:9px;font-size:14px}
@@ -151,6 +157,9 @@ body:has(.game-lobby-stage) .account-summary .account-balance {
 .account-balance .account-coin { width: calc(40 * var(--lobby-unit)); height: calc(44 * var(--lobby-unit)); object-fit: contain; margin: 0 calc(-4 * var(--lobby-unit)); }
 .room-setup-shade input { min-width: 0; padding: 10px; border: 1px solid #9caa81; border-radius: 8px; background: #f2ead9; color: #153c30; font: inherit; }
 .room-setup-shade { z-index: 100; }
+.room-action-feedback { position:fixed; z-index:1200; left:50%; top:18px; transform:translateX(-50%); max-width:min(88vw,520px); padding:10px 18px; border:1px solid #d5b96f; border-radius:999px; background:#092d25f2; color:#ffe8ae; box-shadow:0 8px 24px #0008; font-size:14px; font-weight:800; text-align:center; pointer-events:none; }
+.room-action-feedback.is-error { border-color:#e28c78; background:#5b211df2; color:#fff3dc; }
+.room-choice-grid button:disabled,.offline-room-actions button:disabled,.room-controls button:disabled { cursor:wait; filter:saturate(.6); opacity:.72; }
 body > .room-setup-shade .room-choice-grid button, body > .room-setup-shade .room-code-entry button {
   padding: 12px; border: 1px solid #9caa81; border-radius: 8px; background: #174838; color: #f5e7c9;
 }

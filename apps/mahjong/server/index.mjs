@@ -11,10 +11,15 @@ import { settlementDeltas } from '../src/wallet.ts'
 const ROOT = resolve(import.meta.dirname, '../dist')
 const DATA = resolve(process.env.GANGQUE_DATA_DIR || join(import.meta.dirname, 'data'))
 const ACCOUNTS = join(DATA, 'accounts.json')
-const usePostgres = Boolean(process.env.DATABASE_URL)
+const postgresConfig = process.env.DATABASE_URL
+  ? { connectionString: process.env.DATABASE_URL, ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false, minVersion: 'TLSv1.2' } : undefined }
+  : process.env.PERSISTENCE === 'postgres'
+    ? { host: process.env.POSTGRES_HOST, port: Number(process.env.POSTGRES_PORT || 5432), database: process.env.POSTGRES_DB, user: process.env.POSTGRES_USER, password: process.env.POSTGRES_PASSWORD, ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false, minVersion: 'TLSv1.2' } : undefined }
+    : null
+const usePostgres = Boolean(postgresConfig)
 if (!usePostgres) mkdirSync(DATA, { recursive: true })
 let accounts = !usePostgres && existsSync(ACCOUNTS) ? JSON.parse(readFileSync(ACCOUNTS, 'utf8')) : []
-const pool = usePostgres ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.POSTGRES_SSL === 'true' ? { rejectUnauthorized: false, minVersion: 'TLSv1.2' } : undefined }) : null
+const pool = postgresConfig ? new Pool(postgresConfig) : null
 const sessions = new Map()
 const rooms = new Map()
 const sockets = new Map()
@@ -25,6 +30,8 @@ async function loadAccounts() {
   if (!pool) return
   await pool.query('CREATE TABLE IF NOT EXISTS mahjong_accounts (id text PRIMARY KEY, login text NOT NULL UNIQUE, name text NOT NULL, password text NOT NULL)')
   await pool.query('ALTER TABLE mahjong_accounts ADD COLUMN IF NOT EXISTS mamoney bigint NOT NULL DEFAULT 500')
+  await pool.query('ALTER TABLE mahjong_accounts ADD COLUMN IF NOT EXISTS is_online boolean NOT NULL DEFAULT false')
+  await pool.query('UPDATE mahjong_accounts SET is_online = false')
   await pool.query('CREATE TABLE IF NOT EXISTS mahjong_sessions (token_hash text PRIMARY KEY, account_id text NOT NULL REFERENCES mahjong_accounts(id), created_at timestamptz NOT NULL DEFAULT now())')
   await pool.query('CREATE TABLE IF NOT EXISTS mahjong_wallet_events (account_id text NOT NULL REFERENCES mahjong_accounts(id), event_id text NOT NULL, delta bigint NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(account_id, event_id))')
   const result = await pool.query('SELECT id, login, name, password, mamoney AS balance FROM mahjong_accounts')
@@ -134,6 +141,10 @@ async function handleApi(req, res, path, parsedBody) {
 }
 
 function send(ws, type, payload = {}) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...payload })) }
+async function setAccountOnline(accountId, isOnline) {
+  if (!pool) return
+  await pool.query('UPDATE mahjong_accounts SET is_online = $1 WHERE id = $2', [isOnline, accountId])
+}
 function roomOf(accountId) { return [...rooms.values()].find(room => room.seats.some(seat => seat?.id === accountId)) }
 const REACTION_MS = 15000
 const TURN_MS = 15000
@@ -458,6 +469,7 @@ function onSocket(ws) {
         if (!account) throw Error('登录已失效')
         sockets.get(account.id)?.close()
         sockets.set(account.id, ws)
+        await setAccountOnline(account.id, true)
         send(ws, 'auth', { account: publicAccount(account) })
         const room = roomOf(account.id)
         if (room) await publishRoom(room)
@@ -468,6 +480,7 @@ function onSocket(ws) {
   })
   ws.on('close', () => { if (account && sockets.get(account.id) === ws) {
     sockets.delete(account.id)
+    void setAccountOnline(account.id, false).catch(error => console.error('Online status update error:', error))
     const room = roomOf(account.id)
     if (room) {
       room.voiceMembers.delete(account.id); room.readyMembers.delete(account.id)

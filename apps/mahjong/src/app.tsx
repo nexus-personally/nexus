@@ -12,7 +12,7 @@ import { FullscreenButton } from './fullscreen-button'
 import { VoiceChat } from './voice-chat'
 import { RoomChat } from './room-chat'
 import { GameDialogProvider, useGameDialog } from './game-dialog'
-import { ArrowsOut, CaretDown, CaretUp, Diamond, DotsThree, House, MusicNotes, Prohibit, Question, SignOut, SpeakerHigh } from '@phosphor-icons/react'
+import { ArrowsOut, CaretDown, CaretUp, Coins, CrownSimple, Diamond, DotsThree, House, MusicNotes, Prohibit, Question, SignOut, SpeakerHigh } from '@phosphor-icons/react'
 import { SPECIAL_TILE_ATLAS, SPECIAL_TILE_ATLAS_SIZE, specialTileRegion } from './specialTiles'
 import {
   aiChooseDiscard, aiClaim, buildTiles, canRedeemPongFly, declareSelfKong, declareSelfWin, discard,
@@ -25,7 +25,8 @@ const STORAGE = 'gangque.match.v2'
 const CLAIM_PREVIEW_VALUE = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('claim-preview') : null
 const CLAIM_PREVIEW = CLAIM_PREVIEW_VALUE !== null
 const ACTION_SPLASH_PREVIEW = import.meta.env.DEV && new URLSearchParams(window.location.search).get('action-preview') === '1'
-const GAME_PREVIEW = CLAIM_PREVIEW || ACTION_SPLASH_PREVIEW
+const RESULT_PREVIEW = import.meta.env.DEV && new URLSearchParams(window.location.search).get('result-preview') === '1'
+const GAME_PREVIEW = CLAIM_PREVIEW || ACTION_SPLASH_PREVIEW || RESULT_PREVIEW
 
 function claimPreviewGame(): Game {
   const game = newGame(3, 0, undefined, 0, 0, 0, 1, 930)
@@ -56,6 +57,31 @@ const ACTION_SPLASH_ASSET: Record<ActionSplashKind, string> = {
   chi: '/mahjong/assets/action-splashes/chi.png',
   pong: '/mahjong/assets/action-splashes/pong.png',
   kong: '/mahjong/assets/action-splashes/kong.png',
+}
+
+function resultPreviewGame(): Game {
+  const game = newGame(3, 0, undefined, 0, 0, 0, 1, 930)
+  game.players[0].name = '你'
+  game.players[1].name = '牌友 1'
+  game.players[2].name = '牌友 2'
+  game.players[0].score = 27
+  game.players[1].score = -18
+  game.players[2].score = -9
+  game.result = {
+    winner: 0,
+    from: 1,
+    items: [
+      { name: '人頭2', fan: 1 }, { name: '花4', fan: 1 }, { name: '貓', fan: 1 },
+      { name: '混一色', fan: 1 }, { name: '對對胡', fan: 2 }, { name: '中刻', fan: 1 },
+      { name: '東風刻', fan: 1 }, { name: '東位加番', fan: 1 },
+    ],
+    raw: 9,
+    fan: 9,
+    payments: [27, -18, -9],
+    message: '你胡牌友 1 的牌！',
+  }
+  game.phase = 'result'
+  return game
 }
 
 function splashKindFromHistory(message: string): ActionSplashKind | null {
@@ -115,7 +141,7 @@ function savedGame(accountId: string): Game | null {
 function App() {
   const network = useRoomNetwork()
   const confirmDialog = useGameDialog()
-  const [game, setGame] = useState<Game | null>(() => CLAIM_PREVIEW ? claimPreviewGame() : ACTION_SPLASH_PREVIEW ? newGame(4) : null)
+  const [game, setGame] = useState<Game | null>(() => RESULT_PREVIEW ? resultPreviewGame() : CLAIM_PREVIEW ? claimPreviewGame() : ACTION_SPLASH_PREVIEW ? newGame(4) : null)
   const [lobby, setLobby] = useState(!GAME_PREVIEW)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [guide, setGuide] = useState(false)
@@ -483,23 +509,47 @@ function App() {
     {showFanDetails && <div className="fan-details" role="dialog" aria-modal="true" aria-label="目前番数明细"><button onClick={() => setShowFanDetails(false)} aria-label="关闭">×</button><strong>目前成立 {fanPreview.fan} 番</strong>{fanPreview.items.length ? fanPreview.items.map((item, index) => <p key={`${item.name}-${index}`}>{item.name}<b>+{item.fan}</b></p>) : <p>目前没有稳定成立的番型</p>}{fanPreview.transientItems.map((item, index) => <p className="transient" key={`${item.name}-${index}`}>{item.name}（立即自摸）<b>+{item.fan}</b></p>)}</div>}
     {(game.phase === 'result' || game.phase === 'match-result') && (resultCollapsed
       ? <button className="result-restore" onClick={() => setResultCollapsed(false)}><CaretDown weight="bold" aria-hidden="true" />展開結算</button>
-      : <div className="modal-shade"><div className="result-panel">
-      <button className="result-collapse" onClick={() => setResultCollapsed(true)}><CaretUp weight="bold" aria-hidden="true" />收起</button>
-      <small>本局結算</small>
-      <h2>{game.phase === 'match-result' ? '東南圈完成' : game.result?.message}</h2>
-      {game.result?.winner != null && (game.result.raw >= 10
-        ? <><strong>爆番 ×2</strong><small>原始番數 {game.result.raw} 番 · 爆番倍率 ×2 · 本局結算值 {game.result.fan}</small></>
-        : <strong>{game.result.fan} 番</strong>)}
-      <div>{game.result?.items.map((item, index) => <p key={index}>{item.name}<b>+{item.fan}</b></p>)}</div>
-      <small className="score-caption">本局輸贏</small><div className="scores round-payments">{game.players.map((player, index) => <span key={index}>{player.name} {(game.result?.payments[index] ?? 0) >= 0 ? '+' : ''}{game.result?.payments[index] ?? 0}</span>)}</div>
-      <small className="score-caption">累計分數</small><div className="scores">{game.players.map((player, index) => <span key={index}>{player.name} {player.score >= 0 ? '+' : ''}{player.score}</span>)}</div>
-      {inRoom && game.result && (network.offline.active
-        ? <p className="wallet-settlement">無網局只記本局分數，線上媽幣不入帳</p>
-        : game.result.mamoneyDeltas
-          ? <p className="wallet-settlement">本局媽幣 {mamoneyDelta(game, 0) >= 0 ? '+' : ''}{mamoneyDelta(game, 0)} · 帳戶餘額 {network.account?.mamoney ?? 500}</p>
-          : <p className="wallet-settlement">媽幣結算尚未完成，請稍後由房主重試</p>)}
-      {!inRoom ? <button onClick={() => game.phase === 'match-result' ? setLobby(true) : act('next')}>{game.phase === 'match-result' ? '返回首頁' : '繼續下一局'}</button> : <button onClick={() => setRoundReadyScreen(true)}>{game.phase === 'match-result' ? '前往新一圈准备' : '继续'}</button>}
-    </div></div>)}
+      : <div className="modal-shade result-shade"><section className="result-panel" data-player-count={game.count} role="dialog" aria-modal="true" aria-label="本局結算">
+        <header className="result-hero">
+          <img className="result-hu-seal" src="/mahjong/assets/settlement/hu-seal.png" alt="胡" />
+          <div className="result-hero-copy">
+            <small>— 本局結算 —</small>
+            <h2>{game.phase === 'match-result' ? '東南圈完成' : game.result?.message}</h2>
+            {game.result?.winner != null && (game.result.raw >= 10
+              ? <div className="result-fan-badge"><strong>爆番 ×2</strong><span>原始 {game.result.raw} 番 · 結算 {game.result.fan} 番</span></div>
+              : <strong className="result-fan-badge">{game.result.fan} 番</strong>)}
+          </div>
+          <button className="result-collapse" onClick={() => setResultCollapsed(true)}><CaretUp weight="bold" aria-hidden="true" />收起</button>
+        </header>
+        <div className="result-content">
+          <section className="result-fans">
+            <h3><span />番種詳情<span /></h3>
+            <div className="result-fan-list">{game.result?.items.map((item, index) => <p key={index}><span>{item.name}</span><b>+{item.fan}</b></p>)}</div>
+            <footer><strong>合計</strong><b>{game.result?.fan ?? 0} 番</b></footer>
+          </section>
+          <section className="result-ledger">
+            <h3><span />本局輸贏<span /></h3>
+            <div className="result-score-head"><span>玩家</span><span>本局分數</span><span>累計分數</span></div>
+            <div className="result-score-list">{game.players.map((player, index) => {
+              const payment = game.result?.payments[index] ?? 0
+              const positive = payment >= 0
+              return <div className={`result-score-row${index === game.result?.winner ? ' winner' : ''}`} key={index}>
+                <span className="result-player">{index === game.result?.winner ? <i><CrownSimple weight="fill" aria-hidden="true" />你</i> : <i>{index}</i>}<b>{index === 0 ? '你' : player.name}</b></span>
+                <strong className={positive ? 'positive' : 'negative'}>{positive ? '+' : ''}{payment}<em>{positive ? '▲' : '▼'}</em></strong>
+                <b className={player.score >= 0 ? 'positive' : 'negative'}>{player.score >= 0 ? '+' : ''}{player.score}</b>
+              </div>
+            })}</div>
+            <p className="result-score-note"><Coins weight="fill" aria-hidden="true" />分數已計入各玩家累計總分。</p>
+            {inRoom && game.result && (network.offline.active
+              ? <p className="wallet-settlement">無網局只記本局分數，線上媽幣不入帳</p>
+              : game.result.mamoneyDeltas
+                ? <p className="wallet-settlement">本局媽幣 {mamoneyDelta(game, 0) >= 0 ? '+' : ''}{mamoneyDelta(game, 0)} · 帳戶餘額 {network.account?.mamoney ?? 500}</p>
+                : <p className="wallet-settlement">媽幣結算尚未完成，請稍後由房主重試</p>)}
+            {!inRoom ? <button className="result-next" onClick={() => game.phase === 'match-result' ? setLobby(true) : act('next')}>{game.phase === 'match-result' ? '返回首頁' : '繼續下一局'}<span>›</span></button> : <button className="result-next" onClick={() => setRoundReadyScreen(true)}>{game.phase === 'match-result' ? '前往新一圈準備' : '繼續下一局'}<span>›</span></button>}
+          </section>
+        </div>
+        <img className="result-cloud-art" src="/mahjong/assets/settlement/cloud-bamboo.png" alt="" />
+      </section></div>)}
     {toast && <div className="toast">{toast}</div>}
   </div><LandscapeGate /></div>
 }

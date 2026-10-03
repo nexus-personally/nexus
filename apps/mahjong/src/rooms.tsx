@@ -3,11 +3,14 @@ import type { Game } from './engine'
 import { audio } from './audio'
 import { useOfflineRoom } from './offline-room'
 import { PairingCode, PairingScanner } from './offline-pairing'
+import { useGameDialog } from './game-dialog'
+import { createPortal } from 'react-dom'
 
 type Account = { id: string; login: string; name: string; mamoney: number }
 type Seat = { id: string; name: string; connected: boolean; voice?: boolean; ready?: boolean } | null
 export type VoiceCredentials = { url: string; token: string }
-export type Room = { code: string; count: 3 | 4; hostId: string; started: boolean; deadlineAt?: number | null; seats: Seat[] }
+export type ChatMessage = { id: string; senderId: string | null; senderName: string; text: string; sentAt: number; system?: boolean }
+export type Room = { code: string; count: 3 | 4; hostId: string; started: boolean; deadlineAt?: number | null; seats: Seat[]; messages?: ChatMessage[] }
 const KEY = 'gangque.room.token'
 const ACCOUNT_KEY = 'gangque.room.cached-account'
 
@@ -93,28 +96,30 @@ export function useRoomNetwork() {
 
 export type RoomNetwork = ReturnType<typeof useRoomNetwork>
 
-export function RoomPanel({ network, onReturn, authOnly = false }: { network: RoomNetwork; onReturn: () => void; authOnly?: boolean }) {
+export function RoomPanel({ network, onReturn, authOnly = false, showRoomFlow = true }: { network: RoomNetwork; onReturn: () => void; authOnly?: boolean; showRoomFlow?: boolean }) {
+  const confirmDialog = useGameDialog()
   const [page, setPage] = useState<'login' | 'register' | 'reset' | 'profile'>('login')
   const [login, setLogin] = useState('')
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [roomCode, setRoomCode] = useState('')
-  const [channel, setChannel] = useState<'offline' | 'online'>('offline')
-  const [roomAction, setRoomAction] = useState<'create' | 'join'>('create')
+  const [channel, setChannel] = useState<'offline' | 'online'>('online')
+  const [roomAction, setRoomAction] = useState<'create' | 'join' | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  const [accountOpen, setAccountOpen] = useState(false)
   const run = async (work: () => Promise<void>) => { setBusy(true); network.setError(''); setNotice(''); try { await work() } catch (error) { network.setError(error instanceof Error ? error.message : '操作失败') } finally { setBusy(false) } }
   const room = network.room
   const offline = network.offline
-  const leaveRoom = () => {
+  const leaveRoom = async () => {
     if (!room) return true
-    const warning = room.started
-      ? offline.active && offline.isHost
-        ? '离开会结束整个无网房，未完成的本局不计分。确定离开？'
-        : '离开后将由电脑接管你的牌，本局仍会正常结算。确定离开房间？'
-      : '确定离开房间？'
-    if (!window.confirm(warning)) return false
+    const offlineHost = offline.active && offline.isHost
+    const activeHand = Boolean(network.game && network.game.phase !== 'result' && network.game.phase !== 'match-result')
+    const message = offlineHost
+      ? activeHand ? '房主离开会结束整个无网房，未完成的本局不会计分。' : '房主离开后，无网房间会立即结束，其他玩家也会断开连接。'
+      : activeHand ? '离开后将由电脑接管你的牌，本局仍会继续并正常结算。' : '你将退出当前房间，之后需要重新加入才能回到牌桌。'
+    if (!await confirmDialog({ eyebrow: offlineHost ? '港雀 · 无网房间' : '港雀 · 房间操作', title: offlineHost ? '结束房间？' : '离开房间？', message, confirmLabel: offlineHost ? '结束并离开' : '离开房间', cancelLabel: '留在房间', tone: 'danger' })) return false
     if (offline.active) offline.leave()
     else network.send({ type: 'leave' })
     return true
@@ -137,27 +142,30 @@ export function RoomPanel({ network, onReturn, authOnly = false }: { network: Ro
       </form>}
       {page === 'reset' && <small className="room-warning">仅凭登录名即可重设密码，任何知道登录名的人都可能接管账号。请勿在此账号保存敏感信息。</small>}
     </> : <>
-      <div className="room-account"><b>{network.account.name}</b><span>@{network.account.login} · {offline.active ? network.connected ? '无网房间已连接' : '等待手机配对' : network.connected ? '线上主机已连接' : '离线可用'} · 妈币 {network.account.mamoney ?? 500}</span><button disabled={offline.active || !network.connected} onClick={() => { setPage(page === 'profile' ? 'login' : 'profile'); setName(network.account?.name || '') }}>修改资料</button><button onClick={() => { if (room && !leaveRoom()) return; network.logout(); setPage('login') }}>退出登录</button></div>
-      {page === 'profile' && <form onSubmit={event => { event.preventDefault(); void run(async () => { const result = await network.api('profile', { name, password, newPassword }); network.setAccount(result.account); setPassword(''); setNewPassword(''); setNotice('资料已更新') }) }}>
+      {createPortal(<div className="room-account"><button className="account-summary" aria-expanded={accountOpen} onClick={() => setAccountOpen(value => !value)}><span className="account-tile" aria-hidden="true">發</span><b>{network.account.name}</b><i /><span className="account-balance"><img className="account-coin" src="/mahjong/assets/lobby-gold-coin.png" alt="" />妈币 {network.account.mamoney ?? 500}</span></button>{accountOpen && <div className="account-menu"><button disabled={offline.active || !network.connected} onClick={() => { setPage('profile'); setName(network.account?.name || ''); setAccountOpen(false) }}>修改资料</button><button onClick={() => { setAccountOpen(false); void (async () => { if (room && !await leaveRoom()) return; network.logout(); setPage('login') })() }}>退出登录</button></div>}</div>, document.body)}
+      {page === 'profile' && <form className="account-profile-form" onSubmit={event => { event.preventDefault(); void run(async () => { const result = await network.api('profile', { name, password, newPassword }); network.setAccount(result.account); setPassword(''); setNewPassword(''); setNotice('资料已更新'); setPage('login') }) }}>
+        <button type="button" className="account-profile-close" onClick={() => setPage('login')} aria-label="关闭修改资料">×</button>
+        <h3>修改资料</h3>
         <label>用户名<input required maxLength={20} value={name} onChange={event => setName(event.target.value)} /></label>
         <label>当前密码<input required type="password" value={password} onChange={event => setPassword(event.target.value)} /></label>
         <label>新密码（留空则不修改）<input type="password" minLength={8} value={newPassword} onChange={event => setNewPassword(event.target.value)} /></label>
         <button disabled={busy}>保存资料</button>
       </form>}
-      {!authOnly && (!room ? <div className="room-flow">
+      {!authOnly && showRoomFlow && (!room ? <div className="room-flow">
         {!offline.active && <>
-          <nav className="room-channel-tabs" aria-label="房间连接方式"><button className={channel === 'offline' ? 'active' : ''} aria-pressed={channel === 'offline'} onClick={() => { setChannel('offline'); setRoomAction('create') }}>面对面无网</button><button className={channel === 'online' ? 'active' : ''} aria-pressed={channel === 'online'} onClick={() => { setChannel('online'); setRoomAction('create') }}>线上房间</button></nav>
-          <nav className="room-action-tabs" aria-label="开房或加入"><button className={roomAction === 'create' ? 'active' : ''} aria-pressed={roomAction === 'create'} onClick={() => setRoomAction('create')}>创建房间</button><button className={roomAction === 'join' ? 'active' : ''} aria-pressed={roomAction === 'join'} onClick={() => setRoomAction('join')}>加入朋友</button></nav>
-          <div className="room-flow-panel">
+          <div className="room-channel-choice"><strong>玩家连接</strong><nav aria-label="房间连接方式"><label><input type="radio" name="room-channel" checked={channel === 'online'} onChange={() => { setChannel('online'); setRoomAction(null) }} /><span>线上房间<small>不同地点</small></span></label><label><input type="radio" name="room-channel" checked={channel === 'offline'} onChange={() => { setChannel('offline'); setRoomAction(null) }} /><span>面对面无网<small>同一热点</small></span></label></nav></div>
+          <p className="room-channel-help">{channel === 'online' ? '选择线上房间后，朋友输入房间码即可加入。' : '所有手机先连接同一个热点，再通过二维码配对。'}</p>
+          <nav className="room-primary-actions" aria-label="创建或加入房间"><button className={roomAction === 'create' ? 'active' : ''} aria-pressed={roomAction === 'create'} onClick={() => setRoomAction('create')}>创建房间</button><button className={roomAction === 'join' ? 'active' : ''} aria-pressed={roomAction === 'join'} onClick={() => setRoomAction('join')}>加入房间</button></nav>
+          {roomAction && createPortal(<div className="room-setup-shade" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setRoomAction(null) }}><section className="room-flow-panel" role="dialog" aria-modal="true" aria-label={roomAction === 'create' ? '创建房间' : '加入房间'}><button className="room-setup-close" onClick={() => setRoomAction(null)} aria-label="关闭">×</button><h3>{roomAction === 'create' ? '创建房间' : '加入房间'}</h3>
             {channel === 'offline' ? roomAction === 'create' ? <><p>所有手机连接同一热点；空位可由电脑补上。无网局只记录本局分数，不改线上妈币。</p><div className="room-choice-grid"><button onClick={() => { void audio.unlock(); offline.create(4) }}>四人房 <small>152 张港式牌 + 動物 + 飛</small></button><button onClick={() => { void audio.unlock(); offline.create(3) }}>三人房 <small>84 张马来西亚玩法</small></button></div></> : <><p>请房主展示邀请二维码。扫码后，再让房主扫描你的回应码。</p><PairingScanner title="扫描房主二维码" onScan={scanOffer} /></> : roomAction === 'create' ? <><p>通过网络开房，建立后分享 8 位房间码。</p><div className="room-choice-grid"><button disabled={!network.connected} onClick={() => { void audio.unlock(); network.send({ type: 'create', count: 4 }) }}>四人房 <small>152 张港式牌 + 動物 + 飛</small></button><button disabled={!network.connected} onClick={() => { void audio.unlock(); network.send({ type: 'create', count: 3 }) }}>三人房 <small>84 张马来西亚玩法</small></button></div></> : <><p>输入朋友给你的 8 位房间码。</p><div className="room-code-entry"><input value={roomCode} maxLength={8} onChange={event => setRoomCode(event.target.value.toUpperCase())} placeholder="8 位房间码" aria-label="房间码" /><button disabled={!network.connected || roomCode.length !== 8} onClick={() => { void audio.unlock(); network.send({ type: 'join', code: roomCode }) }}>加入</button></div></>}
-          </div>
+          </section></div>, document.body)}
         </>}
         {offline.active && offline.pairing?.kind === 'answer' && <div className="room-flow-panel"><PairingCode data={offline.pairing.data} title="让房主扫描此回应码" /><button onClick={offline.leave}>取消配对</button></div>}
       </div> : <div className="room-lobby">
         <div className="room-code">{offline.active ? '无网房间' : '线上房间码'} <strong>{room.code}</strong>{!offline.active && <button onClick={() => navigator.clipboard?.writeText(room.code)}>复制</button>}</div>
         {offline.active && offline.isHost && !room.started && <><button onClick={() => void offline.invite().catch(error => offline.setError(error instanceof Error ? error.message : '无法邀请'))}>邀请朋友扫码</button>{offline.pairing?.kind === 'offer' && <><PairingCode data={offline.pairing.data} title="请朋友扫描邀请二维码" /><PairingScanner title="再扫描朋友手机的回应码" onScan={scanAnswer} /></>}</>}
         <div className="room-seats">{room.seats.map((seat, index) => <div key={index} className={seat?.ready ? 'is-ready' : ''}><span>{index + 1}</span><b>{seat?.name || '电脑补位'}</b><small>{seat ? seat.connected ? seat.ready ? '已准备' : '等待准备' : '暂时断线' : '开局时由电脑入座'}</small></div>)}</div>
-        {room.started ? <div className="room-controls"><button onClick={() => { void audio.unlock(); onReturn() }}>返回正在进行的牌局</button>{room.hostId === network.account.id && network.game?.phase !== 'result' && network.game?.phase !== 'match-result' && <button onClick={() => { if (window.confirm('取消本局并返回房间？本局分数不计，朋友可加入后再由房主开局。')) network.send({ type: 'cancel' }) }}>取消本局</button>}<button onClick={leaveRoom}>离开房间</button></div> : <div className="room-controls"><button onClick={() => { void audio.unlock(); onReturn() }}>进入牌桌准备</button><button onClick={leaveRoom}>离开房间</button></div>}
+        {room.started ? <div className="room-controls"><button onClick={() => { void audio.unlock(); onReturn() }}>返回正在进行的牌局</button>{room.hostId === network.account.id && network.game?.phase !== 'result' && network.game?.phase !== 'match-result' && <button onClick={() => { void confirmDialog({ eyebrow: '港雀 · 房主管理', title: '取消本局？', message: '本局分数不会记录，所有玩家将返回房间，之后可重新准备开局。', confirmLabel: '取消本局', cancelLabel: '继续牌局', tone: 'danger' }).then(confirmed => { if (confirmed) network.send({ type: 'cancel' }) }) }}>取消本局</button>}<button onClick={() => void leaveRoom()}>离开房间</button></div> : <div className="room-controls"><button onClick={() => { void audio.unlock(); onReturn() }}>进入牌桌准备</button><button onClick={() => void leaveRoom()}>离开房间</button></div>}
       </div>)}
     </>}
     {notice && <p className="room-notice">{notice}</p>}{network.error && <p className="room-error">{network.error}</p>}

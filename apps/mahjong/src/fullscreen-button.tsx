@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CornersIn as ArrowsIn, CornersOut as ArrowsOut } from '@phosphor-icons/react'
 
 export function FullscreenButton() {
   const [full, setFull] = useState(() => !!document.fullscreenElement)
@@ -18,5 +19,5 @@ export function FullscreenButton() {
       }
     } catch { setError(true) }
   }
-  return <button className="mobile-fullscreen" onClick={() => void toggle()} title={error ? '浏览器不支持全屏，请从主画面打开已安装的港雀' : undefined}>{error ? '請安裝應用' : full ? '退出全屏' : '全屏'}</button>
+  return <button className="mobile-fullscreen" onClick={() => void toggle()} aria-label={error ? '浏览器不支持全屏，请安装港雀' : full ? '退出全屏' : '全屏'} title={error ? '浏览器不支持全屏，请从主画面打开已安装的港雀' : full ? '退出全屏' : '全屏'}>{full ? <ArrowsIn weight="bold" aria-hidden="true" /> : <ArrowsOut weight="bold" aria-hidden="true" />}</button>
 }

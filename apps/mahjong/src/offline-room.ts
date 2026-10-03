@@ -4,6 +4,7 @@ import {
   aiChooseDiscard, aiClaim, canRedeemPongFly, declareSelfKong, declareSelfWin, discard, evaluateWin,
   newGame, nextHand, redeemPongFly, resolveReaction, selfKongs, type Claim, type Game,
 } from './engine'
+import type { ChatMessage } from './rooms'
 
 export type OfflineAccount = { id: string; login: string; name: string }
 export type OfflineRoom = {
@@ -13,6 +14,7 @@ export type OfflineRoom = {
   started: boolean
   deadlineAt?: number | null
   seats: ({ id: string; name: string; connected: boolean; ready?: boolean } | null)[]
+  messages: ChatMessage[]
 }
 type Update = (room: OfflineRoom | null, game: Game | null, connected: boolean) => void
 type Signal = { version: 1; kind: 'offer' | 'answer'; session: string; room: string; sdp: string }
@@ -89,8 +91,9 @@ class PhoneHost {
   private pending: { peer: RTCPeerConnection; channel: RTCDataChannel; session: string } | null = null
   private timer: number | null = null
   private deadlineKey: string | null = null
+  private lastChatAt = new Map<string, number>()
   constructor(private account: OfflineAccount, count: 3 | 4, private update: Update, private onError: (value: string) => void) {
-    this.room = { code: randomCode(), count, hostId: account.id, started: false, seats: Array(count).fill(null) }
+    this.room = { code: randomCode(), count, hostId: account.id, started: false, seats: Array(count).fill(null), messages: [] }
     this.room.seats[0] = { id: account.id, name: account.name, connected: true }
     this.broadcast()
   }
@@ -113,14 +116,24 @@ class PhoneHost {
     return this.room.deadlineAt ?? null
   }
   private allHumansReady() {
-    const humans = this.room.seats.filter(Boolean)
+    const humans = this.room.seats.filter(member => member?.connected)
     return humans.length > 0 && humans.every(member => member!.ready)
   }
   private startGame() {
     this.game = newGame(this.room.count)
+    this.room.messages = []
     this.game.players.forEach((player, index) => { player.name = this.room.seats[index]?.name || `电脑 ${index + 1}`; player.ai = !this.room.seats[index] })
     this.room.seats.forEach(member => { if (member) member.ready = false })
     this.broadcast(); this.schedule()
+  }
+  private startNextGame() {
+    const game = this.game
+    if (!game || !['result', 'match-result'].includes(game.phase)) throw Error('本局尚未结算')
+    this.game = game.phase === 'match-result' ? newGame(this.room.count) : nextHand(game)
+    this.room.messages = []
+    this.room.seats.forEach(member => { if (member) member.ready = false })
+    this.game.players.forEach((player, index) => { player.name = this.room.seats[index]?.name || `电脑 ${index + 1}`; player.ai = !this.room.seats[index]?.connected })
+    this.choices = {}; this.broadcast(); this.schedule()
   }
   async invite(): Promise<string> {
     if (this.game) throw Error('牌局进行中不能加入新玩家，请房主先取消本局')
@@ -157,7 +170,8 @@ class PhoneHost {
             else this.room.seats[seat] = null
             if (this.timer) window.clearTimeout(this.timer)
             this.timer = null
-            this.broadcast(); this.schedule()
+            if (this.game && ['result', 'match-result'].includes(this.game.phase) && this.allHumansReady()) this.startNextGame()
+            else { this.broadcast(); this.schedule() }
           }
         }
         this.broadcast()
@@ -178,17 +192,34 @@ class PhoneHost {
   action(seat: number, message: Record<string, unknown>) {
     if (message.type === 'leave') {
       if (seat === 0) return
+      const leavingName = this.room.seats[seat]?.name || '玩家'
       this.peers.get(seat)?.peer.close(); this.peers.delete(seat); this.room.seats[seat] = null
       if (this.game) { this.game.players[seat].ai = true; this.game.players[seat].name = `电脑 ${seat + 1}` }
+      if (this.game) this.room.messages.push({ id: `${Date.now()}-${seat}`, senderId: null, senderName: '系统', text: `${leavingName}已离开，电脑将接管座位`, sentAt: Date.now(), system: true })
       if (this.timer) window.clearTimeout(this.timer)
-      this.timer = null; this.broadcast(); this.schedule(); return
+      this.timer = null
+      if (this.game && ['result', 'match-result'].includes(this.game.phase) && this.allHumansReady()) this.startNextGame()
+      else { this.broadcast(); this.schedule() }
+      return
+    }
+    if (message.type === 'chat') {
+      const member = this.room.seats[seat]
+      if (!member) throw Error('你不在房间里')
+      const text = String(message.text || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 50)
+      if (!text) throw Error('请输入弹幕内容')
+      const now = Date.now()
+      if (now - (this.lastChatAt.get(member.id) || 0) < 2000) throw Error('发送太快，请稍后再试')
+      this.lastChatAt.set(member.id, now)
+      this.room.messages.push({ id: `${now}-${member.id}`, senderId: member.id, senderName: member.name, text, sentAt: now })
+      this.room.messages = this.room.messages.slice(-100)
+      this.broadcast(); return
     }
     if (message.type === 'ready') {
-      if (this.game) throw Error('牌局已经开始')
+      if (this.game && !['result', 'match-result'].includes(this.game.phase)) throw Error('牌局正在进行')
       const member = this.room.seats[seat]
       if (!member) throw Error('你不在房间里')
       member.ready = message.ready !== false
-      if (this.allHumansReady()) this.startGame()
+      if (this.allHumansReady()) this.game ? this.startNextGame() : this.startGame()
       else this.broadcast()
       return
     }
@@ -206,10 +237,7 @@ class PhoneHost {
     if (!game) throw Error('牌局尚未开始')
     const action = String(message.action)
     if (action === 'next') {
-      if (seat !== 0 || !['result', 'match-result'].includes(game.phase)) throw Error('只有房主可开始下一局')
-      this.game = game.phase === 'match-result' ? newGame(this.room.count) : nextHand(game)
-      this.game.players.forEach((player, index) => { player.name = this.room.seats[index]?.name || `电脑 ${index + 1}`; player.ai = !this.room.seats[index] })
-      this.choices = {}; this.broadcast(); this.schedule(); return
+      throw Error('请等待所有在线玩家准备')
     }
     if (game.phase === 'discard' && game.active === seat) {
       if (action === 'discard') discard(game, seat, Number(message.tileId))

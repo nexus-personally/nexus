@@ -1,13 +1,18 @@
 import { createRoot } from 'react-dom/client'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import './app3d.css'
+import './lobby-reference.css'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faBookOpen, faVolumeHigh } from '@fortawesome/free-solid-svg-icons'
 import { Guide } from './guide'
 import { audio, loadAudioSettings, type AudioCue, type AudioSettings } from './audio'
 import { RoomPanel, useRoomNetwork } from './rooms'
 import { LandscapeGate } from './landscape-gate'
 import { FullscreenButton } from './fullscreen-button'
 import { VoiceChat } from './voice-chat'
-import { ArrowsOut, CaretDown, CaretUp, DotsThree, House, MusicNotes, Prohibit, Question, SignOut, SpeakerHigh } from '@phosphor-icons/react'
+import { RoomChat } from './room-chat'
+import { GameDialogProvider, useGameDialog } from './game-dialog'
+import { ArrowsOut, CaretDown, CaretUp, Diamond, DotsThree, House, MusicNotes, Prohibit, Question, SignOut, SpeakerHigh } from '@phosphor-icons/react'
 import { SPECIAL_TILE_ATLAS, SPECIAL_TILE_ATLAS_SIZE, specialTileRegion } from './specialTiles'
 import {
   aiChooseDiscard, aiClaim, buildTiles, canRedeemPongFly, declareSelfKong, declareSelfWin, discard,
@@ -92,6 +97,7 @@ function savedGame(accountId: string): Game | null {
 
 function App() {
   const network = useRoomNetwork()
+  const confirmDialog = useGameDialog()
   const [game, setGame] = useState<Game | null>(() => CLAIM_PREVIEW ? claimPreviewGame() : null)
   const [lobby, setLobby] = useState(!CLAIM_PREVIEW)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -107,6 +113,7 @@ function App() {
   const [reactionDecision, setReactionDecision] = useState<ReactionDecision>(() => CLAIM_PREVIEW_VALUE === 'waiting' ? { index: 0, kind: '碰' } : null)
   const [showFanDetails, setShowFanDetails] = useState(false)
   const [resultCollapsed, setResultCollapsed] = useState(false)
+  const [roundReadyScreen, setRoundReadyScreen] = useState(false)
   const gameRef = useRef<Game | null>(game)
   const lastRoomLog = useRef('')
   const hadRoomGame = useRef(false)
@@ -147,18 +154,19 @@ function App() {
     setLobby(true)
   }, [network.room?.started, network.room?.code, network.account?.id])
 
-  function cancelRoomGame() {
+  async function cancelRoomGame() {
     if (network.room?.hostId !== network.account?.id || !network.room?.started) return
-    if (window.confirm('取消本局并返回房间？本局分数不计，朋友可加入后再由房主开局。')) network.send({ type: 'cancel' })
+    if (await confirmDialog({ eyebrow: '港雀 · 房主管理', title: '取消本局？', message: '本局分数不会记录，所有玩家将返回房间，之后可重新准备开局。', confirmLabel: '取消本局', cancelLabel: '继续牌局', tone: 'danger' })) network.send({ type: 'cancel' })
   }
 
-  function leaveRoomGame() {
-    if (!inRoom) return
+  async function leaveRoomGame() {
+    if (!network.room) return
     const offlineHost = network.offline.active && network.offline.isHost
-    const warning = offlineHost
-      ? '离开会结束整个无网房，未完成的本局不计分。确定离开？'
-      : '离开后将由电脑接管你的牌，本局仍会正常结算。确定离开房间？'
-    if (!window.confirm(warning)) return
+    const activeHand = Boolean(network.game && network.game.phase !== 'result' && network.game.phase !== 'match-result')
+    const message = offlineHost
+      ? activeHand ? '房主离开会结束整个无网房，未完成的本局不会计分。' : '房主离开后，无网房间会立即结束，其他玩家也会断开连接。'
+      : activeHand ? '离开后将由电脑接管你的牌，本局仍会继续并正常结算。' : '你将退出当前房间，之后需要重新加入才能回到牌桌。'
+    if (!await confirmDialog({ eyebrow: offlineHost ? '港雀 · 无网房间' : '港雀 · 房间操作', title: offlineHost ? '结束房间？' : '离开房间？', message, confirmLabel: offlineHost ? '结束并离开' : '离开房间', cancelLabel: '留在牌桌', tone: 'danger' })) return
     if (network.offline.active) network.offline.leave()
     else network.send({ type: 'leave' })
     setLobby(true)
@@ -198,6 +206,7 @@ function App() {
   }, [game?.phase, game?.lastDiscard?.tile.id, game?.lastDiscard?.from, game?.history[0]])
 
   useEffect(() => {
+    setRoundReadyScreen(false)
     if (game?.phase === 'result' || game?.phase === 'match-result') setResultCollapsed(false)
   }, [game?.handId, game?.phase])
 
@@ -315,7 +324,7 @@ function App() {
       <header className="game-header">
         <div className="game-brand-block"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 茶樓牌局</small></div><span className="wallet-badge">媽幣 {network.account.mamoney ?? 500}</span></div>
         <div className="round-tag">等待開局<span>{network.offline.active ? '無網房間' : `房間 ${waitingRoom.code}`}</span></div>
-        <div className="header-actions"><VoiceChat network={network} /><button className="game-menu-trigger" aria-label="返回房间大厅" onClick={() => setLobby(true)}><House weight="bold" aria-hidden="true" /></button></div>
+        <div className="header-actions"><VoiceChat network={network} /><RoomChat network={network} /><button className="game-menu-trigger leave-room-game" aria-label="离开房间" onClick={leaveRoomGame}><SignOut weight="bold" aria-hidden="true" /></button></div>
       </header>
       {waitingRoom.seats.map((seat, index) => seat && <div key={seat.id} className={`waiting-seat waiting-seat-${(index - mySeatIndex + waitingRoom.count) % waitingRoom.count}${seat.ready ? ' is-ready' : ''}`}><span>{index + 1}</span><div><b>{seat.id === network.account?.id ? `${seat.name}（你）` : seat.name}</b><small>{seat.connected ? seat.ready ? '已準備' : '等待準備' : '暫時斷線'}</small></div></div>)}
       <section className="table-ready-stage" aria-label="开局准备">
@@ -327,11 +336,45 @@ function App() {
   }
 
   if ((!network.account && !CLAIM_PREVIEW) || lobby || !game) return <div className={`lobby-3d${!network.account ? ' is-auth' : ''}`}>
-    <header className="lobby-header"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 3D 牌桌</small></div><div className="lobby-header-actions"><FullscreenButton /><button onClick={() => setGuide(true)}>玩法說明</button><button onClick={() => { void audio.unlock(); setShowAudioSettings(true) }}>聲音設定</button></div></header>
-    {!network.account ? <main className="auth-stage"><section className="auth-brand"><h1>港雀</h1><p className="auth-english">HONG KONG MAHJONG</p><p className="auth-invite">一枱麻雀，<br />連繫香港的情與局。</p><img src="/mahjong/assets/lobby-tiles.png" alt="發、中、二筒三張立起的麻將牌" /></section><div className="lobby-auth"><RoomPanel network={network} authOnly onReturn={() => setLobby(false)} /></div></main> : <main className="lobby-content"><section><span className="eyebrow">歡迎入座</span><h1>開枱，<br /><em>打一圈。</em></h1><p>真正立體的麻雀桌。登入後可選擇單機對戰，或透過房間碼與朋友同桌。</p><div className="lobby-tags"><span>香港麻雀</span><span>朋友房間</span><span>局域網／線上</span></div></section>
-      <div className="lobby-modes" data-active={lobbyMode}><div className="lobby-switch" role="tablist" aria-label="選擇遊戲方式"><button role="tab" aria-selected={lobbyMode === 'solo'} onClick={() => setLobbyMode('solo')}>單機對戰</button><button role="tab" aria-selected={lobbyMode === 'room'} onClick={() => setLobbyMode('room')}>朋友開房</button></div><section className="mode-panel"><h2>單機對戰 <span>✦</span></h2>{game && !inRoom && <button onClick={() => { void audio.unlock(); setLobby(false) }}><b>繼續上次牌局</b><small>{game.count} 人 · 第 {game.handNumber} 局</small></button>}<button onClick={() => start(4)}><b>四人香港麻雀</b><small>152 張 · 動物、飛 · 三番起胡</small></button><button onClick={() => start(3)}><b>馬來西亞三人麻雀</b><small>84 張 · 筒子、字牌、飛 · 五番起胡</small></button></section><RoomPanel network={network} onReturn={() => setLobby(false)} /></div>
+    <header className="lobby-header"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 3D 牌桌</small></div><div className="lobby-header-actions"><FullscreenButton /><button aria-label="玩法说明" title="玩法说明" onClick={() => setGuide(true)}><FontAwesomeIcon icon={faBookOpen} aria-hidden="true" /></button><button aria-label="声音设置" title="声音设置" onClick={() => { void audio.unlock(); setShowAudioSettings(true) }}><FontAwesomeIcon icon={faVolumeHigh} aria-hidden="true" /></button></div></header>
+    {!network.account ? <main className="auth-stage"><section className="auth-brand"><h1>港雀</h1><p className="auth-english">HONG KONG MAHJONG</p><p className="auth-invite">一枱麻雀，<br />連繫香港的情與局。</p><img src="/mahjong/assets/lobby-tiles.png" alt="發、中、二筒三張立起的麻將牌" /></section><div className="lobby-auth"><RoomPanel network={network} authOnly onReturn={() => setLobby(false)} /></div></main> : <main className="game-lobby-stage">
+      <div className="game-mode-choices" role="tablist" aria-label="选择游戏模式">
+        <button role="tab" aria-selected={lobbyMode === 'solo'} onClick={() => setLobbyMode('solo')}><span className="mode-icon mode-monitor" aria-hidden="true"><img src="/mahjong/assets/lobby-monitor.png" alt="" /></span><span><b>人机对战</b><span className="mode-divider" aria-hidden="true"><Diamond weight="fill" /></span><small>立即开始</small></span></button>
+        <button role="tab" aria-selected={lobbyMode === 'room'} onClick={() => setLobbyMode('room')}><span className="mode-icon mode-players" aria-hidden="true"><img src="/mahjong/assets/lobby-players.png" alt="" /></span><span><b>玩家对决</b><span className="mode-divider" aria-hidden="true"><Diamond weight="fill" /></span><small>与朋友同桌</small></span></button>
+      </div>
+      <div className="game-mode-detail">
+        {lobbyMode === 'solo' && <section className="solo-mode-detail" aria-label="人机对战选项">
+          {game && !inRoom && <button onClick={() => { void audio.unlock(); setLobby(false) }}><b>继续上次牌局</b><small>{game.count} 人 · 第 {game.handNumber} 局</small></button>}
+          <button onClick={() => start(4)}><b>四人香港麻将</b><small>152 张 · 动物、飞 · 三番起胡</small></button>
+          <button onClick={() => start(3)}><b>三人马来西亚麻将</b><small>84 张 · 筒子、字牌、飞 · 五番起胡</small></button>
+        </section>}
+        <RoomPanel network={network} showRoomFlow={lobbyMode === 'room'} onReturn={() => setLobby(false)} />
+      </div>
     </main>}{guide && <Guide onClose={() => setGuide(false)} />}{showAudioSettings && <AudioSettingsPanel settings={audioSettings} onChange={updateAudio} onClose={() => setShowAudioSettings(false)} />}<LandscapeGate />
   </div>
+
+  if (inRoom && roundReadyScreen && (game.phase === 'result' || game.phase === 'match-result') && network.account && network.room) {
+    const waitingRoom = network.room
+    const mySeat = waitingRoom.seats.find(seat => seat?.id === network.account?.id)
+    const amReady = Boolean(mySeat?.ready)
+    const readyCount = waitingRoom.seats.filter(seat => seat?.connected && seat.ready).length
+    const humanCount = waitingRoom.seats.filter(seat => seat?.connected).length
+    const mySeatIndex = Math.max(0, waitingRoom.seats.findIndex(seat => seat?.id === network.account?.id))
+    return <div className="play-page waiting-table-page"><div className="game-screen">
+      <div className="table-vignette" />
+      <header className="game-header">
+        <div className="game-brand-block"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 茶樓牌局</small></div><span className="wallet-badge">媽幣 {network.account.mamoney ?? 500}</span></div>
+        <div className="round-tag">{game.phase === 'match-result' ? '等待新一圈' : '等待下一局'}<span>{network.offline.active ? '無網房間' : `房間 ${waitingRoom.code}`}</span></div>
+        <div className="header-actions"><VoiceChat network={network} /><RoomChat network={network} /><button className="game-menu-trigger leave-room-game" aria-label="离开房间" onClick={leaveRoomGame}><SignOut weight="bold" aria-hidden="true" /></button></div>
+      </header>
+      {waitingRoom.seats.map((seat, index) => seat && <div key={seat.id} className={`waiting-seat waiting-seat-${(index - mySeatIndex + waitingRoom.count) % waitingRoom.count}${seat.ready ? ' is-ready' : ''}`}><span>{index + 1}</span><div><b>{seat.id === network.account?.id ? `${seat.name}（你）` : seat.name}</b><small>{seat.connected ? seat.ready ? '已準備' : '等待準備' : '已離線 · 電腦接管'}</small></div></div>)}
+      <section className="table-ready-stage" aria-label="下一局准备">
+        <button className={amReady ? 'is-ready' : ''} aria-pressed={amReady} onClick={() => { void audio.unlock(); network.send({ type: 'ready', ready: !amReady }) }}>{amReady ? '取消準備' : '準備'}</button>
+        <strong>{readyCount} / {humanCount} 玩家已準備</strong>
+        <span>{amReady ? '等待其他在线玩家' : '全员准备后自动开局'}</span>
+      </section>
+    </div><LandscapeGate /></div>
+  }
 
   const me = game.players[0]
   const isMyTurn = game.phase === 'discard' && game.active === 0
@@ -366,7 +409,7 @@ function App() {
     <header className="game-header">
       <div className="game-brand-block"><div className="brand"><strong>港雀</strong><small>香港麻雀 · 茶樓牌局</small></div><span className="wallet-badge">媽幣 {network.account?.mamoney ?? 500}</span></div>
       <div className="round-tag">{round}<span>餘牌 {game.wall.length}</span></div>
-      <div className="header-actions"><VoiceChat network={network} /><div className="game-menu" ref={gameMenuRef}>
+      <div className="header-actions"><VoiceChat network={network} />{inRoom && <RoomChat network={network} />}<div className="game-menu" ref={gameMenuRef}>
         <button className="game-menu-trigger" aria-label="打开游戏菜单" aria-expanded={gameMenuOpen} aria-controls="game-menu-panel" onClick={() => setGameMenuOpen(open => !open)}><DotsThree weight="bold" aria-hidden="true" /></button>
         {gameMenuOpen && <nav className="game-menu-panel" id="game-menu-panel" aria-label="遊戲選單">
           <button onClick={() => { setGameMenuOpen(false); void audio.unlock(); setShowAudioSettings(true) }}><SpeakerHigh aria-hidden="true" />音量</button>
@@ -418,7 +461,7 @@ function App() {
         : game.result.mamoneyDeltas
           ? <p className="wallet-settlement">本局媽幣 {mamoneyDelta(game, 0) >= 0 ? '+' : ''}{mamoneyDelta(game, 0)} · 帳戶餘額 {network.account?.mamoney ?? 500}</p>
           : <p className="wallet-settlement">媽幣結算尚未完成，請稍後由房主重試</p>)}
-      {!inRoom || network.room?.hostId === network.account?.id ? <button onClick={() => !inRoom && game.phase === 'match-result' ? setLobby(true) : act('next')}>{game.phase === 'match-result' ? inRoom ? '開始新一圈' : '返回首頁' : '繼續下一局'}</button> : <p>等待房主開始下一局</p>}
+      {!inRoom ? <button onClick={() => game.phase === 'match-result' ? setLobby(true) : act('next')}>{game.phase === 'match-result' ? '返回首頁' : '繼續下一局'}</button> : <button onClick={() => setRoundReadyScreen(true)}>{game.phase === 'match-result' ? '前往新一圈准备' : '继续'}</button>}
     </div></div>)}
     {toast && <div className="toast">{toast}</div>}
   </div><LandscapeGate /></div>
@@ -442,4 +485,4 @@ function AudioSettingsPanel({ settings, onChange, onClose }: { settings: AudioSe
   </section></div>
 }
 
-createRoot(document.getElementById('app')!).render(<App />)
+createRoot(document.getElementById('app')!).render(<GameDialogProvider><App /></GameDialogProvider>)

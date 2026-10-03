@@ -147,20 +147,36 @@ function ensureDeadline(room) {
   }
   return room.deadlineAt
 }
-function roomInfo(room) { return { code: room.code, count: room.count, hostId: room.hostId, started: !!room.game, deadlineAt: ensureDeadline(room), seats: room.seats.map(seat => seat && { id: seat.id, name: seat.name, connected: sockets.has(seat.id), voice: room.voiceMembers.has(seat.id), ready: room.readyMembers.has(seat.id) }) } }
+function roomInfo(room) { return { code: room.code, count: room.count, hostId: room.hostId, started: !!room.game, deadlineAt: ensureDeadline(room), messages: room.messages, seats: room.seats.map(seat => seat && { id: seat.id, name: seat.name, connected: sockets.has(seat.id), voice: room.voiceMembers.has(seat.id), ready: room.readyMembers.has(seat.id) }) } }
 
 function allHumansReady(room) {
-  const humans = room.seats.filter(Boolean)
+  const humans = room.seats.filter(member => member && sockets.has(member.id))
   return humans.length > 0 && humans.every(member => room.readyMembers.has(member.id))
 }
 
 function startRoom(room) {
   room.game = newGame(room.count)
+  room.messages = []
   room.handAccounts = room.seats.map(member => member && { ...member })
-  room.game.players.forEach((player, seat) => { player.name = room.seats[seat]?.name || `电脑 ${seat + 1}`; player.ai = !room.seats[seat] })
+  room.game.players.forEach((player, seat) => { player.name = room.seats[seat]?.name || `电脑 ${seat + 1}`; player.ai = !room.seats[seat] || !sockets.has(room.seats[seat].id) })
   room.readyMembers.clear()
   broadcast(room)
   schedule(room)
+}
+async function startNextRoom(room) {
+  if (room.advancing) return
+  const game = room.game
+  if (!game || !['result', 'match-result'].includes(game.phase)) throw Error('本局尚未结算')
+  room.advancing = true
+  try {
+    await settleRoom(room)
+    room.game = game.phase === 'match-result' ? newGame(room.count) : nextHand(game)
+    room.messages = []
+    room.readyMembers.clear()
+    room.handAccounts = room.seats.map(member => member && { ...member })
+    room.game.players.forEach((player, seat) => { player.name = room.seats[seat]?.name || `电脑 ${seat + 1}`; player.ai = !room.seats[seat] || !sockets.has(room.seats[seat].id) })
+    room.choices = {}; await publishRoom(room); schedule(room)
+  } finally { room.advancing = false }
 }
 function viewFor(game, seat) {
   const rotate = value => (value - seat + game.count) % game.count
@@ -246,10 +262,12 @@ function leaveRoom(accountId) {
   const room = roomOf(accountId)
   if (!room) return false
   const seat = room.seats.findIndex(member => member?.id === accountId)
+  const leavingName = room.seats[seat]?.name || '玩家'
   room.seats[seat] = null
   room.voiceMembers.delete(accountId)
   room.readyMembers.delete(accountId)
   if (room.game) { room.game.players[seat].ai = true; room.game.players[seat].name = `电脑 ${seat + 1}` }
+  if (room.game) room.messages.push({ id: `${Date.now()}-${accountId}`, senderId: null, senderName: '系统', text: `${leavingName}已离开，电脑将接管座位`, sentAt: Date.now(), system: true })
   if (room.hostId === accountId) room.hostId = room.seats.find(member => member && sockets.has(member.id))?.id || room.seats.find(Boolean)?.id || null
   if (!room.game && !room.hostId) rooms.delete(room.code)
   else {
@@ -306,12 +324,7 @@ async function roomAction(room, account, action, payload) {
   const seat = room.seats.findIndex(member => member?.id === account.id)
   if (seat < 0) throw Error('你不在房间里')
   if (action === 'next') {
-    if (account.id !== room.hostId || !['result', 'match-result'].includes(game.phase)) throw Error('只有房主可开始下一局')
-    await settleRoom(room)
-    room.game = game.phase === 'match-result' ? newGame(room.count) : nextHand(game)
-    room.handAccounts = room.seats.map(member => member && { ...member })
-    room.game.players.forEach((player, index) => { player.name = room.seats[index]?.name || `电脑 ${index + 1}`; player.ai = !room.seats[index] })
-    room.choices = {}; await publishRoom(room); schedule(room); return
+    throw Error('请等待所有在线玩家准备')
   }
   if (game.phase === 'discard' && game.active === seat) {
     if (action === 'discard') discard(game, seat, Number(payload.tileId))
@@ -342,7 +355,7 @@ async function handleSocket(ws, message, account) {
   if (message.type === 'create') {
     if (room) throw Error('请先离开当前房间')
     const count = message.count === 3 ? 3 : 4
-    const created = { code: code(), count, hostId: account.id, seats: Array(count).fill(null), voiceMembers: new Set(), readyMembers: new Set(), handAccounts: null, game: null, choices: {}, timer: null, deadlineKey: null, deadlineAt: null, settledHands: new Set(), settlement: null }
+    const created = { code: code(), count, hostId: account.id, seats: Array(count).fill(null), voiceMembers: new Set(), readyMembers: new Set(), messages: [], lastChatAt: new Map(), advancing: false, handAccounts: null, game: null, choices: {}, timer: null, deadlineKey: null, deadlineAt: null, settledHands: new Set(), settlement: null }
     created.seats[0] = publicAccount(account); rooms.set(created.code, created); broadcast(created); return
   }
   if (message.type === 'join') {
@@ -353,13 +366,28 @@ async function handleSocket(ws, message, account) {
     if (seat < 0) throw Error('房间已满')
     target.seats[seat] = publicAccount(account); broadcast(target); return
   }
-  if (message.type === 'leave') { if (!leaveRoom(account.id)) throw Error('你不在房间里'); send(ws, 'room', { room: null, game: null }); return }
+  if (message.type === 'leave') {
+    if (!leaveRoom(account.id)) throw Error('你不在房间里')
+    send(ws, 'room', { room: null, game: null })
+    if (room.game && ['result', 'match-result'].includes(room.game.phase) && allHumansReady(room)) await startNextRoom(room)
+    return
+  }
   if (!room) throw Error('请先创建或加入房间')
+  if (message.type === 'chat') {
+    const text = String(message.text || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 50)
+    if (!text) throw Error('请输入弹幕内容')
+    const now = Date.now()
+    if (now - (room.lastChatAt.get(account.id) || 0) < 2000) throw Error('发送太快，请稍后再试')
+    room.lastChatAt.set(account.id, now)
+    room.messages.push({ id: `${now}-${account.id}`, senderId: account.id, senderName: account.name, text, sentAt: now })
+    room.messages = room.messages.slice(-100)
+    broadcast(room); return
+  }
   if (message.type === 'ready') {
-    if (room.game) throw Error('牌局已经开始')
+    if (room.game && !['result', 'match-result'].includes(room.game.phase)) throw Error('牌局正在进行')
     if (message.ready === false) room.readyMembers.delete(account.id)
     else room.readyMembers.add(account.id)
-    if (allHumansReady(room)) startRoom(room)
+    if (allHumansReady(room)) room.game ? await startNextRoom(room) : startRoom(room)
     else broadcast(room)
     return
   }
@@ -438,7 +466,17 @@ function onSocket(ws) {
       await handleSocket(ws, message, account)
     } catch (error) { send(ws, 'error', { error: error.message || '操作失败' }) }
   })
-  ws.on('close', () => { if (account && sockets.get(account.id) === ws) { sockets.delete(account.id); const room = roomOf(account.id); if (room) { room.voiceMembers.delete(account.id); if (room.timer) clearTimeout(room.timer); room.timer = null; void publishRoom(room).catch(error => console.error('Room settlement error:', error)); schedule(room) } } })
+  ws.on('close', () => { if (account && sockets.get(account.id) === ws) {
+    sockets.delete(account.id)
+    const room = roomOf(account.id)
+    if (room) {
+      room.voiceMembers.delete(account.id); room.readyMembers.delete(account.id)
+      if (room.timer) clearTimeout(room.timer)
+      room.timer = null
+      if (room.game && ['result', 'match-result'].includes(room.game.phase) && allHumansReady(room)) void startNextRoom(room).catch(error => console.error('Room advance error:', error))
+      else { void publishRoom(room).catch(error => console.error('Room settlement error:', error)); schedule(room) }
+    }
+  } })
 }
 
 export async function registerMahjong(fastify) {

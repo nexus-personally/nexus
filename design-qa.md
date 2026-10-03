@@ -1,30 +1,44 @@
-# Design QA — 港雀吃碰组合选择器
+# Reference lobby fidelity QA — 2026-10-03
 
-- Result: **passed**
-- Date: 2026-09-30
-- Selected direction: 方案 1，手牌上方中央组合托盘
-- Reference: `C:\Users\User\.codex\generated_images\01a0d7ee-6ca8-7332-a3a7-0e6284368d51\exec-229f30d3-e71a-4078-9d65-39b91019972d.png`
-- Implementation capture: `apps/mahjong/docs/claim-picker-final.png`
-- Waiting-state capture: `apps/mahjong/docs/claim-picker-waiting.png`
-- Side-by-side comparison: `apps/mahjong/docs/claim-picker-comparison.png`
-- Preview URL: `http://127.0.0.1:5173/mahjong/?claim-preview=picker`
-- Reviewed viewport: 1596 × 1041 px, landscape
+- Source: C:/Users/User/AppData/Local/Temp/codex-clipboard-bf17a96b-99e2-4b50-a002-eb669e1d0376.png
+- Implementation: apps/mahjong/implementation-lobby-precise.png
+- Full comparison (source above): apps/mahjong/lobby-precise-comparison.png
+- Focused comparison: apps/mahjong/lobby-focused-comparison.png
+- Landscape capture: apps/mahjong/implementation-lobby-mobile.png
+- Both desktop images: 1866 × 843 pixels, matching 1866 × 843 CSS viewport; no density normalization required.
+- State: signed in, player mode, online selected, dialogs closed.
+- QA used localhost:4200 with a separate local test account, leaving the user's existing room untouched.
 
-## Checks
+## Comparison history
 
-- The first action row exposes one button per legal action kind; duplicate text-only 「碰」 buttons are removed.
-- Opening Pong shows every legal three-tile combination as tiles. Natural Pong precedes Fly Pong.
-- The opponent's discarded tile is consistently the third tile and uses a gold outline, glow, and slight vertical lift.
-- The selector includes 返回, 過, and an 8-second countdown without requiring explanatory substitution text on the Fly tile.
-- The waiting state keeps the chosen tile group visible and provides 撤回 while other players respond.
-- The selector stays above the player's hand and leaves the discard field visible. It fits within the table at the reviewed landscape viewport.
-- Accessibility output names each option by action and tile contents, including which tile is the incoming discard.
-- The production build succeeds. The existing Vite warnings for runtime-resolved table backgrounds and the large Three.js tile-model chunk remain non-blocking.
+1. P1: oversized cards, small labels, green join action, separate connection buttons and outline icons. Replaced with reference coordinates, 52px serif titles, 30px action labels, gold/blue actions and one framed radio group.
+2. P2: first revision's monitor/people shapes differed and connection labels were shifted. Added reference-derived transparent monitor, people and coin images; corrected connection alignment.
+3. P2: inherited mobile avatar minimum width stretched the account pill. Removed that minimum and recaptured at 844 × 390.
+4. Final full-view and focused comparisons inspected after corrections. No remaining P0/P1/P2 findings; residual P3 details below.
 
-## Visual comparison
+## Required fidelity surfaces
 
-The implementation follows the selected reference's dark green and gold tray, centered title, side actions, two full tile combinations, emphasized incoming tile, and compact countdown. The live table uses its actual three-player seat layout and current tile assets, so the surrounding hand and table state differ from the illustrative reference.
+- Typography: Noto Serif TC 900 for mode/action titles, Noto Sans TC for controls; measured font sizes, line heights and positions.
+- Layout: cards x445/y178, combined width977, height317; connection x574/y520, width719, height84; actions y664, height77. One-screen desktop and landscape.
+- Colors: jade panels, cream text, gold selected glow, gold create and deep blue join action.
+- Assets: reference-derived background, transparent monitor, people and coin; library book, volume and fullscreen glyphs. Interactive UI remains real text/buttons/inputs.
+- Copy: reference labels preserved; account name and balance remain dynamic.
 
-## Result
+## Verification
 
-No P0–P2 visual or interaction issue was found in the reviewed picker and waiting states. Physical Android/iPhone touch testing remains part of the broader device matrix rather than this browser QA.
+- TypeScript/Vite production build passed.
+- Browser verified: online/offline mutually exclusive radios, online join input, offline pairing panel, dialog closing, human/AI mode switching, account menu.
+- Final isolated browser preview had no captured console errors.
+- Desktop and 844 × 390 landscape visually checked; portrait retains existing landscape gate.
+- No multiplayer game was started for this visual pass.
+
+## P3 residual differences
+
+- Reconstructed image textures, edge details and highlights are not pixel-identical.
+- Minor differences remain in book/fullscreen glyph details, account-avatar silhouette, type rasterization and panel glow falloff.
+
+## Generated asset provenance
+
+Built-in imagegen created public/assets/lobby-reference-background.png, lobby-monitor.png, lobby-players.png and lobby-gold-coin.png. Background prompt: remove UI while preserving scene composition, cup, teapot, sign, lighting and perspective. Icon prompts: reproduce only the source monitor, three-person cream-to-gold symbol and upright gold coin on true transparency. Assets are integrated into app.tsx, rooms.tsx and lobby-reference.css.
+
+final result: passed

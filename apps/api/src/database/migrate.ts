@@ -43,8 +43,9 @@ async function migrate() {
 
 migrate()
   .then(() => console.log('Database migrations are up to date.'))
-  .catch(() => {
-    console.error('Database migrations failed. Check database connectivity and credentials.');
+  .catch((error: unknown) => {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error(`Database migrations failed: ${detail}`);
     process.exitCode = 1;
   })
   .finally(() => pool.end());

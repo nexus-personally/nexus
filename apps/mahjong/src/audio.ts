@@ -44,6 +44,33 @@ class MahjongAudio {
   private usingMusicFile = false
   private assetAvailable = new Map<string, boolean>()
   private assetPromise: Promise<void> | null = null
+  private resumeAfterVisibility = false
+
+  constructor() {
+    document.addEventListener('visibilitychange', this.handleVisibility)
+  }
+
+  private handleVisibility = (): void => {
+    const context = this.context
+    if (document.hidden) {
+      this.resumeAfterVisibility = context?.state === 'running'
+      if (this.timer !== null) {
+        window.clearInterval(this.timer)
+        this.timer = null
+      }
+      this.mediaMusic?.pause()
+      if (context?.state === 'running') void context.suspend()
+      return
+    }
+    if (!this.resumeAfterVisibility || !context) return
+    this.resumeAfterVisibility = false
+    void context.resume().then(() => {
+      this.startScheduler()
+      if (this.mediaMusic && this.usingMusicFile && !this.settings.muted && this.settings.bgmEnabled) {
+        void this.mediaMusic.play().catch(() => {})
+      }
+    }).catch(() => {})
+  }
 
   async unlock(): Promise<void> {
     if (!this.context) {

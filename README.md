@@ -1,4 +1,4 @@
-# NEXUS：从本机运行到 Render 部署、查看数据库
+# NEXUS：本机运行、Render 部署与 Neon 数据库
 
 NEXUS 首页有两个可用入口：System 01 是 Resume Studio，System 02 是「港雀」麻将。当前线上网站：[NEXUS](https://nexus-2rwr.onrender.com/)；麻将也可[直接打开](https://nexus-2rwr.onrender.com/mahjong/)。代码在 [GitHub 仓库](https://github.com/nexus-personally/nexus)。
 
@@ -9,9 +9,9 @@ NEXUS 首页有两个可用入口：System 01 是 Resume Studio，System 02 是�
 | 打开的地址 | 实际用到的数据 |
 | --- | --- |
 | `http://localhost:3000/` | 自己电脑的本机数据 |
-| `https://nexus-2rwr.onrender.com/` | Render 的线上 `nexus-db` |
+| `https://nexus-2rwr.onrender.com/` | Render Web Service + Neon 线上 PostgreSQL |
 
-`localhost` 就是你正在用的电脑。本机注册的麻将帐号不会自动出现在网上，网上的帐号也不会自动出现在本机。线上 NEXUS 和麻将**共用**现有的 `nexus-db`，无需另开一个数据库。麻将帐号存于 `mahjong_accounts`，登录会话存于 `mahjong_sessions`；房间、未完成牌局、人机计时器目前保存在服务器记忆体中，**不在数据库里**。Render 重新部署或服务器重启后，正在进行的房间会结束。
+`localhost` 就是你正在用的电脑。本机注册的麻将帐号不会自动出现在网上，网上的帐号也不会自动出现在本机。线上 NEXUS 和麻将共用 Neon 项目 `nexus-mahjong` 的 `neondb` 数据库；Render 只负责运行网站服务。麻将帐号存于 `mahjong_accounts`，登录会话存于 `mahjong_sessions`，妈币流水存于 `mahjong_wallet_events`；房间、未完成牌局、人机计时器目前保存在服务器记忆体中，**不在数据库里**。Render 重新部署或服务器重启后，正在进行的房间会结束。
 
 ## 第 1 步：安装需要的工具
 
@@ -147,7 +147,7 @@ SELECT COUNT(*) FROM mahjong_sessions;
 
 ## 第 4 步：更新 GitHub，并发布到现有 Render 网站
 
-这是更新**已经存在**的 NEXUS，正常情况**不需要再创建** Web Service、Blueprint 或 Database。
+这是更新**已经存在**的 NEXUS。生产架构为 Render Web Service `nexus` + Neon PostgreSQL；正常情况**不需要再创建** Web Service、Blueprint 或 Database。
 
 1. 在项目根目录确认 Git 分支和远端：
 
@@ -176,28 +176,30 @@ SELECT COUNT(*) FROM mahjong_sessions;
 
 **只有要在全新的 Render 帐号里部署另一个独立副本**，才按 [Render Blueprint 官方说明](https://render.com/docs/infrastructure-as-code) 选择 **New → Blueprint**，连接仓库并确认根目录的 `render.yaml` 与费用。现有服务不要重复这样做：Render 可能为重复的 Blueprint 新建另一组资源。
 
-## 第 5 步：查看现在的线上 `nexus-db`
+## 第 5 步：查看线上 Neon 数据库
 
-网页不能直接浏览 PostgreSQL 的表。先在 Render Dashboard 找连接资料，再在自己电脑用 `psql` 或 pgAdmin 打开。以下步骤只读，不会更改线上资料。
+线上数据库已于 2026-10-05 从即将到期的 Render PostgreSQL 迁移到 Neon。Neon 项目为 `nexus-mahjong`，branch 为 `production`，数据库为 `neondb`，区域为 AWS Singapore。以下步骤只读，不会更改线上资料。
 
-1. 登录 [Render Dashboard](https://dashboard.render.com/)，选 NEXUS 所在的 workspace。应该会看到 **nexus**（网站服务）和 **nexus-db**（PostgreSQL）。点击 **nexus-db**。
-2. 在数据库页面右上角找 **Connect**。Render 的某些介面会在 **Info** 页显示连接资料。找 **External Database URL** 或 **PSQL Command**。你的电脑在 Render 网络外，必须用 **External**，不能用 **Internal**。连接文字含密码，**不能贴进 README、GitHub、截图或聊天**。
-3. 如果已经安装 PostgreSQL，在 PowerShell 输入 `psql --version`；若找不到，可用完整路径，例如 `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" --version`。从 Render 复制 **PSQL Command**，只在**自己的 PowerShell** 粘贴执行。此命令包含线上凭证；不要放进公开终端录屏，也不要分享终端历史。外部连接必须启用 TLS；自行写连接网址时需要 `sslmode=require`。
-4. 看到类似 `nexus=>` 的提示符后，依次执行：
+1. 登录 [Neon Console](https://console.neon.tech/)，打开 **NEXUS → nexus-mahjong → production**。
+2. 点击 **Connect**，Database 选择 `neondb`，Role 选择 `neondb_owner`。平时应用使用直连端点；临时查询也可使用 Neon 提供的连接串。连接文字含密码，**不能贴进 README、GitHub、截图或聊天**。
+3. 如果已经安装 PostgreSQL，在 PowerShell 输入 `psql --version`；若找不到，可用完整路径，例如 `& "C:\Program Files\PostgreSQL\18\bin\psql.exe" --version`。从 Neon 的 Connect 窗口复制连接串，只在**自己的 PowerShell** 使用。外部连接必须启用 TLS。
+4. 连接后依次执行：
 
    ```sql
    \dt
    SELECT COUNT(*) FROM mahjong_accounts;
-   SELECT id, login, name FROM mahjong_accounts ORDER BY login;
+   SELECT id, login, name, mamoney, is_online FROM mahjong_accounts ORDER BY login;
    SELECT COUNT(*) FROM mahjong_sessions;
    \d mahjong_accounts
    \q
    ```
 
    `mahjong_accounts` 是麻将帐号，`mahjong_sessions` 是登录会话；不要查看或分享 `password`、`token_hash` 字段。Resume Studio 的资料在同一个数据库的其他表，如 `resumes`、`resume_versions`、`resume_publications`。先用 `\dt` 查看实际表名，再用 `\d 表名` 查看字段。
-5. 连不上时：确认 `nexus-db` 显示 **Available**；复制的是 **External** 而非 Internal；电脑可上网；数据库页面的 **Access Control / IP allowlist** 允许你当前公网 IP。不要把生产数据库开放给所有 IP。Render 网站自身通过 `render.yaml` 的 `fromDatabase` 自动取得连接资料，不需把密码写进 Git。
+5. 连不上时：确认 Neon branch/compute 可用、连接串没有被截断、密码不是遮罩后的星号，并检查 Neon 的 IP restrictions。不要把生产数据库开放给所有 IP。
 
-Render 的最新介面与连接方法以[官方 PostgreSQL 说明](https://render.com/docs/postgresql-creating-connecting)为准。
+Render Web Service 的 `DATABASE_URL` 已在 Dashboard 指向 Neon，`POSTGRES_SSL=true` 负责 TLS。不要把 Neon 密码写进 `render.yaml`、`.env.example` 或 GitHub。旧 Render `nexus-db` 仅保留作短期回滚，确认稳定后可在到期前自行停用；目前没有删除。
+
+NEXUS Split 自动汇率建议默认由服务端调用 Frankfurter v2。可用 `SPLIT_FX_PROVIDER=disabled` 关闭自动建议并保留手动汇率，或通过 `SPLIT_FX_BASE_URL` 指向兼容/自托管端点；`SPLIT_FX_CACHE_SECONDS` 默认 `21600`。浏览器不会收到供应商凭证。Settlement V1 始终使用 Group base currency。
 
 ### 不想用命令？用 pgAdmin 4 查看
 
@@ -205,7 +207,7 @@ PostgreSQL 安装包通常可选装 pgAdmin 4。打开它后：
 
 1. 在左侧 **Servers** 右键 → **Register → Server**。
 2. **General** 页 Name 填 `NEXUS 线上` 或 `NEXUS 本机`；这是电脑上的显示名称。
-3. **Connection** 页填写 Host、Port、Database、Username、Password。线上值从 Render 的 **External Database URL** 读取；URL 大致长这样：`postgresql://用户名:密码@主机名:端口/数据库名`。本机 Docker 则填写 Host `127.0.0.1`、Port `5432`、Database `nexus`、Username `nexus`、Password `nexus_dev_only`；本机 PostgreSQL 脚本把 Port 改为 `5433`。
+3. **Connection** 页填写 Host、Port、Database、Username、Password。线上值从 Neon 的 **Connect** 窗口读取；URL 大致长这样：`postgresql://用户名:密码@主机名:端口/数据库名`。本机 Docker 则填写 Host `127.0.0.1`、Port `5432`、Database `nexus`、Username `nexus`、Password `nexus_dev_only`；本机 PostgreSQL 脚本把 Port 改为 `5433`。
 4. 线上连接把 **SSL mode** 设为 `require`；本机可设 `prefer` 或 `disable`。不希望 pgAdmin 保存线上密码，就取消 **Save password**。点击 **Save**。
 5. 左侧依序展开 **Servers → 你的连接 → Databases → nexus → Schemas → public → Tables**。找到 `mahjong_accounts`，右键 → **View/Edit Data → First 100 Rows**。查看时不要编辑单元格，也不要使用 Delete / Drop。
 
@@ -216,7 +218,7 @@ PostgreSQL 安装包通常可选装 pgAdmin 4。打开它后：
 - **数据库连接被拒绝**：确认 Docker Desktop / PostgreSQL 已运行。Docker 用 `5432`，本机 PostgreSQL 脚本用 `5433`，`.env`、`psql` 的端口必须一致。
 - **本机与线上人数不一样**：这是两份独立数据库，属于正常情况。
 - **在线上数据库找不到正在玩的房间**：房间和未完成牌局目前不写进 PostgreSQL。
-- **Render 免费方案**：免费 Web Service 闲置后会休眠；Render 当前的免费 PostgreSQL 有容量限制，创建后 **30 天到期**，不适合长期保存重要资料。详情见 [Render 免费方案说明](https://render.com/docs/free)。
+- **免费方案限制**：Render 免费 Web Service 闲置后会休眠，第一次请求可能较慢；线上数据库已改用 Neon Free，仍受 Neon 免费额度、休眠及服务条款约束。重要资料应定期导出备份。
 - **帐号安全**：麻将现在的「忘记密码」只凭登录名即可重设。公开邀请玩家前，应该增加真正的身份验证。
 
 ## 项目目录
@@ -226,5 +228,5 @@ PostgreSQL 安装包通常可选装 pgAdmin 4。打开它后：
 - `apps/mahjong`：System 02 麻将（React、Three.js、游戏引擎与房间服务）。
 - `packages/shared`：Resume Studio 共用逻辑。
 - `infra/migrations`：NEXUS 数据库迁移；麻将帐号表由麻将服务启动时建立。
-- `render.yaml`：Render 网站服务和 PostgreSQL 的配置。
+- `render.yaml`：Render 网站服务的基础 Blueprint 配置；生产 `DATABASE_URL` 由 Render Dashboard 的 secret 指向 Neon，不能把凭证写进此文件。
 - `Dockerfile`：Render 使用的构建步骤。

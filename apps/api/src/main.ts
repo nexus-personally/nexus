@@ -6,6 +6,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { isIP } from 'node:net';
+import { createHash } from 'node:crypto';
 import { extname, resolve, sep } from 'node:path';
 import { BadRequestException } from '@nestjs/common';
 import type { FastifyInstance } from 'fastify';
@@ -14,7 +15,7 @@ import { registerMahjong } from '../../mahjong/server/index.mjs';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const rateLimitWindowMs = 60_000;
-const maxApiRequestsPerWindow = 60;
+const maxApiRequestsPerWindow = 600;
 const initialBlockMs = 15 * 60_000;
 const maxBlockMs = 24 * 60 * 60_000;
 const forgetIpAfterMs = 30 * 24 * 60 * 60_000;
@@ -29,6 +30,7 @@ interface IpRateLimitState {
 }
 
 const ipRateLimits = new Map<string, IpRateLimitState>();
+const splitRateLimits = new Map<string, { startedAt:number; count:number }>();
 let lastIpCleanupAt = 0;
 
 function rawPath(request: FastifyRequest): string | undefined {
@@ -37,6 +39,28 @@ function rawPath(request: FastifyRequest): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+function splitRateIdentity(request:FastifyRequest) {
+  const token=request.headers.cookie?.match(/(?:^|;\s*)(?:__Host-)?nexus_split_session=([^;]+)/)?.[1];
+  return token ? `session:${createHash('sha256').update(token).digest('hex').slice(0,24)}` : `ip:${clientAddress(request)}`;
+}
+
+function enforceSplitRateLimit(request:FastifyRequest,reply:FastifyReply,path:string,now:number) {
+  if (!path.startsWith('/api/split/')) return false;
+  const auth=/^\/api\/split\/auth\/(?:login|register)$/.test(path);
+  const preview=/^\/api\/split\/invites\/[^/]+\/preview$/.test(path);
+  const sensitive=/\/(?:invites|settlements)(?:\/|$)/.test(path) && request.method!=='GET';
+  const bucket=auth?'auth':preview?'invite-preview':sensitive?'sensitive':'normal';
+  const maximum=auth?10:preview?90:sensitive?60:240;
+  const identity=auth||preview?`ip:${clientAddress(request)}`:splitRateIdentity(request);
+  const key=`${bucket}:${identity}`;
+  let state=splitRateLimits.get(key);
+  if(!state||now-state.startedAt>=rateLimitWindowMs){state={startedAt:now,count:0};splitRateLimits.set(key,state);}
+  state.count+=1;
+  if(state.count<=maximum)return false;
+  reply.header('Retry-After',String(Math.ceil((state.startedAt+rateLimitWindowMs-now)/1000))).code(429).send({statusCode:429,message:'Too many requests. Please try again shortly.'});
+  return true;
 }
 
 async function applySecurity(request: FastifyRequest, reply: FastifyReply): Promise<void> {
@@ -60,6 +84,7 @@ async function applySecurity(request: FastifyRequest, reply: FastifyReply): Prom
 
   if (path !== '/api/health' && request.method !== 'OPTIONS') {
     const now = Date.now();
+    if (enforceSplitRateLimit(request, reply, path, now)) return;
     const ip = clientAddress(request);
     let state = ipRateLimits.get(ip);
 

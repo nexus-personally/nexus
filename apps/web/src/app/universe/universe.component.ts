@@ -168,11 +168,7 @@ interface StarLayer {
         </span>
       </button>
 
-      <a
-        class="maintenance-node node-02"
-        href="/mahjong/"
-        aria-label="Open System 02 Mahjong"
-      >
+      <a class="maintenance-node node-02" href="/mahjong/" aria-label="Open System 02 Mahjong">
         <span class="maintenance-ring" aria-hidden="true"></span>
         <span class="maintenance-core" aria-hidden="true"></span>
         <span class="maintenance-copy">
@@ -182,20 +178,15 @@ interface StarLayer {
         </span>
       </a>
 
-      <button
-        class="maintenance-node node-03"
-        type="button"
-        disabled
-        aria-label="System 03 in development"
-      >
+      <a class="maintenance-node node-03" href="/split" aria-label="Open System 03 NEXUS Split">
         <span class="maintenance-ring" aria-hidden="true"></span>
         <span class="maintenance-core" aria-hidden="true"></span>
         <span class="maintenance-copy">
           <small>SYSTEM 03</small>
-          <strong>Work in progress</strong>
-          <em>Not available yet</em>
+          <strong>NEXUS Split</strong>
+          <em>Enter workspace</em>
         </span>
-      </button>
+      </a>
 
       <button
         class="maintenance-node node-04"
@@ -516,12 +507,29 @@ interface StarLayer {
         text-decoration: none;
       }
 
-      .ready .node-02 { opacity: 1; }
-      .node-02:focus-visible { outline: 1px solid #c999ff; outline-offset: 8px; }
+      .ready .node-02 {
+        opacity: 1;
+      }
+      .node-02:focus-visible {
+        outline: 1px solid #c999ff;
+        outline-offset: 8px;
+      }
 
       .node-03 {
         left: 37%;
         top: 69%;
+        cursor: pointer;
+        color: #9fe8dc;
+        text-decoration: none;
+      }
+
+      .ready .node-03 {
+        opacity: 1;
+      }
+
+      .node-03:focus-visible {
+        outline: 1px solid #79daca;
+        outline-offset: 8px;
       }
 
       .node-04 {
@@ -921,7 +929,11 @@ export class UniverseComponent implements AfterViewInit, OnDestroy {
 
     // Keep the navigation usable when WebGL is unavailable or blocked.
     try {
-      this.renderer = new THREE.WebGLRenderer({ canvas, antialias: !this.prefersAdaptiveQuality(), alpha: false });
+      this.renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: !this.prefersAdaptiveQuality(),
+        alpha: false,
+      });
     } catch {
       this.finishIntro();
       return;

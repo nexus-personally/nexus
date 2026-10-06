@@ -1,0 +1,96 @@
+header span {
+  color: #148180;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+header h1 {
+  margin: 0.65rem 0 0.45rem;
+  font-size: clamp(2rem, 9vw, 2.65rem);
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+header p {
+  margin: 0 0 2rem;
+  color: #627778;
+  line-height: 1.55;
+}
+form {
+  display: grid;
+  gap: 1.15rem;
+}
+label {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+input {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 0.9rem;
+  border: 1px solid #bdcccc;
+  border-radius: 12px;
+  background: #fff;
+  color: #102829;
+  font-size: 16px;
+}
+input:focus {
+  outline: 3px solid #69c9c5;
+  outline-offset: 1px;
+  border-color: #168987;
+}
+.password-field {
+  position: relative;
+  display: block;
+}
+.password-field input {
+  padding-right: 4.5rem;
+}
+.password-field button {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 64px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: #167b79;
+  font-weight: 750;
+}
+label small {
+  color: #708283;
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+.submit {
+  min-height: 52px;
+  margin-top: 0.35rem;
+  border: 0;
+  border-radius: 14px;
+  background: #123f40;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+}
+.submit:disabled {
+  opacity: 0.62;
+}
+.error {
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  background: #fff0ef;
+  color: #8f2620;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.switch {
+  margin: 1.5rem 0 0;
+  color: #647778;
+  text-align: center;
+}
+.switch a {
+  color: #0d7674;
+  font-weight: 800;
+}

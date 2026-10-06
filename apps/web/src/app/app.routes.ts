@@ -17,5 +17,9 @@ export const routes: Routes = [
     path: 'r/:slug',
     loadComponent: () => import('./resume/publication/public-resume.component').then((module) => module.PublicResumeComponent),
   },
+  {
+    path: 'split',
+    loadChildren: () => import('./split/split.routes').then((module) => module.splitRoutes),
+  },
   { path: '**', redirectTo: '' },
 ];

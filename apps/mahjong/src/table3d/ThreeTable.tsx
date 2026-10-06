@@ -8,6 +8,10 @@ import { getWallState, type WallTileState } from '../wallState'
 
 type Props = { game: Game; selectedId: number | null; onSelect: (id: number) => void }
 
+const MOBILE_MAX_PIXEL_RATIO = 1.35
+const DESKTOP_MAX_PIXEL_RATIO = 1.5
+const TARGET_FRAME_INTERVAL = 1000 / 30
+
 class MahjongScene {
   private renderer: THREE.WebGLRenderer
   private scene = new THREE.Scene()
@@ -29,14 +33,17 @@ class MahjongScene {
   private raycaster = new THREE.Raycaster()
   private pointer = new THREE.Vector2()
   private raf = 0
+  private lastFrame = 0
+  private continuousRendering = true
   private resizeObserver: ResizeObserver
   private onSelect: (id: number) => void
   private canSelect = false
 
   constructor(private host: HTMLDivElement, onSelect: (id: number) => void) {
     this.onSelect = onSelect
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' })
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, window.matchMedia('(pointer: coarse)').matches ? 2.5 : 1.75))
+    const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+    this.renderer = new THREE.WebGLRenderer({ antialias: !coarsePointer, alpha: true, powerPreference: coarsePointer ? 'low-power' : 'default' })
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarsePointer ? MOBILE_MAX_PIXEL_RATIO : DESKTOP_MAX_PIXEL_RATIO))
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
     this.renderer.toneMappingExposure = 1.05
@@ -57,7 +64,7 @@ class MahjongScene {
     const key = new THREE.DirectionalLight(0xffe9c5, 2)
     key.position.set(-7, 12, 8)
     key.castShadow = true
-    key.shadow.mapSize.set(2048, 2048)
+    key.shadow.mapSize.set(1024, 1024)
     key.shadow.camera.left = -14; key.shadow.camera.right = 14
     key.shadow.camera.top = 14; key.shadow.camera.bottom = -14
     key.shadow.normalBias = .025
@@ -75,10 +82,11 @@ class MahjongScene {
     this.latestGlow.visible = false
     this.scene.add(this.floor, this.wall, this.dynamic, this.latestGlow)
     this.renderer.domElement.addEventListener('pointerdown', this.pickTile)
+    document.addEventListener('visibilitychange', this.handleVisibility)
     this.resizeObserver = new ResizeObserver(() => this.resize())
     this.resizeObserver.observe(host)
     this.resize()
-    this.loop()
+    if (this.continuousRendering) this.raf = requestAnimationFrame(this.loop)
   }
 
   setOnSelect(onSelect: (id: number) => void) { this.onSelect = onSelect }
@@ -89,17 +97,39 @@ class MahjongScene {
     this.renderer.setSize(width, height, false)
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()
+    this.renderFrame(performance.now())
   }
 
-  private loop = () => {
-    this.raf = requestAnimationFrame(this.loop)
-    const pulse = Math.sin(performance.now() * .004)
+  private renderFrame(now: number) {
+    const pulse = Math.sin(now * .004)
     this.model.pulseGlow(pulse)
     if (this.latestGlow.visible) {
       this.glowLight.intensity = 1.65 + pulse * .3
       this.latestArrow.position.y = 1.12 + pulse * .1
     }
     this.renderer.render(this.scene, this.camera)
+  }
+
+  private loop = (now: number) => {
+    this.raf = 0
+    if (document.hidden) return
+    if (now - this.lastFrame >= TARGET_FRAME_INTERVAL) {
+      this.lastFrame = now
+      this.renderFrame(now)
+    }
+    if (this.continuousRendering) this.raf = requestAnimationFrame(this.loop)
+  }
+
+  private handleVisibility = () => {
+    if (document.hidden) {
+      cancelAnimationFrame(this.raf)
+      this.raf = 0
+      gsap.ticker.sleep()
+      return
+    }
+    gsap.ticker.wake()
+    this.lastFrame = 0
+    if (this.continuousRendering && !this.raf) this.raf = requestAnimationFrame(this.loop)
   }
 
   private pickTile = (event: PointerEvent) => {
@@ -163,6 +193,7 @@ class MahjongScene {
   }
 
   update(game: Game, selectedId: number | null) {
+    this.continuousRendering = game.phase !== 'result' && game.phase !== 'match-result'
     this.slots = getWallState(game)
     const remaining = game.wall.length
     const newlyDrawnSlots = this.slots.filter(slot => slot.drawn && this.previousVisible.has(slot.id))
@@ -273,11 +304,16 @@ class MahjongScene {
         this.dynamic.add(mesh)
       }))
     })
+    if (!document.hidden) {
+      this.renderFrame(performance.now())
+      if (this.continuousRendering && !this.raf) this.raf = requestAnimationFrame(this.loop)
+    }
   }
 
   dispose() {
     cancelAnimationFrame(this.raf)
     this.resizeObserver.disconnect()
+    document.removeEventListener('visibilitychange', this.handleVisibility)
     this.renderer.domElement.removeEventListener('pointerdown', this.pickTile)
     this.renderer.dispose()
     this.renderer.domElement.remove()

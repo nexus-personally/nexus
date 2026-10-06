@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -32,12 +31,12 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
       <div class="split-wrap">
         <header class="split-top">
           <a class="back" [routerLink]="back"><svg lucideArrowLeft></svg></a
-          ><strong>{{ editing ? 'Group Settings' : 'Create Group' }}</strong
+          ><strong>{{ editing ? '群组设置' : '创建群组' }}</strong
           ><span></span>
         </header>
         <form class="form" (ngSubmit)="submit()">
           <label class="field"
-            >Group name<input
+            >群组名称<input
               name="name"
               [(ngModel)]="draft.name"
               maxlength="100"
@@ -47,21 +46,21 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
               <small class="error-text">{{ errors['name'] }}</small>
             }</label
           ><label class="field"
-            >Group type<button type="button" class="field-button" (click)="sheet = 'type'">
+            >群组类型<button type="button" class="field-button" (click)="sheet = 'type'">
               {{ typeLabel }}<svg lucideChevronRight></svg></button></label
           ><label class="field"
-            >Base currency<button type="button" class="field-button" (click)="sheet = 'currency'">
+            >基础货币<button type="button" class="field-button" (click)="sheet = 'currency'">
               {{ draft.baseCurrency }} — {{ currencyLabel
               }}<svg lucideChevronRight></svg></button></label
           ><label class="field"
-            >Start date <small>Optional</small
+            >开始日期 <small>选填</small
             ><input
               name="start"
               type="date"
               [(ngModel)]="draft.startDate"
               (change)="validate()" /></label
           ><label class="field"
-            >End date <small>Optional</small
+            >结束日期 <small>选填</small
             ><input name="end" type="date" [(ngModel)]="draft.endDate" (change)="validate()" />
             @if (errors['endDate']) {
               <small class="error-text">{{ errors['endDate'] }}</small>
@@ -69,8 +68,8 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
           </label>
           @if (editing) {
             <label class="switch"
-              ><input type="checkbox" name="simplify" [(ngModel)]="draft.simplifyDebts" /> Simplify
-              debts</label
+              ><input type="checkbox" name="simplify" [(ngModel)]="draft.simplifyDebts" />
+              简化还款</label
             >
           }
           @if (error) {
@@ -78,7 +77,7 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
           }
           <div class="sticky-action">
             <button class="primary full" [disabled]="busy">
-              {{ busy ? 'Saving…' : editing ? 'Save Changes' : 'Create Group' }}
+              {{ busy ? '保存中…' : editing ? '保存更改' : '创建群组' }}
             </button>
           </div>
         </form>
@@ -86,9 +85,9 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
     </main>
     @if (sheet) {
       <nexus-split-bottom-sheet
-        [label]="sheet === 'type' ? 'Choose group type' : 'Choose currency'"
+        [label]="sheet === 'type' ? '选择群组类型' : '选择货币'"
         (closed)="sheet = null"
-        ><h2>{{ sheet === 'type' ? 'Group type' : 'Base currency' }}</h2>
+        ><h2>{{ sheet === 'type' ? '群组类型' : '基础货币' }}</h2>
         @if (sheet === 'type') {
           @for (item of types; track item[0]) {
             <button class="sheet-option" (click)="chooseType(item[0])">{{ item[1] }}</button>
@@ -157,7 +156,7 @@ export class SplitGroupFormComponent implements OnInit {
           simplifyDebts: g.simplifyDebts,
         };
       } catch {
-        this.error = 'Unable to load group settings.';
+        this.error = '无法加载群组设置。';
       }
   }
   validate() {
@@ -184,11 +183,8 @@ export class SplitGroupFormComponent implements OnInit {
       );
       this.store.invalidate();
       await this.router.navigateByUrl(`/split/groups/${g.id}`);
-    } catch (e) {
-      this.error =
-        e instanceof HttpErrorResponse
-          ? (e.error?.error?.message ?? 'Unable to save group.')
-          : 'Unable to save group.';
+    } catch {
+      this.error = '无法保存群组，请检查填写内容后重试。';
     } finally {
       this.busy = false;
     }

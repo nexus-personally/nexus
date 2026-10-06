@@ -7,7 +7,13 @@ import type {
   SplitInvitePreview,
   SplitMember,
 } from './split.models';
-import type { SplitActivity, SplitBalances, SplitExchangeRateQuote, SplitExpense, SplitSettlement } from './split-expense.models';
+import type {
+  SplitActivity,
+  SplitBalances,
+  SplitExchangeRateQuote,
+  SplitExpense,
+  SplitSettlement,
+} from './split-expense.models';
 @Injectable({ providedIn: 'root' })
 export class SplitApiService {
   private readonly http = inject(HttpClient);
@@ -53,8 +59,11 @@ export class SplitApiService {
       {},
     );
   }
-  expenses(groupId: string, query:Record<string,string>={}) {
-    return this.http.get<{items:SplitExpense[];nextCursor:string|null}>(`${this.base}/groups/${groupId}/expenses`,{params:query});
+  expenses(groupId: string, query: Record<string, string> = {}) {
+    return this.http.get<{ items: SplitExpense[]; nextCursor: string | null }>(
+      `${this.base}/groups/${groupId}/expenses`,
+      { params: query },
+    );
   }
   expense(groupId: string, expenseId: string) {
     return this.http.get<SplitExpense>(`${this.base}/groups/${groupId}/expenses/${expenseId}`);
@@ -71,11 +80,24 @@ export class SplitApiService {
   deleteExpense(groupId: string, expenseId: string) {
     return this.http.delete<SplitExpense>(`${this.base}/groups/${groupId}/expenses/${expenseId}`);
   }
-  exchangeRate(groupId:string,from:string,to:string,date:string){return this.http.get<SplitExchangeRateQuote>(`${this.base}/groups/${groupId}/fx-rate`,{params:{from,to,date}});}
+  exchangeRate(groupId: string, from: string, to: string, date: string) {
+    return this.http.get<SplitExchangeRateQuote>(`${this.base}/groups/${groupId}/fx-rate`, {
+      params: { from, to, date },
+    });
+  }
   balances(groupId: string) {
     return this.http.get<SplitBalances>(`${this.base}/groups/${groupId}/balances`);
   }
-  settlements(groupId: string) { return this.http.get<SplitSettlement[]>(`${this.base}/groups/${groupId}/settlements`); }
-  createSettlement(groupId: string, input: unknown) { return this.http.post<SplitSettlement>(`${this.base}/groups/${groupId}/settlements`, input); }
-  activity(groupId:string,cursor?:string){return this.http.get<{items:SplitActivity[];nextCursor:string|null}>(`${this.base}/groups/${groupId}/activity`,{params:cursor?{cursor}:{}});}
+  settlements(groupId: string) {
+    return this.http.get<SplitSettlement[]>(`${this.base}/groups/${groupId}/settlements`);
+  }
+  createSettlement(groupId: string, input: unknown) {
+    return this.http.post<SplitSettlement>(`${this.base}/groups/${groupId}/settlements`, input);
+  }
+  activity(groupId: string, cursor?: string) {
+    return this.http.get<{ items: SplitActivity[]; nextCursor: string | null }>(
+      `${this.base}/groups/${groupId}/activity`,
+      { params: cursor ? { cursor } : {} },
+    );
+  }
 }

@@ -28,62 +28,60 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
       <div class="split-wrap">
         <header class="split-top">
           <a class="back" [routerLink]="['../']"><svg lucideArrowLeft></svg></a
-          ><strong>{{ group?.name || 'Members' }}</strong>
+          ><strong>{{ group?.name || '成员' }}</strong>
           @if (owner) {
-            <button class="icon-btn" (click)="sheet = 'actions'" aria-label="Add member">
+            <button class="icon-btn" (click)="sheet = 'actions'" aria-label="添加成员">
               <svg lucidePlus></svg>
             </button>
           } @else {
             <span></span>
           }
         </header>
-        <h1>Members</h1>
+        <h1>成员</h1>
         @for (member of members; track member.id) {
           <article class="member-row">
             <span class="avatar">{{ initial(member.displayName) }}</span
             ><span class="member-copy"
               ><strong>{{ member.displayName }}</strong
               ><small class="badge">{{
-                member.role === 'owner' ? 'OWNER' : member.userId ? 'MEMBER' : 'GUEST'
+                member.role === 'owner' ? '群主' : member.userId ? '成员' : '访客'
               }}</small></span
             >
             @if (owner && !member.userId) {
-              <button class="text-btn" (click)="invite(member)">Invite</button>
+              <button class="text-btn" (click)="invite(member)">邀请</button>
             }
           </article>
         }
       </div>
     </main>
     @if (sheet === 'actions') {
-      <nexus-split-bottom-sheet label="Add member" (closed)="sheet = null"
-        ><h2>Add Member</h2>
-        <button class="sheet-option" (click)="sheet = 'guest'">Create Guest</button
-        ><button class="sheet-option" (click)="invite()">Invite Someone</button
-        ><button class="sheet-option" (click)="sheet = null">
-          Cancel
-        </button></nexus-split-bottom-sheet
+      <nexus-split-bottom-sheet label="添加成员" (closed)="sheet = null"
+        ><h2>添加成员</h2>
+        <button class="sheet-option" (click)="sheet = 'guest'">创建访客</button
+        ><button class="sheet-option" (click)="invite()">邀请成员</button
+        ><button class="sheet-option" (click)="sheet = null">取消</button></nexus-split-bottom-sheet
       >
     }
     @if (sheet === 'guest') {
-      <nexus-split-bottom-sheet label="Create guest" (closed)="sheet = null"
-        ><h2>Create Guest</h2>
+      <nexus-split-bottom-sheet label="创建访客" (closed)="sheet = null"
+        ><h2>创建访客</h2>
         <label class="field"
-          >Name<input [(ngModel)]="guestName" name="guest" maxlength="100" /></label
+          >姓名<input [(ngModel)]="guestName" name="guest" maxlength="100" /></label
         ><button
           class="primary full"
           [disabled]="!guestName.trim() || busy"
           (click)="createGuest()"
         >
-          Add Guest
+          添加访客
         </button></nexus-split-bottom-sheet
       >
     }
     @if (sheet === 'invite' && createdInvite) {
-      <nexus-split-bottom-sheet label="Invite link" (closed)="clearInvite()"
-        ><h2>Invite to {{ group?.name }}</h2>
+      <nexus-split-bottom-sheet label="邀请链接" (closed)="clearInvite()"
+        ><h2>邀请加入 {{ group?.name }}</h2>
         <p class="share-link">{{ inviteUrl }}</p>
-        <button class="primary full" (click)="copy()">Copy Link</button
-        ><button class="secondary full" (click)="share()">Share</button></nexus-split-bottom-sheet
+        <button class="primary full" (click)="copy()">复制链接</button
+        ><button class="secondary full" (click)="share()">分享</button></nexus-split-bottom-sheet
       >
     }
     @if (toast) {
@@ -131,7 +129,7 @@ export class SplitMembersComponent implements OnInit {
     this.busy = false;
     this.sheet = null;
     this.guestName = '';
-    this.toast = 'Guest added';
+    this.toast = '访客已添加';
     await this.load();
     setTimeout(() => (this.toast = ''), 1800);
   }
@@ -145,11 +143,11 @@ export class SplitMembersComponent implements OnInit {
   }
   async copy() {
     await navigator.clipboard.writeText(this.inviteUrl);
-    this.toast = 'Link copied';
+    this.toast = '链接已复制';
   }
   async share() {
     if (navigator.share)
-      await navigator.share({ title: `Invite to ${this.group?.name}`, url: this.inviteUrl });
+      await navigator.share({ title: `邀请加入 ${this.group?.name}`, url: this.inviteUrl });
     else await this.copy();
   }
 }

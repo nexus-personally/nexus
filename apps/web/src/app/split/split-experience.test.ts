@@ -14,8 +14,8 @@ test('create group validates required name and date order', () => {
     startDate: '2026-12-17',
     endDate: '2026-12-10',
   });
-  assert.equal(errors['name'], 'Group name is required.');
-  assert.equal(errors['endDate'], 'End date must be on or after start date.');
+  assert.equal(errors['name'], '请输入群组名称。');
+  assert.equal(errors['endDate'], '结束日期必须晚于或等于开始日期。');
 });
 test('members view omits removed history by default', () => {
   const base = {

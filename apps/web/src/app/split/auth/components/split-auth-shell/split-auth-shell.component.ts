@@ -7,11 +7,11 @@ import { RouterLink } from '@angular/router';
   imports: [RouterLink],
   template: `
     <main class="auth-page">
-      <a routerLink="/" class="brand" aria-label="Back to NEXUS">
+      <a routerLink="/" class="brand" aria-label="返回 NEXUS">
         <span>NEXUS</span><strong>SPLIT</strong>
       </a>
       <section class="auth-card"><ng-content /></section>
-      <p class="privacy-note">Your Split account is independent from Resume Builder and Mahjong.</p>
+      <p class="privacy-note">你的 Split 账号独立于简历制作器和麻将系统。</p>
     </main>
   `,
   styles: [
@@ -21,9 +21,11 @@ import { RouterLink } from '@angular/router';
         min-height: 100dvh;
         background-color: #fbf1d8;
         background-image: linear-gradient(#fff9edc9, #fff9edc9), url('/split/crayon-paper.png');
-        background-size: auto, 720px auto;
+        background-size:
+          auto,
+          720px auto;
         color: #40382f;
-        font-family: "Comic Sans MS", "Trebuchet MS", ui-rounded, system-ui, sans-serif;
+        font-family: 'Comic Sans MS', 'Trebuchet MS', ui-rounded, system-ui, sans-serif;
       }
       .auth-page {
         min-height: 100dvh;
@@ -72,7 +74,7 @@ import { RouterLink } from '@angular/router';
           border-radius: 25px 19px 28px 17px;
           background: #fffaf0e8;
           box-shadow: 7px 9px 0 #735f4430;
-          transform: rotate(-.2deg);
+          transform: rotate(-0.2deg);
         }
       }
     `,

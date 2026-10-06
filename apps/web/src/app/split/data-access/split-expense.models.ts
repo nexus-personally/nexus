@@ -71,27 +71,85 @@ export interface SplitBalances {
   simplifyDebtsEnabled: boolean;
 }
 export interface SplitSettlement {
-  id: string; groupId: string; fromMemberId: string; toMemberId: string; amountMinor: number;
-  currency: SplitCurrency; paymentMethod: 'cash'|'duitnow'|'bank_transfer'|'ewallet'|'other';
-  settlementDate: string; note: string|null; createdByUserId: string; createdAt: string;
+  id: string;
+  groupId: string;
+  fromMemberId: string;
+  toMemberId: string;
+  amountMinor: number;
+  currency: SplitCurrency;
+  paymentMethod: 'cash' | 'duitnow' | 'bank_transfer' | 'ewallet' | 'other';
+  settlementDate: string;
+  note: string | null;
+  createdByUserId: string;
+  createdAt: string;
 }
-export interface SplitActivity { id:string;actorUserId:string|null;actionType:string;entityType:string;entityId:string|null;metadata:Record<string,unknown>;createdAt:string; }
-export interface SplitExchangeRateQuote { fromCurrency:SplitCurrency;toCurrency:SplitCurrency;date:string;rate:string;provider:'identity'|'frankfurter'; }
-export function activityText(item:SplitActivity,actorName:string){const name=actorName||'Someone';const description=typeof item.metadata['description']==='string'?item.metadata['description']:'';switch(item.actionType){case'EXPENSE_CREATED':return `${name} added ${description||'an expense'}`;case'EXPENSE_UPDATED':return `${name} edited ${description||'an expense'}`;case'EXPENSE_DELETED':return `${name} deleted ${description||'an expense'}`;case'SETTLEMENT_CREATED':return `${name} recorded a payment`;case'MEMBER_JOINED':return `${name} joined the group`;case'MEMBER_ADDED':return `${name} added a member`;case'MEMBER_REMOVED':return `${name} removed a member`;case'GROUP_CREATED':return `${name} created the group`;case'GROUP_UPDATED':return `${name} updated the group`;case'GROUP_ARCHIVED':return `${name} archived the group`;case'GROUP_REOPENED':return `${name} reopened the group`;case'INVITE_CREATED':return `${name} created an invite`;case'INVITE_REVOKED':return `${name} revoked an invite`;case'INVITE_CLAIMED':return `${name} claimed an invite`;default:return `${name} updated the group`;}}
+export interface SplitActivity {
+  id: string;
+  actorUserId: string | null;
+  actionType: string;
+  entityType: string;
+  entityId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+export interface SplitExchangeRateQuote {
+  fromCurrency: SplitCurrency;
+  toCurrency: SplitCurrency;
+  date: string;
+  rate: string;
+  provider: 'identity' | 'frankfurter';
+}
+export function activityText(item: SplitActivity, actorName: string) {
+  const name = actorName || '某位成员';
+  const description =
+    typeof item.metadata['description'] === 'string' ? item.metadata['description'] : '';
+  switch (item.actionType) {
+    case 'EXPENSE_CREATED':
+      return description ? `${name} 添加了「${description}」` : `${name} 添加了一笔费用`;
+    case 'EXPENSE_UPDATED':
+      return description ? `${name} 编辑了「${description}」` : `${name} 编辑了一笔费用`;
+    case 'EXPENSE_DELETED':
+      return description ? `${name} 删除了「${description}」` : `${name} 删除了一笔费用`;
+    case 'SETTLEMENT_CREATED':
+      return `${name} 记录了一笔付款`;
+    case 'MEMBER_JOINED':
+      return `${name} 加入了群组`;
+    case 'MEMBER_ADDED':
+      return `${name} 添加了一位成员`;
+    case 'MEMBER_REMOVED':
+      return `${name} 移除了一位成员`;
+    case 'GROUP_CREATED':
+      return `${name} 创建了群组`;
+    case 'GROUP_UPDATED':
+      return `${name} 更新了群组`;
+    case 'GROUP_ARCHIVED':
+      return `${name} 归档了群组`;
+    case 'GROUP_REOPENED':
+      return `${name} 重新开启了群组`;
+    case 'INVITE_CREATED':
+      return `${name} 创建了邀请`;
+    case 'INVITE_REVOKED':
+      return `${name} 撤销了邀请`;
+    case 'INVITE_CLAIMED':
+      return `${name} 接受了邀请`;
+    default:
+      return `${name} 更新了群组`;
+  }
+}
 
 export const splitExpenseCategories: Array<[SplitExpenseCategory, string, string]> = [
-  ['food', 'Food', '🍽'],
-  ['transport', 'Transport', '🚕'],
-  ['accommodation', 'Accommodation', '⌂'],
-  ['shopping', 'Shopping', '◫'],
-  ['entertainment', 'Entertainment', '★'],
-  ['travel', 'Travel', '✈'],
-  ['home', 'Home', '⌂'],
-  ['bills', 'Bills', '▤'],
-  ['grocery', 'Grocery', '◉'],
-  ['health', 'Health', '＋'],
-  ['gift', 'Gift', '◇'],
-  ['other', 'Other', '○'],
+  ['food', '餐饮', '🍽'],
+  ['transport', '交通', '🚕'],
+  ['accommodation', '住宿', '⌂'],
+  ['shopping', '购物', '◫'],
+  ['entertainment', '娱乐', '★'],
+  ['travel', '旅行', '✈'],
+  ['home', '家庭', '⌂'],
+  ['bills', '账单', '▤'],
+  ['grocery', '杂货', '◉'],
+  ['health', '医疗健康', '＋'],
+  ['gift', '礼物', '◇'],
+  ['other', '其他', '○'],
 ];
 export const splitExpenseCategory = Object.fromEntries(
   splitExpenseCategories.map(([key, label, icon]) => [key, { label, icon }]),
@@ -109,7 +167,9 @@ const precision: Record<SplitCurrency, number> = {
 
 export function parseExpenseAmount(value: string, currency: SplitCurrency): number | null {
   const digits = precision[currency];
-  const match = value.trim().match(digits ? new RegExp(`^(\\d+)(?:\\.(\\d{1,${digits}}))?$`) : /^(\d+)$/);
+  const match = value
+    .trim()
+    .match(digits ? new RegExp(`^(\\d+)(?:\\.(\\d{1,${digits}}))?$`) : /^(\d+)$/);
   if (!match) return null;
   const major = BigInt(match[1]!);
   const fraction = (match[2] ?? '').padEnd(digits, '0');
@@ -119,22 +179,31 @@ export function parseExpenseAmount(value: string, currency: SplitCurrency): numb
 
 export function formatExpenseAmount(amountMinor: number, currency: SplitCurrency): string {
   const digits = precision[currency];
-  if (!digits) return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(amountMinor);
+  if (!digits)
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(amountMinor);
   return new Intl.NumberFormat(undefined, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   }).format(amountMinor / 10 ** digits);
 }
 
-export function convertExpenseAmount(amountMinor:number,from:SplitCurrency,to:SplitCurrency,rate:string):number|null {
-  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0 || !/^\d+(?:\.\d{1,12})?$/.test(rate)) return null;
-  const [whole,fraction=''] = rate.split('.');
-  const scale=10n**BigInt(fraction.length), numerator=BigInt(whole!)*scale+BigInt(fraction||'0');
-  const fromDigits=precision[from],toDigits=precision[to];
-  const up=10n**BigInt(Math.max(0,toDigits-fromDigits));
-  const divisor=scale*10n**BigInt(Math.max(0,fromDigits-toDigits));
-  const value=(BigInt(amountMinor)*numerator*up+divisor/2n)/divisor;
-  return value<=BigInt(Number.MAX_SAFE_INTEGER)?Number(value):null;
+export function convertExpenseAmount(
+  amountMinor: number,
+  from: SplitCurrency,
+  to: SplitCurrency,
+  rate: string,
+): number | null {
+  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0 || !/^\d+(?:\.\d{1,12})?$/.test(rate))
+    return null;
+  const [whole, fraction = ''] = rate.split('.');
+  const scale = 10n ** BigInt(fraction.length),
+    numerator = BigInt(whole!) * scale + BigInt(fraction || '0');
+  const fromDigits = precision[from],
+    toDigits = precision[to];
+  const up = 10n ** BigInt(Math.max(0, toDigits - fromDigits));
+  const divisor = scale * 10n ** BigInt(Math.max(0, fromDigits - toDigits));
+  const value = (BigInt(amountMinor) * numerator * up + divisor / 2n) / divisor;
+  return value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : null;
 }
 
 function weighted(amount: number, values: Array<[string, number]>) {
@@ -155,48 +224,82 @@ function weighted(amount: number, values: Array<[string, number]>) {
 export function allocationPreview(draft: SplitExpenseDraft): SplitExpenseLine[] {
   const amount = parseExpenseAmount(draft.amount, draft.currency);
   if (!amount || !draft.participantIds.length) return [];
-  if (draft.method === 'equal') return weighted(amount, draft.participantIds.map((id) => [id, 1]));
+  if (draft.method === 'equal')
+    return weighted(
+      amount,
+      draft.participantIds.map((id) => [id, 1]),
+    );
   if (draft.method === 'exact')
     return draft.participantIds.map((memberId) => ({
       memberId,
       amountMinor: parseExpenseAmount(draft.allocations[memberId] ?? '', draft.currency) ?? 0,
     }));
   if (draft.method === 'percentage') {
-    const values = draft.participantIds.map((id) => [id, percentageBasisPoints(draft.allocations[id] ?? '')] as [string, number]);
-    return values.reduce((sum, [, value]) => sum + value, 0) === 10_000 ? weighted(amount, values) : [];
+    const values = draft.participantIds.map(
+      (id) => [id, percentageBasisPoints(draft.allocations[id] ?? '')] as [string, number],
+    );
+    return values.reduce((sum, [, value]) => sum + value, 0) === 10_000
+      ? weighted(amount, values)
+      : [];
   }
-  const values = draft.participantIds.map((id) => [id, positiveInteger(draft.allocations[id] ?? '')] as [string, number]);
+  const values = draft.participantIds.map(
+    (id) => [id, positiveInteger(draft.allocations[id] ?? '')] as [string, number],
+  );
   return values.every(([, value]) => value > 0) ? weighted(amount, values) : [];
 }
 
 export function validateExpenseDraft(draft: SplitExpenseDraft) {
   const errors: Record<string, string> = {};
   const amount = parseExpenseAmount(draft.amount, draft.currency);
-  if (!draft.description.trim()) errors['description'] = 'Description is required.';
-  if (!amount) errors['amount'] = `Enter a valid ${draft.currency} amount.`;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.expenseDate)) errors['expenseDate'] = 'Choose an expense date.';
-  if (!draft.payments.length) errors['payments'] = 'Choose who paid.';
-  else if (amount && draft.payments.reduce((sum, row) => sum + (parseExpenseAmount(row.amount, draft.currency) ?? 0), 0) !== amount)
-    errors['payments'] = `Payments must total ${draft.currency} ${formatExpenseAmount(amount, draft.currency)}.`;
-  if (!draft.participantIds.length) errors['split'] = 'Choose at least one participant.';
+  if (!draft.description.trim()) errors['description'] = '请输入费用名称。';
+  if (!amount) errors['amount'] = `请输入有效的 ${draft.currency} 金额。`;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.expenseDate)) errors['expenseDate'] = '请选择费用日期。';
+  if (!draft.payments.length) errors['payments'] = '请选择付款人。';
+  else if (
+    amount &&
+    draft.payments.reduce(
+      (sum, row) => sum + (parseExpenseAmount(row.amount, draft.currency) ?? 0),
+      0,
+    ) !== amount
+  )
+    errors['payments'] =
+      `付款总额必须为 ${draft.currency} ${formatExpenseAmount(amount, draft.currency)}。`;
+  if (!draft.participantIds.length) errors['split'] = '请至少选择一位分摊成员。';
   const preview = allocationPreview(draft);
-  if (amount && (!preview.length || preview.reduce((sum, row) => sum + row.amountMinor, 0) !== amount))
-    errors['split'] = `Split allocations must total ${draft.currency} ${formatExpenseAmount(amount, draft.currency)}.`;
+  if (
+    amount &&
+    (!preview.length || preview.reduce((sum, row) => sum + row.amountMinor, 0) !== amount)
+  )
+    errors['split'] =
+      `分摊总额必须为 ${draft.currency} ${formatExpenseAmount(amount, draft.currency)}。`;
   if (draft.currency !== draft.baseCurrency && !/^\d+(?:\.\d{1,12})?$/.test(draft.exchangeRate))
-    errors['exchangeRate'] = 'Enter the rate to the Group base currency.';
+    errors['exchangeRate'] = '请输入换算为群组基础货币的汇率。';
   return errors;
 }
 
 export function expensePayload(draft: SplitExpenseDraft) {
   const amountMinor = parseExpenseAmount(draft.amount, draft.currency)!;
   const allocations = allocationPreview(draft);
-  const split = draft.method === 'equal'
-    ? { method: 'equal' as const, participants: draft.participantIds }
-    : draft.method === 'exact'
-      ? { method: 'exact' as const, allocations }
-      : draft.method === 'percentage'
-        ? { method: 'percentage' as const, allocations: draft.participantIds.map((memberId) => ({ memberId, basisPoints: percentageBasisPoints(draft.allocations[memberId] ?? '') })) }
-        : { method: 'shares' as const, allocations: draft.participantIds.map((memberId) => ({ memberId, shares: positiveInteger(draft.allocations[memberId] ?? '') })) };
+  const split =
+    draft.method === 'equal'
+      ? { method: 'equal' as const, participants: draft.participantIds }
+      : draft.method === 'exact'
+        ? { method: 'exact' as const, allocations }
+        : draft.method === 'percentage'
+          ? {
+              method: 'percentage' as const,
+              allocations: draft.participantIds.map((memberId) => ({
+                memberId,
+                basisPoints: percentageBasisPoints(draft.allocations[memberId] ?? ''),
+              })),
+            }
+          : {
+              method: 'shares' as const,
+              allocations: draft.participantIds.map((memberId) => ({
+                memberId,
+                shares: positiveInteger(draft.allocations[memberId] ?? ''),
+              })),
+            };
   return {
     description: draft.description.trim(),
     categoryKey: draft.categoryKey,
@@ -205,7 +308,10 @@ export function expensePayload(draft: SplitExpenseDraft) {
     ...(draft.exchangeRate ? { exchangeRate: draft.exchangeRate } : {}),
     expenseDate: draft.expenseDate,
     note: draft.note.trim() || null,
-    payments: draft.payments.map((row) => ({ memberId: row.memberId, amountMinor: parseExpenseAmount(row.amount, draft.currency)! })),
+    payments: draft.payments.map((row) => ({
+      memberId: row.memberId,
+      amountMinor: parseExpenseAmount(row.amount, draft.currency)!,
+    })),
     split,
   };
 }

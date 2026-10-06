@@ -25,8 +25,22 @@ const draft = (): SplitExpenseDraft => ({
   allocations: {},
 });
 
-test('activity renders readable historical expense language from safe metadata',()=>{
-  assert.equal(activityText({id:'a',actorUserId:'u',actionType:'EXPENSE_DELETED',entityType:'expense',entityId:'e',metadata:{description:'Dinner'},createdAt:''},'Samuel'),'Samuel deleted Dinner');
+test('activity renders readable historical expense language from safe metadata', () => {
+  assert.equal(
+    activityText(
+      {
+        id: 'a',
+        actorUserId: 'u',
+        actionType: 'EXPENSE_DELETED',
+        entityType: 'expense',
+        entityId: 'e',
+        metadata: { description: 'Dinner' },
+        createdAt: '',
+      },
+      'Samuel',
+    ),
+    'Samuel 删除了「Dinner」',
+  );
 });
 
 test('payload preserves frontend intent while backend remains allocation authority', () => {
@@ -64,7 +78,7 @@ test('draft validation independently checks payer and exact allocation totals', 
   value.method = 'exact';
   value.allocations = { john: '3.00', amy: '3.00', samuel: '3.00' };
   assert.equal(validateExpenseDraft(value).payments, undefined);
-  assert.equal(validateExpenseDraft(value).split, 'Split allocations must total MYR 10.00.');
+  assert.equal(validateExpenseDraft(value).split, '分摊总额必须为 MYR 10.00。');
 });
 
 test('percentage and shares previews are deterministic and payer need not participate', () => {

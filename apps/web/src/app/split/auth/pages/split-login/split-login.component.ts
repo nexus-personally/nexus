@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -15,13 +14,13 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
   template: `
     <nexus-split-auth-shell>
       <header>
-        <span>WELCOME BACK</span>
-        <h1>Sign in to Split</h1>
-        <p>Continue to your shared expenses.</p>
+        <span>欢迎回来</span>
+        <h1>登录 Split</h1>
+        <p>继续管理你的共同费用。</p>
       </header>
       <form (ngSubmit)="submit()" novalidate>
         <label
-          >Email<input
+          >电子邮箱<input
             name="email"
             type="email"
             inputmode="email"
@@ -30,7 +29,7 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
             [(ngModel)]="email"
         /></label>
         <label
-          >Password<span class="password-field"
+          >密码<span class="password-field"
             ><input
               name="password"
               [type]="showPassword ? 'text' : 'password'"
@@ -40,20 +39,20 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
             /><button
               type="button"
               (click)="showPassword = !showPassword"
-              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+              [attr.aria-label]="showPassword ? '隐藏密码' : '显示密码'"
             >
-              {{ showPassword ? 'Hide' : 'Show' }}
+              {{ showPassword ? '隐藏' : '显示' }}
             </button></span
           ></label
         >
         @if (error) {
           <p class="error" role="alert">{{ error }}</p>
         }
-        <button class="submit" [disabled]="busy">{{ busy ? 'Signing in…' : 'Sign in' }}</button>
+        <button class="submit" [disabled]="busy">{{ busy ? '登录中…' : '登录' }}</button>
       </form>
       <p class="switch">
-        New to Split?
-        <a routerLink="/split/register" [queryParams]="{ returnUrl }">Create an account</a>
+        第一次使用 Split？
+        <a routerLink="/split/register" [queryParams]="{ returnUrl }">创建账号</a>
       </p>
     </nexus-split-auth-shell>
   `,
@@ -79,11 +78,8 @@ export class SplitLoginComponent {
     try {
       await firstValueFrom(this.auth.login({ email: this.email, password: this.password }));
       await this.router.navigateByUrl(this.returnUrl);
-    } catch (error) {
-      this.error =
-        error instanceof HttpErrorResponse
-          ? (error.error?.error?.message ?? 'Unable to sign in.')
-          : 'Unable to sign in.';
+    } catch {
+      this.error = '邮箱或密码不正确，或账号暂时无法使用。';
     } finally {
       this.busy = false;
     }

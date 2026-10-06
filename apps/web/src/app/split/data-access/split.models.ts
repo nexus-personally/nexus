@@ -48,13 +48,13 @@ export interface SplitGroupInput {
   simplifyDebts?: boolean;
 }
 export const splitTypes: [SplitGroupType, string][] = [
-  ['travel', 'Travel'],
-  ['daily', 'Daily'],
-  ['home', 'Home'],
-  ['couple', 'Couple'],
-  ['food', 'Food'],
-  ['project', 'Project'],
-  ['other', 'Other'],
+  ['travel', '旅行'],
+  ['daily', '日常'],
+  ['home', '家庭'],
+  ['couple', '情侣'],
+  ['food', '聚餐'],
+  ['project', '项目'],
+  ['other', '其他'],
 ];
 export const splitCurrencies: [SplitCurrency, string][] = [
   ['MYR', 'Malaysian Ringgit'],
@@ -76,13 +76,12 @@ export const splitTypeIcon: Record<SplitGroupType, string> = {
 };
 export function validateGroupDraft(input: SplitGroupInput) {
   const errors: Record<string, string> = {};
-  if (!input.name.trim()) errors['name'] = 'Group name is required.';
-  if (!splitTypes.some(([v]) => v === input.type))
-    errors['type'] = 'Choose a supported group type.';
+  if (!input.name.trim()) errors['name'] = '请输入群组名称。';
+  if (!splitTypes.some(([v]) => v === input.type)) errors['type'] = '请选择支持的群组类型。';
   if (!splitCurrencies.some(([v]) => v === input.baseCurrency))
-    errors['baseCurrency'] = 'Choose a supported currency.';
+    errors['baseCurrency'] = '请选择支持的货币。';
   if (input.startDate && input.endDate && input.startDate > input.endDate)
-    errors['endDate'] = 'End date must be on or after start date.';
+    errors['endDate'] = '结束日期必须晚于或等于开始日期。';
   return errors;
 }
 export const activeMembers = (members: SplitMember[]) =>

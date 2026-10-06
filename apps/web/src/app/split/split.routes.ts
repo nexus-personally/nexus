@@ -42,7 +42,8 @@ export const splitRoutes: Routes = [
   {
     path: 'groups/:groupId/settle',
     canActivate: [splitAuthGuard],
-    loadComponent: () => import('./pages/split-settle.component').then((m) => m.SplitSettleComponent),
+    loadComponent: () =>
+      import('./pages/split-settle.component').then((m) => m.SplitSettleComponent),
   },
   {
     path: 'groups/:groupId/expenses/:expenseId/edit',

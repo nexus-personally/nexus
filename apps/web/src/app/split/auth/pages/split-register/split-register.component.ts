@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -15,13 +14,13 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
   template: `
     <nexus-split-auth-shell>
       <header>
-        <span>GET STARTED</span>
-        <h1>Create your Split account</h1>
-        <p>This account belongs only to NEXUS Split.</p>
+        <span>开始使用</span>
+        <h1>创建 Split 账号</h1>
+        <p>此账号仅用于 NEXUS Split。</p>
       </header>
       <form (ngSubmit)="submit()" novalidate>
         <label
-          >Email<input
+          >电子邮箱<input
             name="email"
             type="email"
             inputmode="email"
@@ -30,7 +29,7 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
             [(ngModel)]="email"
         /></label>
         <label
-          >Display name<input
+          >显示名称<input
             name="displayName"
             autocomplete="name"
             required
@@ -38,7 +37,7 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
             [(ngModel)]="displayName"
         /></label>
         <label
-          >Password<span class="password-field"
+          >密码<span class="password-field"
             ><input
               name="password"
               [type]="showPassword ? 'text' : 'password'"
@@ -50,21 +49,21 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
             /><button
               type="button"
               (click)="showPassword = !showPassword"
-              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+              [attr.aria-label]="showPassword ? '隐藏密码' : '显示密码'"
             >
-              {{ showPassword ? 'Hide' : 'Show' }}
+              {{ showPassword ? '隐藏' : '显示' }}
             </button></span
-          ><small>Use at least 5 characters.</small></label
+          ><small>请至少使用 5 个字符。</small></label
         >
         @if (error) {
           <p class="error" role="alert">{{ error }}</p>
         }
         <button class="submit" [disabled]="busy">
-          {{ busy ? 'Creating account…' : 'Create account' }}
+          {{ busy ? '正在创建账号…' : '创建账号' }}
         </button>
       </form>
       <p class="switch">
-        Already registered? <a routerLink="/split/login" [queryParams]="{ returnUrl }">Sign in</a>
+        已经注册？<a routerLink="/split/login" [queryParams]="{ returnUrl }">登录</a>
       </p>
     </nexus-split-auth-shell>
   `,
@@ -97,11 +96,8 @@ export class SplitRegisterComponent {
         }),
       );
       await this.router.navigateByUrl(this.returnUrl);
-    } catch (error) {
-      this.error =
-        error instanceof HttpErrorResponse
-          ? (error.error?.error?.message ?? 'Unable to create the account.')
-          : 'Unable to create the account.';
+    } catch {
+      this.error = '无法创建账号，请检查填写内容后重试。';
     } finally {
       this.busy = false;
     }

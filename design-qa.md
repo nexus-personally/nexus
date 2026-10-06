@@ -1,44 +1,53 @@
-# Reference lobby fidelity QA — 2026-10-03
+# NEXUS Split Expense Editor — Design QA
 
-- Source: C:/Users/User/AppData/Local/Temp/codex-clipboard-bf17a96b-99e2-4b50-a002-eb669e1d0376.png
-- Implementation: apps/mahjong/implementation-lobby-precise.png
-- Full comparison (source above): apps/mahjong/lobby-precise-comparison.png
-- Focused comparison: apps/mahjong/lobby-focused-comparison.png
-- Landscape capture: apps/mahjong/implementation-lobby-mobile.png
-- Both desktop images: 1866 × 843 pixels, matching 1866 × 843 CSS viewport; no density normalization required.
-- State: signed in, player mode, online selected, dialogs closed.
-- QA used localhost:4200 with a separate local test account, leaving the user's existing room untouched.
+## Evidence
 
-## Comparison history
+- Source visual truth: `C:\Users\User\.codex\generated_images\01a10d4c-f8c7-7c50-9249-01f2e03f1ee8\exec-a3c3bbd1-4e85-4b64-a5ac-2755ec93db7f.png`
+- Source pixels: 853 × 1844. The generated concept is a long-density mock; comparison normalized to its intended 390px mobile content width rather than treating its extra vertical canvas as a requirement.
+- Implementation: `https://nexus-2rwr.onrender.com/split/groups/12fb4610-ecf7-4b9c-85c4-e88a54283d67/expenses/new`
+- Implementation screenshot: browser-rendered inline capture from the Codex desktop browser session.
+- CSS viewport: 390 × 844.
+- Implementation capture: 390 × 844 CSS pixels; browser-managed device density.
+- State: authenticated new-expense form, MYR, dining category, payer `hw`, two participants, equal split, optional note collapsed.
 
-1. P1: oversized cards, small labels, green join action, separate connection buttons and outline icons. Replaced with reference coordinates, 52px serif titles, 30px action labels, gold/blue actions and one framed radio group.
-2. P2: first revision's monitor/people shapes differed and connection labels were shifted. Added reference-derived transparent monitor, people and coin images; corrected connection alignment.
-3. P2: inherited mobile avatar minimum width stretched the account pill. Removed that minimum and recaptured at 844 × 390.
-4. Final full-view and focused comparisons inspected after corrections. No remaining P0/P1/P2 findings; residual P3 details below.
+## Full-view comparison
+
+The implementation preserves the selected concept's hierarchy while fitting the complete default workflow into one 390 × 844 viewport: compact header, receipt-style category/name/amount block, one grouped detail surface, 2 × 2 split-method control, collapsed optional note, and persistent save action. The implementation intentionally uses the existing app's paper texture, palette, category artwork, typography, safe-area behavior, and production data bindings.
+
+## Focused-region comparison
+
+- Receipt region: category, description, currency, and amount are aligned as one primary unit. Amount emphasis is retained without dominating the page.
+- Detail region: date, payer, and participants use consistent 56px rows, separators, and Lucide interface icons.
+- Action region: all four split methods remain at least 44px tall; the save button is 50px tall and remains visible at the bottom.
+- Optional-content region: the note begins as a compact row and expands to a real textarea on keyboard activation.
 
 ## Required fidelity surfaces
 
-- Typography: Noto Serif TC 900 for mode/action titles, Noto Sans TC for controls; measured font sizes, line heights and positions.
-- Layout: cards x445/y178, combined width977, height317; connection x574/y520, width719, height84; actions y664, height77. One-screen desktop and landscape.
-- Colors: jade panels, cream text, gold selected glow, gold create and deep blue join action.
-- Assets: reference-derived background, transparent monitor, people and coin; library book, volume and fullscreen glyphs. Interactive UI remains real text/buttons/inputs.
-- Copy: reference labels preserved; account name and balance remain dynamic.
+- Fonts and typography: existing rounded Split typography retained; hierarchy now uses 12–18px supporting text and a 32–44px responsive amount.
+- Spacing and layout rhythm: 18px page gutters, 14px form gaps, compact 56px detail rows, and consistent grouped surfaces match the selected direction.
+- Colors and visual tokens: existing cream paper, forest green, mustard, brick red, and pencil-gray tokens retained.
+- Image quality and assets: existing category artwork and installed Lucide icons are used; no new placeholder art or handcrafted SVG was introduced.
+- Copy and content: current Simplified Chinese labels, `MYR`, payer name, participant count, and existing product behavior are preserved.
 
-## Verification
+## Findings
 
-- TypeScript/Vite production build passed.
-- Browser verified: online/offline mutually exclusive radios, online join input, offline pairing panel, dialog closing, human/AI mode switching, account menu.
-- Final isolated browser preview had no captured console errors.
-- Desktop and 844 × 390 landscape visually checked; portrait retains existing landscape gate.
-- No multiplayer game was started for this visual pass.
+No actionable P0, P1, or P2 visual differences remain. The production implementation is slightly more compact than the generated source vertically; this is intentional because the user requested less oversized, less scattered content and the product target is a 390 × 844 viewport.
 
-## P3 residual differences
+## Interaction and runtime checks
 
-- Reconstructed image textures, edge details and highlights are not pixel-identical.
-- Minor differences remain in book/fullscreen glyph details, account-avatar silhouette, type rasterization and panel glow falloff.
+- Authenticated form loaded with real production data.
+- Optional note expanded by keyboard activation and exposed the textarea.
+- Category control opened the existing bottom sheet.
+- All visible buttons in the 390px state measured at least 44px tall.
+- Page height matched the 844px viewport in the collapsed-note state.
+- Browser console warnings/errors: none.
 
-## Generated asset provenance
+## Comparison history
 
-Built-in imagegen created public/assets/lobby-reference-background.png, lobby-monitor.png, lobby-players.png and lobby-gold-coin.png. Background prompt: remove UI while preserving scene composition, cup, teapot, sign, lighting and perspective. Icon prompts: reproduce only the source monitor, three-person cream-to-gold symbol and upright gold coin on true transparency. Assets are integrated into app.tsx, rooms.tsx and lobby-reference.css.
+- Pass 1: no P0/P1/P2 mismatch found; no corrective iteration required.
+
+## Follow-up polish
+
+- P3: a future pass could add a very small hand-drawn accent beside the `费用详情` heading, but it is not needed for clarity or fidelity.
 
 final result: passed

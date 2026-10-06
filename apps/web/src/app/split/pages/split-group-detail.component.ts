@@ -49,8 +49,10 @@ import {
             <a class="back" routerLink="/split/groups"><svg lucideArrowLeft></svg></a><span></span
             ><button class="icon-btn" (click)="menu = true"><svg lucideEllipsis></svg></button>
           </header>
-          <span class="type-icon">{{ icons[group.type] }}</span>
-          <h1>{{ group.name }}</h1>
+          <div class="group-title">
+            <span class="type-icon">{{ icons[group.type] }}</span>
+            <h1>{{ group.name }}</h1>
+          </div>
           <p class="muted">
             {{ group.baseCurrency }}
             @if (group.startDate) {

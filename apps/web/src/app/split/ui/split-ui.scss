@@ -1151,3 +1151,237 @@
       940px auto;
   }
 }
+
+/* Compact receipt layout for the expense editor. */
+.expense-editor .split-wrap {
+  max-width: 560px;
+}
+.expense-editor .split-top {
+  min-height: 48px;
+  margin-bottom: 8px;
+}
+.expense-editor .expense-form {
+  gap: 14px;
+  padding-bottom: 82px;
+}
+.expense-receipt {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 2px solid #786a57;
+  border-radius: 21px 17px 23px 18px;
+  background: #fffdf6b8;
+  box-shadow: 3px 4px 0 #735f4430;
+}
+.expense-receipt .category-picker {
+  align-self: stretch;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-height: 0;
+  padding: 0 8px 0 0;
+  border: 0;
+  border-right: 2px solid #9b8b744d;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+}
+.expense-receipt .category-picker > span:nth-child(2) {
+  display: grid;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+.expense-receipt .category-picker small {
+  font-size: 10px;
+}
+.expense-receipt .category-picker > svg {
+  display: none;
+}
+.expense-receipt .category-glyph {
+  width: 48px;
+  height: 48px;
+  font-size: 23px;
+}
+.receipt-main {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+.receipt-description {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.receipt-description > span {
+  font-size: 13px;
+  font-weight: 800;
+}
+.receipt-description input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  border-bottom: 2px solid #786a57;
+  padding: 0;
+  background: transparent;
+  color: var(--split-ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  outline: 0;
+}
+.receipt-description input:focus {
+  border-color: var(--split-mustard);
+}
+.expense-receipt .amount-block {
+  border-bottom-width: 3px;
+}
+.expense-receipt .currency-button {
+  min-height: 44px;
+  font-size: 14px;
+}
+.expense-receipt .amount-block input {
+  min-height: 44px;
+  padding: 2px 0 2px 8px;
+  font-size: clamp(32px, 10vw, 44px);
+  line-height: 1;
+}
+.expense-details {
+  display: grid;
+  gap: 7px;
+}
+.expense-details h2,
+.note-section h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.detail-list {
+  overflow: hidden;
+  border: 2px solid #786a57;
+  border-radius: 20px 16px 22px 17px;
+  background: #fffdf6b8;
+  box-shadow: 3px 4px 0 #735f4430;
+}
+.detail-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  border-bottom: 1px solid #9b8b745c;
+  padding: 7px 12px;
+  background: transparent;
+  color: var(--split-ink);
+  font: inherit;
+  text-align: left;
+}
+.detail-row:last-child {
+  border-bottom: 0;
+}
+.detail-row > svg:first-child {
+  width: 22px;
+  height: 22px;
+  color: var(--split-forest);
+}
+.detail-row > svg:last-child {
+  width: 20px;
+  height: 20px;
+}
+.detail-row > span {
+  display: grid;
+  gap: 1px;
+}
+.detail-row small {
+  color: #7b8078;
+  font-size: 12px;
+}
+.detail-row b {
+  font-size: 15px;
+}
+.date-row input {
+  min-height: 40px;
+  max-width: 168px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--split-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  text-align: right;
+}
+.expense-editor .method-picker {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.expense-editor .method-picker legend {
+  margin-bottom: 0;
+  font-size: 18px;
+}
+.expense-editor .method-picker button {
+  min-height: 44px;
+  font-size: 14px;
+}
+.note-section {
+  display: grid;
+  gap: 7px;
+}
+.note-toggle {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  border: 2px solid #786a57;
+  border-radius: 18px 15px 20px 14px;
+  padding: 0 12px;
+  background: #fffdf6b8;
+  color: #6f716c;
+  font: inherit;
+  font-weight: 750;
+  text-align: left;
+  box-shadow: 3px 4px 0 #735f4430;
+}
+.note-toggle svg {
+  width: 21px;
+  height: 21px;
+}
+.note-section .sr-label {
+  gap: 0;
+}
+.note-section textarea {
+  min-height: 76px;
+}
+.expense-editor .sticky-action {
+  padding-top: 8px;
+}
+.expense-editor .sticky-action .primary {
+  min-height: 50px;
+}
+
+@media (max-width: 370px) {
+  .expense-receipt {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 9px;
+  }
+  .expense-receipt .category-glyph {
+    width: 44px;
+    height: 44px;
+  }
+  .date-row input {
+    max-width: 145px;
+    font-size: 14px;
+  }
+}
+
+@media (min-width: 768px) {
+  .expense-editor .expense-form {
+    padding-bottom: 20px;
+  }
+}

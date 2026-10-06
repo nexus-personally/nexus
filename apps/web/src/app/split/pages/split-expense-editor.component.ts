@@ -2,7 +2,16 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideArrowLeft, LucideChevronDown, LucideCheck } from '@lucide/angular';
+import {
+  LucideArrowLeft,
+  LucideCalendarDays,
+  LucideChevronDown,
+  LucideChevronRight,
+  LucideCheck,
+  LucideNotebookPen,
+  LucideUserRound,
+  LucideUsersRound,
+} from '@lucide/angular';
 import { firstValueFrom } from 'rxjs';
 import { SplitAuthService } from '../auth/data-access/split-auth.service';
 import { SplitApiService } from '../data-access/split-api.service';
@@ -37,8 +46,13 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
     FormsModule,
     RouterLink,
     LucideArrowLeft,
+    LucideCalendarDays,
     LucideChevronDown,
+    LucideChevronRight,
     LucideCheck,
+    LucideNotebookPen,
+    LucideUserRound,
+    LucideUsersRound,
     SplitBottomSheetComponent,
   ],
   template: `<main class="split-page expense-editor">
@@ -57,37 +71,40 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
           </section>
         } @else {
           <form class="form expense-form" (ngSubmit)="save()" novalidate>
-            <button type="button" class="category-picker" (click)="sheet = 'category'">
-              <span class="category-glyph">{{ category.icon }}</span
-              ><span
-                ><small>类别</small><b>{{ category.label }}</b></span
-              ><svg lucideChevronDown></svg>
-            </button>
-            <label class="field"
-              >费用名称<input
-                name="description"
-                [(ngModel)]="draft.description"
-                maxlength="200"
-                autocomplete="off"
-                placeholder="这笔费用是什么？"
-              />
-              @if (errors.description) {
-                <span class="error-text">{{ errors.description }}</span>
-              }
-            </label>
-            <div class="amount-block">
-              <button type="button" class="currency-button" (click)="sheet = 'currency'">
-                {{ draft.currency }} <svg lucideChevronDown></svg></button
-              ><label
-                ><span class="sr-only">金额</span
-                ><input
-                  name="amount"
-                  [(ngModel)]="draft.amount"
-                  inputmode="decimal"
-                  placeholder="0{{ draft.currency === 'JPY' ? '' : '.00' }}"
-                  (ngModelChange)="amountChanged()"
-              /></label>
-            </div>
+            <section class="expense-receipt" aria-label="费用基本信息">
+              <button type="button" class="category-picker" (click)="sheet = 'category'">
+                <span class="category-glyph">{{ category.icon }}</span
+                ><span><b>{{ category.label }}</b><small>更改类别</small></span
+                ><svg lucideChevronRight></svg>
+              </button>
+              <div class="receipt-main">
+                <label class="receipt-description"
+                  ><span>费用名称</span
+                  ><input
+                    name="description"
+                    [(ngModel)]="draft.description"
+                    maxlength="200"
+                    autocomplete="off"
+                    placeholder="这笔费用是什么？"
+                /></label>
+                <div class="amount-block">
+                  <button type="button" class="currency-button" (click)="sheet = 'currency'">
+                    {{ draft.currency }} <svg lucideChevronDown></svg></button
+                  ><label
+                    ><span class="sr-only">金额</span
+                    ><input
+                      name="amount"
+                      [(ngModel)]="draft.amount"
+                      inputmode="decimal"
+                      placeholder="0{{ draft.currency === 'JPY' ? '' : '.00' }}"
+                      (ngModelChange)="amountChanged()"
+                  /></label>
+                </div>
+              </div>
+            </section>
+            @if (errors.description) {
+              <span class="error-text">{{ errors.description }}</span>
+            }
             @if (errors.amount) {
               <span class="error-text">{{ errors.amount }}</span>
             }
@@ -126,25 +143,32 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
                 }
               </section>
             }
-            <label class="field"
-              >费用日期<input type="date" name="expenseDate" [(ngModel)]="draft.expenseDate" />
-              @if (errors.expenseDate) {
-                <span class="error-text">{{ errors.expenseDate }}</span>
-              }
-            </label>
-            <button type="button" class="summary-button" (click)="sheet = 'payers'">
-              <span
-                ><small>付款人</small><b>{{ payerSummary }}</b></span
-              ><svg lucideChevronDown></svg>
-            </button>
+            <section class="expense-details" aria-labelledby="expense-details-title">
+              <h2 id="expense-details-title">费用详情</h2>
+              <div class="detail-list">
+                <label class="detail-row date-row"
+                  ><svg lucideCalendarDays></svg
+                  ><span><small>费用日期</small></span
+                  ><input type="date" name="expenseDate" [(ngModel)]="draft.expenseDate"
+                /></label>
+                <button type="button" class="detail-row" (click)="sheet = 'payers'">
+                  <svg lucideUserRound></svg
+                  ><span><small>付款人</small><b>{{ payerSummary }}</b></span
+                  ><svg lucideChevronDown></svg>
+                </button>
+                <button type="button" class="detail-row" (click)="sheet = 'participants'">
+                  <svg lucideUsersRound></svg
+                  ><span><small>分摊成员</small><b>{{ participantSummary }}</b></span
+                  ><svg lucideChevronDown></svg>
+                </button>
+              </div>
+            </section>
+            @if (errors.expenseDate) {
+              <span class="error-text">{{ errors.expenseDate }}</span>
+            }
             @if (errors.payments) {
               <span class="error-text">{{ errors.payments }}</span>
             }
-            <button type="button" class="summary-button" (click)="sheet = 'participants'">
-              <span
-                ><small>分摊成员</small><b>{{ participantSummary }}</b></span
-              ><svg lucideChevronDown></svg>
-            </button>
             @if (errors.split) {
               <span class="error-text">{{ errors.split }}</span>
             }
@@ -199,15 +223,25 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
                 }
               </section>
             }
-            <label class="field"
-              >备注 <small>选填</small
-              ><textarea
-                name="note"
-                [(ngModel)]="draft.note"
-                rows="3"
-                placeholder="添加备注"
-              ></textarea>
-            </label>
+            <section class="note-section">
+              <h2>备注</h2>
+              @if (!noteExpanded && !draft.note) {
+                <button type="button" class="note-toggle" (click)="noteExpanded = true">
+                  <svg lucideNotebookPen></svg><span>添加备注（选填）</span
+                  ><svg lucideChevronRight></svg>
+                </button>
+              } @else {
+                <label class="field sr-label"
+                  ><span class="sr-only">备注（选填）</span
+                  ><textarea
+                    name="note"
+                    [(ngModel)]="draft.note"
+                    rows="2"
+                    placeholder="添加备注（选填）"
+                  ></textarea>
+                </label>
+              }
+            </section>
             @if (saveError) {
               <div class="notice error-text" role="alert">{{ saveError }}</div>
             }
@@ -316,6 +350,7 @@ export class SplitExpenseEditorComponent implements OnInit {
   rateSource: 'manual' | 'suggested' = 'manual';
   errors: Record<string, string> = {};
   sheet: Sheet = null;
+  noteExpanded = false;
   readonly categories = splitExpenseCategories;
   readonly currencies = splitCurrencies;
   readonly methods: Array<{ value: SplitMethod; label: string }> = [

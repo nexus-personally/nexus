@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "ng.cmd serve --host 127.0.0.1 --port 4200",
-    "build": "ng build",
+    "build": "ng build && node scripts/verify-csp-build.mjs",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "test": "node --import tsx --test src/app/split/**/*.test.ts"
   },

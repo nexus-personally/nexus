@@ -94,3 +94,36 @@ label small {
   color: #0d7674;
   font-weight: 800;
 }
+
+/* Crayon storybook auth controls */
+header span { color: #b9553f; }
+header h1 {
+  color: #183b2c;
+  font-family: "Comic Sans MS", "Trebuchet MS", ui-rounded, system-ui, sans-serif;
+  text-shadow: 1px 2px 0 #e4aa2f66;
+}
+header p,
+label small,
+.switch { color: #756858; }
+form { gap: 1.25rem; }
+label { color: #40382f; font-family: "Comic Sans MS", "Trebuchet MS", ui-rounded, system-ui, sans-serif; }
+input {
+  border: 2px solid #6e604f;
+  border-radius: 17px 13px 19px 14px;
+  background: #fffdf6dd;
+  color: #40382f;
+  box-shadow: 3px 4px 0 #735f4438;
+}
+input:focus { outline: 4px solid #e4aa2f70; border-color: #244f3b; }
+.password-field button { color: #b9553f; font-family: inherit; }
+.submit {
+  border: 2px solid #183b2c;
+  border-radius: 17px 14px 19px 13px;
+  background: repeating-linear-gradient(-8deg, #315f47 0 3px, #244f3b 3px 7px);
+  color: #fff9e9;
+  box-shadow: 4px 5px 0 #b88a28;
+  font-family: "Comic Sans MS", "Trebuchet MS", ui-rounded, system-ui, sans-serif;
+}
+.submit:active { transform: translate(2px, 2px) rotate(.3deg); box-shadow: 1px 2px 0 #b88a28; }
+.error { border: 2px dashed #b9553f; background: #f8d3c6; }
+.switch a { color: #244f3b; text-decoration-color: #e4aa2f; text-decoration-thickness: 3px; }

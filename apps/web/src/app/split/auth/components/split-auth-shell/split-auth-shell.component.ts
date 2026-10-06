@@ -19,8 +19,11 @@ import { RouterLink } from '@angular/router';
       :host {
         display: block;
         min-height: 100dvh;
-        background: #f4f7f8;
-        color: #112b2c;
+        background-color: #fbf1d8;
+        background-image: linear-gradient(#fff9edc9, #fff9edc9), url('/split/crayon-paper.png');
+        background-size: auto, 720px auto;
+        color: #40382f;
+        font-family: "Comic Sans MS", "Trebuchet MS", ui-rounded, system-ui, sans-serif;
       }
       .auth-page {
         min-height: 100dvh;
@@ -36,14 +39,17 @@ import { RouterLink } from '@angular/router';
         color: inherit;
         text-decoration: none;
         letter-spacing: 0.12em;
+        transform: rotate(-1deg);
       }
       .brand span {
         font-size: 0.72rem;
         font-weight: 700;
-        color: #5f7374;
+        color: #b9553f;
       }
       .brand strong {
         font-size: 1rem;
+        color: #244f3b;
+        text-shadow: 1px 1px 0 #e4aa2f;
       }
       .auth-card {
         width: 100%;
@@ -54,7 +60,7 @@ import { RouterLink } from '@angular/router';
       .privacy-note {
         max-width: 420px;
         margin: 0 auto;
-        color: #708283;
+        color: #756858;
         font-size: 0.76rem;
         line-height: 1.5;
         text-align: center;
@@ -62,10 +68,11 @@ import { RouterLink } from '@angular/router';
       @media (min-width: 700px) {
         .auth-card {
           padding: 2.25rem;
-          border: 1px solid #dce5e5;
-          border-radius: 24px;
-          background: #fff;
-          box-shadow: 0 24px 60px #16353612;
+          border: 3px solid #6e604f;
+          border-radius: 25px 19px 28px 17px;
+          background: #fffaf0e8;
+          box-shadow: 7px 9px 0 #735f4430;
+          transform: rotate(-.2deg);
         }
       }
     `,

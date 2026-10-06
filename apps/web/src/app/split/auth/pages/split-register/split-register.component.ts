@@ -44,7 +44,7 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
               [type]="showPassword ? 'text' : 'password'"
               autocomplete="new-password"
               required
-              minlength="12"
+              minlength="5"
               maxlength="128"
               [(ngModel)]="password"
             /><button
@@ -54,7 +54,7 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
             >
               {{ showPassword ? 'Hide' : 'Show' }}
             </button></span
-          ><small>Use at least 12 characters.</small></label
+          ><small>Use at least 5 characters.</small></label
         >
         @if (error) {
           <p class="error" role="alert">{{ error }}</p>

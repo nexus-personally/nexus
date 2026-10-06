@@ -30,8 +30,8 @@ export function validateSplitRegister(value: unknown) {
     fields.email = ['Enter a valid email address.'];
   if (displayName.length < 1 || displayName.length > 100)
     fields.displayName = ['Display name must be between 1 and 100 characters.'];
-  if (password.length < 12 || password.length > 128)
-    fields.password = ['Password must be between 12 and 128 characters.'];
+  if (password.length < 5 || password.length > 128)
+    fields.password = ['Password must be between 5 and 128 characters.'];
   if (Object.keys(fields).length) validation(fields);
   return { email, normalizedEmail, displayName, password };
 }

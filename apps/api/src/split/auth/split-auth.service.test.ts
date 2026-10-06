@@ -141,9 +141,19 @@ test('duplicate normalized email is rejected regardless of case', async () => {
 test('weak registration input is rejected', async () => {
   const { service } = harness();
   await assert.rejects(
-    service.register({ email: 'invalid', displayName: '', password: 'short' }),
+    service.register({ email: 'invalid', displayName: '', password: 'tiny' }),
     (error) => errorCode(error) === 'VALIDATION_FAILED',
   );
+});
+
+test('registration accepts a five-character password', async () => {
+  const { service } = harness();
+  const result = await service.register({
+    email: 'five@example.com',
+    displayName: 'Five',
+    password: '12345',
+  });
+  assert.equal(result.user.email, 'five@example.com');
 });
 
 test('login failure is generic for unknown email and wrong password', async () => {

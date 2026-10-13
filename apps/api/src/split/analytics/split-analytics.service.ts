@@ -74,13 +74,14 @@ export class SplitAnalyticsService implements OnModuleDestroy {
              $3::date - interval '2 months', $3::date, interval '1 month'
            )::date month_start
          ), relevant_expenses as (
-           select e.id, e.base_amount_minor, date_trunc('month', e.expense_date)::date month_start
+           select e.id, e.base_amount_minor, e.split_method,
+                  date_trunc('month', e.expense_date)::date month_start
              from split_expenses e
             where e.group_id=$1 and e.deleted_at is null
               and e.expense_date >= ($3::date - interval '2 months')
               and e.expense_date < ($3::date + interval '1 month')
          ), base_lines as (
-           select e.id, e.month_start, e.base_amount_minor, gm.user_id,
+           select e.id, e.month_start, e.base_amount_minor, e.split_method, gm.user_id,
                   floor(es.amount_minor::numeric * e.base_amount_minor::numeric /
                         all_expenses.original_amount_minor::numeric) base_floor,
                   row_number() over (partition by e.id order by es.created_at, es.id) line_number
@@ -91,7 +92,7 @@ export class SplitAnalyticsService implements OnModuleDestroy {
          ), line_totals as (
            select *, sum(base_floor) over (partition by id) floor_total from base_lines
          ), allocated as (
-           select month_start, user_id,
+           select month_start, user_id, split_method,
                   base_floor + case when line_number <= base_amount_minor::numeric - floor_total then 1 else 0 end amount_minor
              from line_totals
          ), totals as (
@@ -99,7 +100,7 @@ export class SplitAnalyticsService implements OnModuleDestroy {
              from relevant_expenses group by month_start
          ), own_shares as (
            select month_start, sum(amount_minor) own_minor
-             from allocated where user_id=$2 group by month_start
+             from allocated where user_id=$2 and split_method <> 'single' group by month_start
          )
          select to_char(m.month_start, 'YYYY-MM') as month_value,
                 coalesce(t.total_minor,0) total_minor, coalesce(o.own_minor,0) own_minor

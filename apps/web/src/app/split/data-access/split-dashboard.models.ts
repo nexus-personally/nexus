@@ -17,6 +17,8 @@ export interface SplitDashboardSummary {
   incomeMinor: number;
   manualExpenseMinor: number;
   groupExpenseMinor: number;
+  /** Group expense shares in each Group's base currency; non-MYR amounts are not FX-converted. */
+  groupExpenseByCurrency: Array<{ currency: string; amountMinor: number }>;
   availableMinor: number;
   spentMinor: number;
   remainingMinor: number;

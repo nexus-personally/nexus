@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { SplitAuthService } from '../auth/data-access/split-auth.service';
 import { SplitApiService } from '../data-access/split-api.service';
+import { SplitGroupsStore } from '../data-access/split-groups.store';
 import {
   inviteReturnUrl,
   splitTypes,
@@ -58,6 +59,7 @@ import {
 })
 export class SplitInviteComponent implements OnInit {
   private api = inject(SplitApiService);
+  private groupsStore = inject(SplitGroupsStore);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   readonly auth = inject(SplitAuthService);
@@ -92,6 +94,7 @@ export class SplitInviteComponent implements OnInit {
     this.busy = true;
     try {
       const result = await firstValueFrom(this.api.claimInvite(this.token));
+      this.groupsStore.invalidate();
       this.joined = true;
       setTimeout(() => void this.router.navigateByUrl(`/split/groups/${result.groupId}`), 800);
     } catch (e) {

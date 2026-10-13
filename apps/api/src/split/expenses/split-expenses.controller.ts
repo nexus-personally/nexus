@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentSplitSession } from '../auth/current-split-user.decorator.js';
 import { SplitAuthGuard } from '../auth/split-auth.guard.js';
 import { SplitCsrfGuard } from '../auth/split-csrf.guard.js';
@@ -13,8 +13,9 @@ export class SplitExpensesController {
     @CurrentSplitSession() s: SplitAuthenticatedSession,
     @Param('groupId') g: string,
     @Body() b: unknown,
+    @Headers('idempotency-key') key?: string,
   ) {
-    return this.expenses.create(s.user, g, b);
+    return this.expenses.create(s.user, g, b, key);
   }
   @Get() list(@CurrentSplitSession() s: SplitAuthenticatedSession, @Param('groupId') g: string, @Query() query:Record<string,string|undefined>) {
     return this.expenses.list(s.user.id, g, query);

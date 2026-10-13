@@ -15,6 +15,10 @@ import type { SplitExpenseQuery, SplitRepository } from './split.repository.js';
 import { splitClaimMembershipPlan } from '../members/split-membership-lifecycle.js';
 import type { SplitExpense, SplitExpenseWrite } from '../expenses/split-expense.types.js';
 import type { SplitSettlement, SplitSettlementWrite } from '../settlements/split-settlement.types.js';
+import { applySettlements, applySettlementsToDebts, calculateBalances, simplifyBalances, toBaseLines } from '../domain/balance.js';
+import type { SplitSettlementBalanceSnapshot } from './split.repository.js';
+import { claimIdempotency, saveIdempotencyResponse } from './split-idempotency.js';
+import type { SplitIdempotencyCommand } from './split-idempotency.js';
 
 interface GroupRow extends QueryResultRow {
   id: string;
@@ -326,6 +330,7 @@ export class PostgresSplitRepository implements SplitRepository, OnModuleDestroy
   }
   async updateGroup(g: SplitGroup, actor: string) {
     return this.tx(async (c) => {
+      await c.query(`select id from split_groups where id=$1 for update`, [g.id]);
       const r = await c.query<GroupRow>(
         `update split_groups set name=$2,type=$3,base_currency=$4,simplify_debts=$5,start_date=$6,end_date=$7,updated_at=$8 where id=$1 returning *`,
         [
@@ -373,7 +378,7 @@ export class PostgresSplitRepository implements SplitRepository, OnModuleDestroy
   }
   async listMembers(groupId: string) {
     const r = await this.pool.query<MemberRow>(
-      `select * from split_group_members where group_id=$1 order by created_at`,
+      `select * from split_group_members where group_id=$1 order by created_at,id`,
       [groupId],
     );
     return r.rows.map(member);
@@ -603,8 +608,11 @@ export class PostgresSplitRepository implements SplitRepository, OnModuleDestroy
     return Boolean(r.rowCount);
   }
 
-  async createExpense(write: SplitExpenseWrite) {
+  async createExpense(write: SplitExpenseWrite, idempotency: SplitIdempotencyCommand) {
     return this.tx(async (c) => {
+      await c.query(`select id from split_groups where id=$1 for update`, [write.expense.groupId]);
+      const replay = await claimIdempotency(c, idempotency);
+      if (replay !== null) return replay as SplitExpense;
       await this.insertExpense(c, write.expense);
       await this.replaceExpenseLines(c, write.expense);
       await activity(
@@ -622,6 +630,7 @@ export class PostgresSplitRepository implements SplitRepository, OnModuleDestroy
           currency: write.expense.originalCurrency,
         },
       );
+      await saveIdempotencyResponse(c, idempotency, write.expense);
       return write.expense;
     });
   }
@@ -662,6 +671,7 @@ export class PostgresSplitRepository implements SplitRepository, OnModuleDestroy
   async updateExpense(write: SplitExpenseWrite) {
     return this.tx(async (c) => {
       const e = write.expense;
+      await c.query(`select id from split_groups where id=$1 for update`, [e.groupId]);
       const updated = await c.query(
         `update split_expenses set description=$3,category_key=$4,split_method=$5,original_amount_minor=$6,original_currency=$7,base_amount_minor=$8,base_currency=$9,exchange_rate=$10,expense_date=$11,note=$12,updated_at=$13 where group_id=$1 and id=$2 and deleted_at is null`,
         [
@@ -711,6 +721,7 @@ export class PostgresSplitRepository implements SplitRepository, OnModuleDestroy
     at: Date,
   ) {
     return this.tx(async (c) => {
+      await c.query(`select id from split_groups where id=$1 for update`, [groupId]);
       const updated = await c.query<ExpenseRow>(
         `update split_expenses set deleted_at=$3,deleted_by_user_id=$4,updated_at=$3 where group_id=$1 and id=$2 and deleted_at is null returning *`,
         [groupId, expenseId, at, actorUserId],
@@ -736,14 +747,52 @@ export class PostgresSplitRepository implements SplitRepository, OnModuleDestroy
     });
   }
 
-  async createSettlement(write: SplitSettlementWrite) {
+  async createSettlement(
+    write: SplitSettlementWrite,
+    idempotency: SplitIdempotencyCommand,
+    validate: (snapshot: SplitSettlementBalanceSnapshot) => void,
+  ) {
     return this.tx(async (c) => {
       const s = write.settlement;
+      const groupResult = await c.query<{ simplify_debts: boolean; base_currency: string }>(
+        `select simplify_debts,base_currency from split_groups where id=$1 for update`,
+        [s.groupId],
+      );
+      const groupRow = groupResult.rows[0];
+      if (!groupRow) throw new Error('group_not_found');
+      const replay = await claimIdempotency(c, idempotency);
+      if (replay !== null) return replay as SplitSettlement;
+      const memberResult = await c.query<{ id: string }>(
+        `select id from split_group_members where group_id=$1 order by created_at,id`,
+        [s.groupId],
+      );
+      const expenseResult = await c.query<ExpenseRow>(
+        `${expenseSelect} where e.group_id=$1 and e.deleted_at is null order by e.created_at,e.id`,
+        [s.groupId],
+      );
+      const settlementResult = await c.query<SettlementRow>(
+        `select * from split_settlements where group_id=$1 order by settlement_date,created_at,id`,
+        [s.groupId],
+      );
+      const members = memberResult.rows.map((row) => row.id);
+      const expenses = expenseResult.rows.map(expense);
+      const settlements = settlementResult.rows.map(settlement);
+      const current = calculateBalances(members, expenses.map((item) => ({
+        payments: toBaseLines(item.payments, item.originalAmountMinor, item.baseAmountMinor),
+        splits: toBaseLines(item.splits, item.originalAmountMinor, item.baseAmountMinor),
+      })));
+      const settled = applySettlements(current.memberBalances, settlements);
+      validate({
+        simplifyDebtsEnabled: groupRow.simplify_debts,
+        directDebts: applySettlementsToDebts(current.directDebts, settlements, settled),
+        simplifiedDebts: simplifyBalances(settled),
+      });
       await c.query(
         `insert into split_settlements (id,group_id,from_group_member_id,to_group_member_id,amount_minor,currency,payment_method,settlement_date,note,created_by_user_id,created_at) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
         [s.id,s.groupId,s.fromMemberId,s.toMemberId,s.amountMinor,s.currency,s.paymentMethod,s.settlementDate,s.note,s.createdByUserId,s.createdAt],
       );
       await activity(c,write.activityId,s.groupId,s.createdByUserId,'SETTLEMENT_CREATED','settlement',s.id,s.createdAt,{ fromMemberId:s.fromMemberId,toMemberId:s.toMemberId,amountMinor:s.amountMinor,currency:s.currency });
+      await saveIdempotencyResponse(c, idempotency, s);
       return s;
     });
   }

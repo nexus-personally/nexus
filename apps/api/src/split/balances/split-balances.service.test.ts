@@ -25,3 +25,29 @@ test('balance API service includes current user, guests and removed historical m
     { fromMemberId: 'amy', toMemberId: 'samuel', amountMinor: 1000 },
   ]);
 });
+
+test('direct debts include settlements so the next payment is bounded by what remains', async () => {
+  const members = [
+    { id: 'samuel', userId: 'user', displayName: 'Samuel', membershipStatus: 'active' },
+    { id: 'john', userId: null, displayName: 'John', membershipStatus: 'active' },
+  ];
+  const expenses = [{
+    originalAmountMinor: 800, baseAmountMinor: 800,
+    payments: [{ memberId: 'samuel', amountMinor: 800 }],
+    splits: [{ memberId: 'john', amountMinor: 800 }],
+  }];
+  const settlements = [{
+    id: 'settlement-1',
+    fromMemberId: 'john',
+    toMemberId: 'samuel',
+    amountMinor: 300,
+    settlementDate: '2026-10-01',
+    createdAt: new Date('2026-10-01T00:00:00Z'),
+  }];
+  const service = new SplitBalancesService(
+    { access: async () => ({ group: { baseCurrency: 'MYR', simplifyDebts: false } }) } as never,
+    { listMembers: async () => members, listExpenses: async () => expenses, listSettlements: async () => settlements } as never,
+  );
+  const result = await service.get('user', 'group');
+  assert.deepEqual(result.directDebts, [{ fromMemberId: 'john', toMemberId: 'samuel', amountMinor: 500 }]);
+});

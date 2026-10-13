@@ -63,6 +63,8 @@ test('amount parsing respects currency precision without binary floating point',
   assert.equal(parseExpenseAmount('500', 'JPY'), 500);
   assert.equal(parseExpenseAmount('500.1', 'JPY'), null);
   assert.equal(parseExpenseAmount('0.001', 'MYR'), null);
+  assert.equal(parseExpenseAmount('90071992547409.91', 'MYR'), Number.MAX_SAFE_INTEGER);
+  assert.equal(parseExpenseAmount('90071992547409.92', 'MYR'), null);
 });
 
 test('equal preview distributes minor-unit remainder in stable participant order', () => {

@@ -17,4 +17,4 @@ export interface SplitAuthResponse {
 export type SplitAuthState =
   | { status: 'restoring'; user: null }
   | { status: 'anonymous'; user: null }
-  | { status: 'authenticated'; user: SplitCurrentUser };
+  | { status: 'authenticated' | 'offline-authenticated'; user: SplitCurrentUser };

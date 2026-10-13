@@ -23,6 +23,7 @@ export const splitRoutes: Routes = [
   },
   {
     path: 'home',
+    data: { preload: true },
     canActivate: [splitAuthGuard],
     loadComponent: () =>
       import('./pages/split-home.component').then((module) => module.SplitHomeComponent),
@@ -35,6 +36,7 @@ export const splitRoutes: Routes = [
   },
   {
     path: 'groups',
+    data: { preload: true },
     canActivate: [splitAuthGuard],
     loadComponent: () =>
       import('./pages/split-groups.component').then((module) => module.SplitGroupsComponent),
@@ -47,6 +49,7 @@ export const splitRoutes: Routes = [
   },
   {
     path: 'groups/:groupId/expenses/new',
+    data: { preload: true },
     canActivate: [splitAuthGuard],
     loadComponent: () =>
       import('./pages/split-expense-editor.component').then((m) => m.SplitExpenseEditorComponent),
@@ -59,6 +62,7 @@ export const splitRoutes: Routes = [
   },
   {
     path: 'groups/:groupId/expenses/:expenseId/edit',
+    data: { preload: true },
     canActivate: [splitAuthGuard],
     loadComponent: () =>
       import('./pages/split-expense-editor.component').then((m) => m.SplitExpenseEditorComponent),

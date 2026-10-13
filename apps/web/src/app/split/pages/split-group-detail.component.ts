@@ -13,6 +13,7 @@ import { firstValueFrom } from 'rxjs';
 import { SplitApiService } from '../data-access/split-api.service';
 import { SplitAuthService } from '../auth/data-access/split-auth.service';
 import { SplitGroupsStore } from '../data-access/split-groups.store';
+import { SplitOfflineCacheService } from '../data-access/split-offline-cache.service';
 import {
   activeMembers,
   splitTypeIcon,
@@ -87,9 +88,12 @@ import {
             </a>
           </div>
           <nav class="tabs three" aria-label="群组内容">
-            <button [class.active]="tab === 'expenses'" (click)="tab = 'expenses'">费用</button
-            ><button [class.active]="tab === 'balances'" (click)="tab = 'balances'">余额</button
-            ><button [class.active]="tab === 'activity'" (click)="tab = 'activity'">动态</button>
+            <button [class.active]="tab === 'expenses'" (click)="selectTab('expenses')">费用</button
+            ><button [class.active]="tab === 'balances'" (click)="selectTab('balances')">
+              余额</button
+            ><button [class.active]="tab === 'activity'" (click)="selectTab('activity')">
+              动态
+            </button>
           </nav>
           @if (tab === 'expenses') {
             <section class="expense-section">
@@ -100,12 +104,19 @@ import {
                     name="expenseSearch"
                     [(ngModel)]="filters.search"
                     placeholder="搜索费用" /></label
-                ><button class="filter-action" type="button" (click)="filtersOpen = true" aria-label="筛选费用">
+                ><button
+                  class="filter-action"
+                  type="button"
+                  (click)="filtersOpen = true"
+                  aria-label="筛选费用"
+                >
                   <svg lucideEllipsis></svg>
                   @if (activeFilterCount) {
                     <span class="filter-count">{{ activeFilterCount }}</span>
                   }</button
-                ><button class="search-submit" type="submit" aria-label="搜索费用"><svg lucideSearch></svg></button>
+                ><button class="search-submit" type="submit" aria-label="搜索费用">
+                  <svg lucideSearch></svg>
+                </button>
               </form>
               @if (expenseLoading) {
                 <div class="skeleton"></div>
@@ -150,6 +161,12 @@ import {
                 }
               }
             </section>
+          }
+          @if (tab === 'balances' && balancesLoading) {
+            <div class="skeleton"></div>
+          }
+          @if (tab === 'balances' && balancesError) {
+            <section class="error">{{ balancesError }}</section>
           }
           @if (tab === 'balances' && balances) {
             <section class="balances-panel">
@@ -217,6 +234,12 @@ import {
           }
           @if (tab === 'activity') {
             <section class="activity-list">
+              @if (activityLoading) {
+                <div class="skeleton"></div>
+              }
+              @if (activityError) {
+                <div class="error">{{ activityError }}</div>
+              }
               @for (item of activities; track item.id) {
                 <article class="activity-row">
                   <span class="activity-dot"></span>
@@ -329,6 +352,7 @@ export class SplitGroupDetailComponent implements OnInit {
   private auth = inject(SplitAuthService);
   private route = inject(ActivatedRoute);
   private store = inject(SplitGroupsStore);
+  private cache = inject(SplitOfflineCacheService);
   group?: SplitGroup;
   members: SplitMember[] = [];
   expenses: SplitExpense[] = [];
@@ -342,6 +366,12 @@ export class SplitGroupDetailComponent implements OnInit {
   balances?: SplitBalances;
   activities: SplitActivity[] = [];
   activityCursor: string | null = null;
+  balancesLoading = false;
+  activityLoading = false;
+  balancesError = '';
+  activityError = '';
+  private balancesLoaded = false;
+  private activityLoaded = false;
   tab: 'expenses' | 'balances' | 'activity' = 'expenses';
   error = '';
   menu = false;
@@ -357,12 +387,33 @@ export class SplitGroupDetailComponent implements OnInit {
   }
   async load() {
     try {
-      const [g, m, expenses, balances, activity] = await Promise.all([
+      const baseUrl = `/api/split/groups/${this.id}`;
+      const [cachedGroup, cachedMembers, cachedExpenses] = await Promise.all([
+        this.cache.get(baseUrl),
+        this.cache.get(`${baseUrl}/members`),
+        this.cache.get(`${baseUrl}/expenses`),
+      ]);
+      if (cachedGroup?.body && cachedMembers?.body && cachedExpenses?.body) {
+        const group = cachedGroup.body as SplitGroup;
+        const members = cachedMembers.body as SplitMember[];
+        const expenses = cachedExpenses.body as {
+          items: SplitExpense[];
+          nextCursor: string | null;
+        };
+        this.group = {
+          ...group,
+          currentUserRole:
+            members.find((x) => x.userId === this.auth.currentUser()?.id)?.role ??
+            group.currentUserRole,
+        };
+        this.members = activeMembers(members);
+        this.expenses = expenses.items;
+        this.expenseCursor = expenses.nextCursor;
+      }
+      const [g, m, expenses] = await Promise.all([
         firstValueFrom(this.api.group(this.id)),
         firstValueFrom(this.api.members(this.id)),
         firstValueFrom(this.api.expenses(this.id)),
-        firstValueFrom(this.api.balances(this.id)),
-        firstValueFrom(this.api.activity(this.id)),
       ]);
       this.group = {
         ...g,
@@ -372,11 +423,37 @@ export class SplitGroupDetailComponent implements OnInit {
       this.members = activeMembers(m);
       this.expenses = expenses.items;
       this.expenseCursor = expenses.nextCursor;
-      this.balances = balances;
-      this.activities = activity.items;
-      this.activityCursor = activity.nextCursor;
     } catch {
-      this.error = '无法加载这个群组。';
+      if (!this.group) this.error = '无法加载这个群组。';
+    }
+  }
+  async selectTab(tab: 'expenses' | 'balances' | 'activity') {
+    this.tab = tab;
+    if (tab === 'balances' && !this.balancesLoaded) {
+      this.balancesLoading = true;
+      this.balancesError = '';
+      try {
+        this.balances = await firstValueFrom(this.api.balances(this.id));
+        this.balancesLoaded = true;
+      } catch {
+        this.balancesError = '无法加载群组余额。';
+      } finally {
+        this.balancesLoading = false;
+      }
+    }
+    if (tab === 'activity' && !this.activityLoaded) {
+      this.activityLoading = true;
+      this.activityError = '';
+      try {
+        const activity = await firstValueFrom(this.api.activity(this.id));
+        this.activities = activity.items;
+        this.activityCursor = activity.nextCursor;
+        this.activityLoaded = true;
+      } catch {
+        this.activityError = '无法加载群组动态。';
+      } finally {
+        this.activityLoading = false;
+      }
     }
   }
   get activeFilterCount() {

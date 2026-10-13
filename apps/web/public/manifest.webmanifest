@@ -1,0 +1,20 @@
+{
+  "id": "/split/home",
+  "name": "NEXUS Split",
+  "short_name": "NEXUS Split",
+  "description": "轻松记录共同费用和每月余额。",
+  "lang": "zh-CN",
+  "start_url": "/split/home",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fbf1d8",
+  "theme_color": "#fbf1d8",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

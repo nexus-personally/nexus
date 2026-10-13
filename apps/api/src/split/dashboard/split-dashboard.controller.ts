@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentSplitSession } from '../auth/current-split-user.decorator.js';
 import { SplitAuthGuard } from '../auth/split-auth.guard.js';
 import { SplitCsrfGuard } from '../auth/split-csrf.guard.js';
@@ -18,8 +18,8 @@ export class SplitDashboardController {
 
   @Post('adjustments')
   @UseGuards(SplitCsrfGuard)
-  create(@CurrentSplitSession() session: SplitAuthenticatedSession, @Body() body: unknown) {
-    return this.dashboard.createAdjustment(session.user.id, body);
+  create(@CurrentSplitSession() session: SplitAuthenticatedSession, @Body() body: unknown, @Headers('idempotency-key') key?: string) {
+    return this.dashboard.createAdjustment(session.user.id, body, key);
   }
 
   @Patch('adjustments/:adjustmentId')

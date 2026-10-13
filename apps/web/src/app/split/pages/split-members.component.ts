@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LucideArrowLeft, LucidePlus } from '@lucide/angular';
 import { firstValueFrom } from 'rxjs';
 import { SplitApiService } from '../data-access/split-api.service';
+import { SplitGroupsStore } from '../data-access/split-groups.store';
 import { SplitAuthService } from '../auth/data-access/split-auth.service';
 import {
   activeMembers,
@@ -91,6 +92,7 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
 })
 export class SplitMembersComponent implements OnInit {
   private api = inject(SplitApiService);
+  private groupsStore = inject(SplitGroupsStore);
   private auth = inject(SplitAuthService);
   private route = inject(ActivatedRoute);
   id = '';
@@ -126,6 +128,7 @@ export class SplitMembersComponent implements OnInit {
   async createGuest() {
     this.busy = true;
     await firstValueFrom(this.api.createGuest(this.id, this.guestName.trim()));
+    this.groupsStore.invalidate();
     this.busy = false;
     this.sheet = null;
     this.guestName = '';

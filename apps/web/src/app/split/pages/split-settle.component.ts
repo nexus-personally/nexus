@@ -70,6 +70,7 @@ import type { SplitMember } from '../data-access/split.models';
   styleUrls: ['../ui/split-ui.scss'],
 })
 export class SplitSettleComponent implements OnInit {
+  private pendingCreate: { body: string; key: string } | null = null;
   private api = inject(SplitApiService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -91,7 +92,7 @@ export class SplitSettleComponent implements OnInit {
   async load() {
     try {
       [this.balances, this.members] = await Promise.all([
-        firstValueFrom(this.api.balances(this.groupId)),
+        firstValueFrom(this.api.balances(this.groupId, true)),
         firstValueFrom(this.api.members(this.groupId)),
       ]);
       const d = (
@@ -141,16 +142,25 @@ export class SplitSettleComponent implements OnInit {
     this.saving = true;
     this.error = '';
     try {
+      const payload = {
+        fromMemberId: this.fromMemberId,
+        toMemberId: this.toMemberId,
+        amountMinor,
+        paymentMethod: this.paymentMethod,
+        settlementDate: this.settlementDate,
+        note: this.note || null,
+      };
+      const requestBody = JSON.stringify(payload);
       await firstValueFrom(
-        this.api.createSettlement(this.groupId, {
-          fromMemberId: this.fromMemberId,
-          toMemberId: this.toMemberId,
-          amountMinor,
-          paymentMethod: this.paymentMethod,
-          settlementDate: this.settlementDate,
-          note: this.note || null,
-        }),
+        this.api.createSettlement(
+          this.groupId,
+          payload,
+          this.pendingCreate?.body === requestBody
+            ? this.pendingCreate.key
+            : (this.pendingCreate = { body: requestBody, key: crypto.randomUUID() }).key,
+        ),
       );
+      this.pendingCreate = null;
       await this.router.navigate(['/split/groups', this.groupId]);
     } catch {
       this.error = '无法记录付款，请检查金额和成员后重试。';

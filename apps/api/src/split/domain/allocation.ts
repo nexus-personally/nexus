@@ -12,17 +12,16 @@ function validateEntries(entries: readonly WeightedEntry[]) {
   )
     throw new Error('SPLIT_ALLOCATION_INVALID');
 }
-function weighted(total: number, entries: readonly WeightedEntry[], denominator: number) {
+function weighted(total: number, entries: readonly WeightedEntry[], denominator: bigint) {
   assertMinorAmount(total);
   validateEntries(entries);
-  if (!Number.isSafeInteger(denominator) || denominator <= 0)
-    throw new Error('SPLIT_ALLOCATION_INVALID');
+  if (denominator <= 0n) throw new Error('SPLIT_ALLOCATION_INVALID');
   const allocations = entries.map(([memberId, weight]) => ({
     memberId,
-    amountMinor: Number((BigInt(total) * BigInt(weight)) / BigInt(denominator)),
+    amountMinor: Number((BigInt(total) * BigInt(weight)) / denominator),
   }));
-  let remainder = total - allocations.reduce((sum, item) => sum + item.amountMinor, 0);
-  for (let index = 0; remainder > 0; index = (index + 1) % allocations.length, remainder--)
+  let remainder = BigInt(total) - allocations.reduce((sum, item) => sum + BigInt(item.amountMinor), 0n);
+  for (let index = 0; remainder > 0n; index = (index + 1) % allocations.length, remainder--)
     allocations[index]!.amountMinor++;
   return allocations;
 }
@@ -30,32 +29,32 @@ export function allocateEqual(total: number, participants: readonly string[]) {
   return weighted(
     total,
     participants.map((id) => [id, 1] as const),
-    participants.length,
+    BigInt(participants.length),
   );
 }
 export function allocateExact(total: number, entries: readonly WeightedEntry[]) {
   assertMinorAmount(total);
   validateEntries(entries);
-  if (entries.reduce((sum, [, amount]) => sum + amount, 0) !== total)
+  if (entries.reduce((sum, [, amount]) => sum + BigInt(amount), 0n) !== BigInt(total))
     throw new Error('SPLIT_ALLOCATION_INVALID');
   return entries.map(([memberId, amountMinor]) => ({ memberId, amountMinor }));
 }
 export function allocatePercentage(total: number, entries: readonly WeightedEntry[]) {
-  if (entries.reduce((sum, [, basisPoints]) => sum + basisPoints, 0) !== 10000)
+  if (entries.reduce((sum, [, basisPoints]) => sum + BigInt(basisPoints), 0n) !== 10000n)
     throw new Error('SPLIT_ALLOCATION_INVALID');
-  return weighted(total, entries, 10000);
+  return weighted(total, entries, 10000n);
 }
 export function allocateShares(total: number, entries: readonly WeightedEntry[]) {
   validateEntries(entries);
   return weighted(
     total,
     entries,
-    entries.reduce((sum, [, shares]) => sum + shares, 0),
+    entries.reduce((sum, [, shares]) => sum + BigInt(shares), 0n),
   );
 }
 export function validatePaymentTotal(total: number, payments: readonly WeightedEntry[]) {
   assertMinorAmount(total);
   validateEntries(payments);
-  if (payments.reduce((sum, [, amount]) => sum + amount, 0) !== total)
+  if (payments.reduce((sum, [, amount]) => sum + BigInt(amount), 0n) !== BigInt(total))
     throw new Error('SPLIT_PAYMENT_TOTAL_INVALID');
 }

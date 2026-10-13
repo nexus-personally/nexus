@@ -74,7 +74,7 @@ test('owner or member creates a transactional Expense aggregate with guest parti
       repo as never,
       runtime,
     );
-    const result = await service.create({ id: role === 'owner' ? 'owner' : 'user' }, 'g1', body);
+    const result = await service.create({ id: role === 'owner' ? 'owner' : 'user' }, 'g1', body, 'expense-create-0001');
     assert.equal(result.description, 'Dinner');
     assert.equal(result.splitMethod, 'equal');
     assert.deepEqual(
@@ -98,7 +98,7 @@ test('payer and participant must be active members of the same Group', async () 
       service.create({ id: 'owner' }, 'g1', {
         ...body,
         payments: [{ memberId: 'foreign', amountMinor: 3000 }],
-      }),
+      }, 'expense-create-0002'),
     ),
     'SPLIT_PAYER_INVALID',
   );
@@ -107,7 +107,7 @@ test('payer and participant must be active members of the same Group', async () 
       service.create({ id: 'owner' }, 'g1', {
         ...body,
         split: { method: 'equal', participants: ['m-owner', 'removed'] },
-      }),
+      }, 'expense-create-0003'),
     ),
     'SPLIT_PARTICIPANT_INVALID',
   );
@@ -127,7 +127,7 @@ test('archived Group rejects Expense mutation', async () => {
     runtime,
   );
   assert.equal(
-    await code(() => service.create({ id: 'owner' }, 'g1', body)),
+    await code(() => service.create({ id: 'owner' }, 'g1', body, 'expense-create-0006')),
     'SPLIT_GROUP_ARCHIVED',
   );
 });
@@ -248,7 +248,7 @@ test('payment and exact allocation totals return stable domain errors', async ()
       service.create({ id: 'owner' }, 'g1', {
         ...body,
         payments: [{ memberId: 'm-owner', amountMinor: 2999 }],
-      }),
+      }, 'expense-create-0004'),
     ),
     'SPLIT_PAYMENT_TOTAL_INVALID',
   );
@@ -257,7 +257,7 @@ test('payment and exact allocation totals return stable domain errors', async ()
       service.create({ id: 'owner' }, 'g1', {
         ...body,
         split: { method: 'exact', allocations: [{ memberId: 'm-owner', amountMinor: 2999 }] },
-      }),
+      }, 'expense-create-0005'),
     ),
     'SPLIT_ALLOCATION_INVALID',
   );

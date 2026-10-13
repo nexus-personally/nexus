@@ -14,6 +14,9 @@ test('currency precision supports JPY zero-decimal and MYR two-decimal money', (
   assert.equal(currencyPrecision('MYR'), 2);
   assert.equal(parseMinorAmount('30.55', 'MYR'), 3055);
   assert.equal(parseMinorAmount('50', 'JPY'), 50);
+  assert.equal(parseMinorAmount('90071992547409.91', 'MYR'), Number.MAX_SAFE_INTEGER);
+  assert.throws(() => parseMinorAmount('90071992547409.92', 'MYR'));
+  assert.throws(() => parseMinorAmount('1', 'toString'), { message: 'SPLIT_CURRENCY_INVALID' });
 });
 test('equal allocation handles RM30 / 3 and a single minor unit', () => {
   assert.deepEqual(
@@ -91,6 +94,15 @@ test('shares allocation accepts positive integers and preserves the total', () =
     [5000, 5000, 10000],
   );
   assert.throws(() => allocateShares(100, [['a', 0]]), /SPLIT_ALLOCATION_INVALID/);
+});
+
+test('shares denominator is summed exactly when individual share weights are very large', () => {
+  const result = allocateShares(Number.MAX_SAFE_INTEGER, [
+    ['a', Number.MAX_SAFE_INTEGER],
+    ['b', Number.MAX_SAFE_INTEGER],
+  ]);
+  assert.deepEqual(result.map((row) => row.amountMinor), [4_503_599_627_370_496, 4_503_599_627_370_495]);
+  assert.equal(result.reduce((sum, row) => sum + BigInt(row.amountMinor), 0n), BigInt(Number.MAX_SAFE_INTEGER));
 });
 test('payer need not participate and multiple payments must independently equal total', () => {
   assert.doesNotThrow(() =>

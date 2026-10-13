@@ -11,6 +11,8 @@ import type {
 } from './split-domain.types.js';
 import type { SplitExpense, SplitExpenseWrite } from '../expenses/split-expense.types.js';
 import type { SplitSettlement, SplitSettlementWrite } from '../settlements/split-settlement.types.js';
+import type { Debt } from '../domain/balance.js';
+import type { SplitIdempotencyCommand } from './split-idempotency.js';
 
 export const SPLIT_REPOSITORY = Symbol('SPLIT_REPOSITORY');
 export interface SplitDomainRuntime {
@@ -22,6 +24,11 @@ export const SPLIT_DOMAIN_RUNTIME = Symbol('SPLIT_DOMAIN_RUNTIME');
 export interface SplitExpenseQuery {
   search?: string; category?: string; payerId?: string; memberId?: string; currency?: string;
   from?: string; to?: string; beforeCreatedAt?: Date; beforeId?: string; limit: number;
+}
+export interface SplitSettlementBalanceSnapshot {
+  simplifyDebtsEnabled: boolean;
+  directDebts: Debt[];
+  simplifiedDebts: Debt[];
 }
 
 export interface SplitRepository {
@@ -68,7 +75,7 @@ export interface SplitRepository {
     now: Date;
   }): Promise<SplitClaimResult>;
   hasActiveExpenses(groupId: string): Promise<boolean>;
-  createExpense(write: SplitExpenseWrite): Promise<SplitExpense>;
+  createExpense(write: SplitExpenseWrite, idempotency: SplitIdempotencyCommand): Promise<SplitExpense>;
   listExpenses(groupId: string): Promise<SplitExpense[]>;
   searchExpenses(groupId: string, query: SplitExpenseQuery): Promise<SplitExpense[]>;
   findExpense(groupId: string, expenseId: string): Promise<SplitExpense | undefined>;
@@ -80,7 +87,11 @@ export interface SplitRepository {
     activityId: string,
     at: Date,
   ): Promise<SplitExpense | undefined>;
-  createSettlement(write: SplitSettlementWrite): Promise<SplitSettlement>;
+  createSettlement(
+    write: SplitSettlementWrite,
+    idempotency: SplitIdempotencyCommand,
+    validate: (snapshot: SplitSettlementBalanceSnapshot) => void,
+  ): Promise<SplitSettlement>;
   listSettlements(groupId: string): Promise<SplitSettlement[]>;
   listActivity(groupId: string, before: Date | null, limit: number): Promise<SplitActivity[]>;
 }

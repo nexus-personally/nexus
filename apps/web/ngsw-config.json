@@ -1,0 +1,30 @@
+{
+  "$schema": "../../node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app-shell",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/index.html", "/*.css", "/manifest.webmanifest", "/favicon.svg"]
+      }
+    },
+    {
+      "name": "application-code",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/*.js"]
+      }
+    },
+    {
+      "name": "split-static-assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/split/**"]
+      }
+    }
+  ]
+}

@@ -13,6 +13,7 @@ import {
   splitInvalid,
   splitNotFound,
 } from '../split-errors.js';
+import { createIdempotencyCommand } from '../persistence/split-idempotency.js';
 import { validateExpenseInput } from './split-expense.validation.js';
 import type {
   SplitExpense,
@@ -27,7 +28,7 @@ export class SplitExpensesService {
     @Inject(SPLIT_REPOSITORY) private readonly repository: SplitRepository,
     @Inject(SPLIT_DOMAIN_RUNTIME) private readonly runtime: SplitDomainRuntime,
   ) {}
-  async create(user: Pick<SplitCurrentUser, 'id'>, groupId: string, body: unknown) {
+  async create(user: Pick<SplitCurrentUser, 'id'>, groupId: string, body: unknown, idempotencyKey: string | undefined) {
     const access = await this.groups.access(user.id, groupId);
     this.groups.requireActive(access);
     const input = validateExpenseInput(body, access.group.baseCurrency);
@@ -63,11 +64,12 @@ export class SplitExpensesService {
         this.share(expenseId, groupId, x.memberId, x.amountMinor, now),
       ),
     };
+    const idempotency = createIdempotencyCommand(user.id, `split.expense.create:${groupId}`, idempotencyKey, body);
     return this.repository.createExpense({
       expense,
       activityId: this.runtime.uuid(),
       actorUserId: user.id,
-    });
+    }, idempotency);
   }
   async list(userId: string, groupId: string, raw:Record<string,string|undefined>={}) {
     await this.groups.access(userId, groupId);

@@ -333,6 +333,7 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
   styleUrls: ['../ui/split-ui.scss'],
 })
 export class SplitExpenseEditorComponent implements OnInit {
+  private pendingCreate: { body: string; key: string } | null = null;
   private readonly api = inject(SplitApiService);
   private readonly auth = inject(SplitAuthService);
   private readonly route = inject(ActivatedRoute);
@@ -437,11 +438,20 @@ export class SplitExpenseEditorComponent implements OnInit {
     if (Object.keys(this.errors).length) return;
     this.saving = true;
     try {
+      const payload = expensePayload(this.draft);
+      const requestBody = JSON.stringify(payload);
       const result = this.expenseId
         ? await firstValueFrom(
-            this.api.updateExpense(this.groupId, this.expenseId, expensePayload(this.draft)),
+            this.api.updateExpense(this.groupId, this.expenseId, payload),
           )
-        : await firstValueFrom(this.api.createExpense(this.groupId, expensePayload(this.draft)));
+        : await firstValueFrom(this.api.createExpense(
+            this.groupId,
+            payload,
+            this.pendingCreate?.body === requestBody
+              ? this.pendingCreate.key
+              : (this.pendingCreate = { body: requestBody, key: crypto.randomUUID() }).key,
+          ));
+      this.pendingCreate = null;
       await this.router.navigate(['/split/groups', this.groupId, 'expenses', result.id]);
     } catch {
       this.saveError = '无法保存费用，请检查填写内容后重试。';

@@ -1,7 +1,7 @@
 export const SPLIT_CURRENCIES = { MYR: 2, USD: 2, SGD: 2, CNY: 2, TWD: 2, JPY: 0, HKD: 2 } as const;
 export type SplitMoneyCurrency = keyof typeof SPLIT_CURRENCIES;
 export function currencyPrecision(currency: string) {
-  if (!(currency in SPLIT_CURRENCIES)) throw new Error('SPLIT_CURRENCY_INVALID');
+  if (!Object.hasOwn(SPLIT_CURRENCIES, currency)) throw new Error('SPLIT_CURRENCY_INVALID');
   return SPLIT_CURRENCIES[currency as SplitMoneyCurrency];
 }
 export function assertMinorAmount(value: unknown, allowZero = false): asserts value is number {
@@ -17,7 +17,8 @@ export function parseMinorAmount(value: string, currency: string) {
   const pattern = precision === 0 ? /^\d+$/ : new RegExp(`^\\d+(?:\\.\\d{1,${precision}})?$`);
   if (!pattern.test(value)) throw new Error('SPLIT_EXPENSE_AMOUNT_INVALID');
   const [whole, fraction = ''] = value.split('.');
-  const result = Number(whole) * 10 ** precision + Number(fraction.padEnd(precision, '0'));
+  const exact = BigInt(whole!) * 10n ** BigInt(precision) + BigInt(fraction.padEnd(precision, '0') || '0');
+  const result = Number(exact);
   assertMinorAmount(result);
   return result;
 }

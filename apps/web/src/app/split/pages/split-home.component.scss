@@ -6,8 +6,8 @@
 .balance-card::after { content:'★'; position:absolute; right:78px; top:24px; color:var(--split-mustard); font-size:22px; transform:rotate(11deg); }
 .balance-card-title { display:flex; align-items:baseline; gap:10px; color:var(--split-pencil); font-weight:800; }
 .balance-card-title small { font-size:13px; }
-.balance-amount { display:block; max-width:100%; margin:12px 0 25px; color:var(--split-forest-dark); line-height:1; letter-spacing:-.065em; text-shadow:2px 2px 0 #e6c66d66; white-space:nowrap; }
-.balance-amount.amount-large { font-size:clamp(48px,14vw,62px); }
+.balance-amount { display:block; width:fit-content; max-width:calc(100% - 24px); margin:12px 24px 25px 0; overflow:visible; color:var(--split-forest-dark); line-height:1; letter-spacing:-.065em; text-shadow:2px 2px 0 #e6c66d66; white-space:nowrap; }
+.balance-amount.amount-large { font-size:clamp(40px,9.7vw,52px); }
 .balance-amount.amount-medium { font-size:clamp(40px,9.7vw,52px); }
 .balance-amount.amount-small { font-size:clamp(33px,9.5vw,43px); }
 .balance-amount.amount-compact { font-size:clamp(27px,7.8vw,35px); }

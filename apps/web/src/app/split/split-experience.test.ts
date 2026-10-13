@@ -60,3 +60,13 @@ test('mobile bottom sheets keep scrollable content above browser chrome and safe
   );
   assert.match(styles, /scroll-padding-bottom:\s*var\(--split-browser-bottom-clearance\)/);
 });
+
+test('dashboard amounts keep a single responsive line with reserved right-side space', () => {
+  const styles = readFileSync(new URL('./pages/split-home.component.scss', import.meta.url), 'utf8');
+  assert.match(styles, /\.balance-amount\s*\{[^}]*max-width:calc\(100%\s*-\s*24px\)/s);
+  assert.match(styles, /\.balance-amount\s*\{[^}]*overflow:visible/s);
+  assert.doesNotMatch(styles, /\.balance-amount\s*\{[^}]*overflow:hidden/s);
+  assert.match(styles, /\.balance-amount\.amount-large\s*\{\s*font-size:clamp\(40px,9\.7vw,52px\)/);
+  assert.match(styles, /\.balance-amount\.amount-medium\s*\{\s*font-size:clamp\(40px,9\.7vw,52px\)/);
+});
+

@@ -136,6 +136,13 @@ import {
                 </div>
               } @else {
                 <div class="expense-list">
+                  @if (expenseVerifying) {
+                    <div class="expense-row expense-row-verifying" aria-label="正在核对最新费用">
+                      <span class="expense-row-skeleton icon"></span>
+                      <span class="expense-row-skeleton copy"></span>
+                      <span class="expense-row-skeleton amount"></span>
+                    </div>
+                  }
                   @for (expense of expenses; track expense.id) {
                     <a class="expense-row" [routerLink]="['expenses', expense.id]"
                       ><span class="expense-icon">{{ category[expense.categoryKey].icon }}</span
@@ -263,7 +270,11 @@ import {
             </section>
           }
           @if (group.status === 'active' && tab === 'expenses') {
-            <a class="expense-fab" [routerLink]="['expenses', 'new']" aria-label="添加费用"
+            <a
+              class="expense-fab"
+              [routerLink]="['expenses', 'new']"
+              [state]="{ previousExpenses: expenses }"
+              aria-label="添加费用"
               ><svg lucidePlus></svg
             ></a>
           }
@@ -351,6 +362,7 @@ export class SplitGroupDetailComponent implements OnInit {
   private api = inject(SplitApiService);
   private auth = inject(SplitAuthService);
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private store = inject(SplitGroupsStore);
   private cache = inject(SplitOfflineCacheService);
   group?: SplitGroup;
@@ -358,6 +370,7 @@ export class SplitGroupDetailComponent implements OnInit {
   expenses: SplitExpense[] = [];
   expenseCursor: string | null = null;
   expenseLoading = false;
+  expenseVerifying = false;
   filtersOpen = false;
   filters: Record<
     'search' | 'category' | 'payerId' | 'memberId' | 'currency' | 'from' | 'to',
@@ -383,9 +396,27 @@ export class SplitGroupDetailComponent implements OnInit {
   private id = '';
   ngOnInit() {
     this.id = this.route.snapshot.paramMap.get('groupId')!;
-    void this.load();
+    const navigationState =
+      this.router.getCurrentNavigation()?.extras.state ??
+      (typeof history === 'undefined' ? undefined : history.state);
+    const state = navigationState as
+      | {
+          createdExpense?: SplitExpense;
+          group?: SplitGroup;
+          members?: SplitMember[];
+          previousExpenses?: SplitExpense[];
+        }
+      | undefined;
+    const optimistic = state?.createdExpense?.groupId === this.id;
+    if (optimistic && state?.group && state.members) {
+      this.group = state.group;
+      this.members = activeMembers(state.members);
+      this.expenses = this.withCreatedExpense(state.previousExpenses ?? [], state.createdExpense!);
+      this.expenseVerifying = true;
+    }
+    void this.load(optimistic);
   }
-  async load() {
+  async load(verifyingCreatedExpense = false) {
     try {
       const baseUrl = `/api/split/groups/${this.id}`;
       const [cachedGroup, cachedMembers, cachedExpenses] = await Promise.all([
@@ -393,7 +424,7 @@ export class SplitGroupDetailComponent implements OnInit {
         this.cache.get(`${baseUrl}/members`),
         this.cache.get(`${baseUrl}/expenses`),
       ]);
-      if (cachedGroup?.body && cachedMembers?.body && cachedExpenses?.body) {
+      if (!verifyingCreatedExpense && cachedGroup?.body && cachedMembers?.body && cachedExpenses?.body) {
         const group = cachedGroup.body as SplitGroup;
         const members = cachedMembers.body as SplitMember[];
         const expenses = cachedExpenses.body as {
@@ -413,7 +444,7 @@ export class SplitGroupDetailComponent implements OnInit {
       const [g, m, expenses] = await Promise.all([
         firstValueFrom(this.api.group(this.id)),
         firstValueFrom(this.api.members(this.id)),
-        firstValueFrom(this.api.expenses(this.id)),
+        firstValueFrom(this.api.expenses(this.id, {}, verifyingCreatedExpense)),
       ]);
       this.group = {
         ...g,
@@ -421,11 +452,19 @@ export class SplitGroupDetailComponent implements OnInit {
           m.find((x) => x.userId === this.auth.currentUser()?.id)?.role ?? g.currentUserRole,
       };
       this.members = activeMembers(m);
-      this.expenses = expenses.items;
+      if (!this.sameExpenses(this.expenses, expenses.items)) this.expenses = expenses.items;
       this.expenseCursor = expenses.nextCursor;
     } catch {
       if (!this.group) this.error = '无法加载这个群组。';
+    } finally {
+      this.expenseVerifying = false;
     }
+  }
+  private withCreatedExpense(expenses: SplitExpense[], created: SplitExpense) {
+    return [created, ...expenses.filter((expense) => expense.id !== created.id)];
+  }
+  private sameExpenses(current: SplitExpense[], refreshed: SplitExpense[]) {
+    return JSON.stringify(current) === JSON.stringify(refreshed);
   }
   async selectTab(tab: 'expenses' | 'balances' | 'activity') {
     this.tab = tab;

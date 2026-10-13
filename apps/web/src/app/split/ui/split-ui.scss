@@ -507,6 +507,28 @@
   font-size: 14px;
   white-space: nowrap;
 }
+.expense-row-verifying {
+  pointer-events: none;
+}
+.expense-row-skeleton {
+  display: block;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(95deg, #e1d5bf 25%, #fffaf0 50%, #e1d5bf 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s infinite;
+}
+.expense-row-skeleton.icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+.expense-row-skeleton.copy {
+  width: min(180px, 75%);
+}
+.expense-row-skeleton.amount {
+  width: 64px;
+}
 .expense-fab {
   position: fixed;
   z-index: 8;

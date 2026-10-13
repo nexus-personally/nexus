@@ -332,6 +332,7 @@ export class SplitExpenseEditorComponent implements OnInit {
   expenseId = '';
   group?: SplitGroup;
   members: SplitMember[] = [];
+  previousExpenses: SplitExpense[] = [];
   loading = true;
   saving = false;
   loadError = '';
@@ -366,6 +367,13 @@ export class SplitExpenseEditorComponent implements OnInit {
   ngOnInit() {
     this.groupId = this.route.snapshot.paramMap.get('groupId')!;
     this.expenseId = this.route.snapshot.paramMap.get('expenseId') ?? '';
+    const navigationState =
+      this.router.getCurrentNavigation()?.extras.state ??
+      (typeof history === 'undefined' ? undefined : history.state);
+    const state = navigationState as
+      | { previousExpenses?: SplitExpense[] }
+      | undefined;
+    this.previousExpenses = state?.previousExpenses ?? [];
     void this.load();
   }
   async load() {
@@ -443,7 +451,18 @@ export class SplitExpenseEditorComponent implements OnInit {
               : (this.pendingCreate = { body: requestBody, key: crypto.randomUUID() }).key,
           ));
       this.pendingCreate = null;
-      await this.router.navigate(['/split/groups', this.groupId, 'expenses', result.id]);
+      if (this.expenseId) {
+        await this.router.navigate(['/split/groups', this.groupId, 'expenses', result.id]);
+      } else {
+        await this.router.navigate(['/split/groups', this.groupId], {
+          state: {
+            createdExpense: result,
+            group: this.group,
+            members: this.members,
+            previousExpenses: this.previousExpenses,
+          },
+        });
+      }
     } catch {
       this.saveError = '无法保存费用，请检查填写内容后重试。';
     } finally {

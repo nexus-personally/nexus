@@ -108,10 +108,13 @@ export class SplitApiService {
       ),
     );
   }
-  expenses(groupId: string, query: Record<string, string> = {}) {
+  expenses(groupId: string, query: Record<string, string> = {}, force = false) {
     return this.http.get<{ items: SplitExpense[]; nextCursor: string | null }>(
       `${this.base}/groups/${groupId}/expenses`,
-      { params: query },
+      {
+        params: query,
+        context: new HttpContext().set(SPLIT_CACHE_REFRESH, force),
+      },
     );
   }
   expense(groupId: string, expenseId: string) {

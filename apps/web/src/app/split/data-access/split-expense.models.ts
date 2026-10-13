@@ -99,6 +99,15 @@ export interface SplitExchangeRateQuote {
   rate: string;
   provider: 'identity' | 'frankfurter';
 }
+export interface SplitGroupAnalytics {
+  currency: SplitCurrency;
+  trend: Array<{ month: string; totalMinor: number; ownMinor: number }>;
+  trendTotalMinor: number;
+  trendOwnMinor: number;
+  categoryFrom: string;
+  categoryTo: string;
+  categories: Array<{ categoryKey: SplitExpenseCategory; amountMinor: number }>;
+}
 export function activityText(item: SplitActivity, actorName: string) {
   const name = actorName || '某位成员';
   const description =
@@ -292,23 +301,23 @@ export function expensePayload(draft: SplitExpenseDraft) {
       ? { method: 'equal' as const, participants: draft.participantIds }
       : draft.method === 'single'
         ? { method: 'single' as const, participants: draft.participantIds }
-      : draft.method === 'exact'
-        ? { method: 'exact' as const, allocations }
-        : draft.method === 'percentage'
-          ? {
-              method: 'percentage' as const,
-              allocations: draft.participantIds.map((memberId) => ({
-                memberId,
-                basisPoints: percentageBasisPoints(draft.allocations[memberId] ?? ''),
-              })),
-            }
-          : {
-              method: 'shares' as const,
-              allocations: draft.participantIds.map((memberId) => ({
-                memberId,
-                shares: positiveInteger(draft.allocations[memberId] ?? ''),
-              })),
-            };
+        : draft.method === 'exact'
+          ? { method: 'exact' as const, allocations }
+          : draft.method === 'percentage'
+            ? {
+                method: 'percentage' as const,
+                allocations: draft.participantIds.map((memberId) => ({
+                  memberId,
+                  basisPoints: percentageBasisPoints(draft.allocations[memberId] ?? ''),
+                })),
+              }
+            : {
+                method: 'shares' as const,
+                allocations: draft.participantIds.map((memberId) => ({
+                  memberId,
+                  shares: positiveInteger(draft.allocations[memberId] ?? ''),
+                })),
+              };
   return {
     description: draft.description.trim(),
     categoryKey: draft.categoryKey,

@@ -164,11 +164,12 @@ export class SplitDashboardService implements OnModuleDestroy {
         error: { code: 'SPLIT_USER_NOT_FOUND', message: 'User not found.' },
       });
     const groupExpenses = await this.pool.query<{
+      category_key: string;
       currency: string;
       amount_minor: string | number;
     }>(
       `with relevant_expenses as (
-         select distinct e.id, e.group_id, e.base_currency, e.base_amount_minor,
+         select distinct e.id, e.group_id, e.category_key, e.base_currency, e.base_amount_minor,
                 e.original_amount_minor
            from split_expense_splits own_split
            join split_expenses e
@@ -180,7 +181,7 @@ export class SplitDashboardService implements OnModuleDestroy {
             and e.expense_date >= $2::date
             and e.expense_date < ($2::date + interval '1 month')
        ), base_lines as (
-         select e.id, e.base_currency, e.base_amount_minor, gm.user_id,
+         select e.id, e.category_key, e.base_currency, e.base_amount_minor, gm.user_id,
                 floor(es.amount_minor::numeric * e.base_amount_minor::numeric / e.original_amount_minor::numeric) base_floor,
                 row_number() over (partition by e.id order by es.created_at, es.id) line_number
            from relevant_expenses e
@@ -190,13 +191,13 @@ export class SplitDashboardService implements OnModuleDestroy {
        ), line_totals as (
          select *, sum(base_floor) over (partition by id) floor_total from base_lines
        ), allocated as (
-         select base_currency, user_id,
+         select category_key, base_currency, user_id,
                 base_floor + case when line_number <= base_amount_minor::numeric - floor_total then 1 else 0 end amount_minor
            from line_totals
        )
-       select base_currency currency, sum(amount_minor) amount_minor
+       select category_key, base_currency currency, sum(amount_minor) amount_minor
          from allocated where user_id=$1
-         group by base_currency order by base_currency`,
+         group by category_key, base_currency order by category_key, base_currency`,
       [userId, start],
     );
     const adjustments = await this.pool.query<AdjustmentRow>(
@@ -211,10 +212,23 @@ export class SplitDashboardService implements OnModuleDestroy {
       values.monthly_budget_minor === null ? null : safeMinor(values.monthly_budget_minor);
     const incomeMinor = safeMinor(values.income_minor);
     const manualExpenseMinor = safeMinor(values.manual_expense_minor);
-    const groupExpenseByCurrency = groupExpenses.rows.map((row) => ({
-      currency: row.currency,
-      amountMinor: safeMinor(row.amount_minor),
-    }));
+    const groupExpenseByCurrency = Array.from(
+      groupExpenses.rows.reduce((totals, row) => {
+        totals.set(
+          row.currency,
+          addMinor(totals.get(row.currency) ?? 0, safeMinor(row.amount_minor)),
+        );
+        return totals;
+      }, new Map<string, number>()),
+      ([currency, amountMinor]) => ({ currency, amountMinor }),
+    ).sort((left, right) => left.currency.localeCompare(right.currency));
+    const monthlyCategoryExpenses = groupExpenses.rows
+      .filter((row) => row.currency === 'MYR')
+      .map((row) => ({
+        categoryKey: row.category_key,
+        amountMinor: safeMinor(row.amount_minor),
+      }))
+      .sort((left, right) => right.amountMinor - left.amountMinor);
     const groupExpenseMinor =
       groupExpenseByCurrency.find((row) => row.currency === 'MYR')?.amountMinor ?? 0;
     const cardDebtMinor = creditCards.rows.reduce(
@@ -231,6 +245,7 @@ export class SplitDashboardService implements OnModuleDestroy {
       manualExpenseMinor,
       groupExpenseMinor,
       groupExpenseByCurrency,
+      monthlyCategoryExpenses,
       cardDebtMinor,
       creditCards: creditCards.rows.map(card),
       availableMinor,

@@ -14,6 +14,7 @@ import type {
   SplitExchangeRateQuote,
   SplitExpense,
   SplitSettlement,
+  SplitGroupAnalytics,
 } from './split-expense.models';
 import type {
   SplitBudgetAdjustment,
@@ -171,6 +172,11 @@ export class SplitApiService {
       { params: cursor ? { cursor } : {} },
     );
   }
+  analytics(groupId: string, month: string, from: string, to: string) {
+    return this.http.get<SplitGroupAnalytics>(`${this.base}/groups/${groupId}/analytics`, {
+      params: { month, from, to },
+    });
+  }
   dashboard(month: string) {
     return this.http.get<SplitDashboardSummary>(`${this.base}/dashboard`, { params: { month } });
   }
@@ -220,6 +226,7 @@ export class SplitApiService {
       `/groups/${groupId}/expenses`,
       `/groups/${groupId}/balances`,
       `/groups/${groupId}/activity`,
+      `/groups/${groupId}/analytics`,
       '/dashboard',
     ];
   }

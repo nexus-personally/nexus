@@ -139,6 +139,35 @@
   gap: 16px;
   margin-bottom: 13px;
 }
+.section-heading,
+.monthly-spending-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.section-heading-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 43px;
+  width: 43px;
+  height: 43px;
+  border: 2px solid var(--split-forest-dark);
+  border-radius: 15px 12px 16px 13px;
+  color: #fffaf0;
+  box-shadow: 3px 3px 0 #735f4438;
+  transform: rotate(-2deg);
+}
+.section-heading-icon.debt {
+  background: var(--split-forest);
+}
+.section-heading-icon.spending {
+  background: var(--split-brick);
+  transform: rotate(2deg);
+}
+.section-heading-icon svg {
+  width: 22px;
+  height: 22px;
+}
 .card-debt-head h2 {
   margin: 0;
   color: var(--split-forest-dark);
@@ -197,6 +226,99 @@
   box-shadow: 5px 6px 0 #d7af51;
   text-align: left;
   transform: rotate(-0.35deg);
+}
+.monthly-spending-section {
+  margin-top: 28px;
+}
+.monthly-spending-head {
+  margin-bottom: 13px;
+}
+.monthly-spending-head h2 {
+  margin: 0;
+  color: var(--split-forest-dark);
+  font-size: 24px;
+}
+.monthly-spending-head p {
+  margin: 3px 0 0;
+  color: var(--split-pencil);
+  font-size: 13px;
+  font-weight: 750;
+}
+.monthly-spending-list {
+  display: grid;
+  gap: 11px;
+}
+.monthly-spending-card,
+.monthly-spending-empty {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  min-height: 92px;
+  padding: 15px 16px;
+  border: 2px solid #a79072;
+  border-radius: 20px 15px 22px 17px;
+  background: #fffaf0;
+  box-shadow: 4px 5px 0 #d8c29a66;
+}
+.monthly-spending-card:nth-child(even) {
+  transform: rotate(0.18deg);
+}
+.category-logo {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 2px solid #315f49;
+  border-radius: 18px 14px 19px 15px;
+  background: #f4d27b;
+  font-size: 24px;
+  box-shadow: 2px 3px 0 #735f4430;
+  transform: rotate(-2deg);
+}
+.monthly-spending-card:nth-child(3n + 2) .category-logo {
+  background: #d9eadc;
+}
+.monthly-spending-card:nth-child(3n) .category-logo {
+  background: #efc6b8;
+}
+.category-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.category-copy strong {
+  overflow: hidden;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.category-copy b {
+  color: var(--split-brick);
+  font-size: 21px;
+  letter-spacing: -0.025em;
+}
+.monthly-chip {
+  align-self: start;
+  padding: 5px 9px;
+  border: 1.5px solid #315f49;
+  border-radius: 999px;
+  background: #e3efdf;
+  color: var(--split-forest-dark);
+  font-size: 11px;
+  font-weight: 900;
+}
+.monthly-spending-empty {
+  grid-template-columns: 52px 1fr;
+  border-style: dashed;
+  box-shadow: none;
+}
+.monthly-spending-empty div {
+  display: grid;
+  gap: 3px;
+}
+.monthly-spending-empty small {
+  color: var(--split-pencil);
 }
 .credit-card::after {
   content: '';

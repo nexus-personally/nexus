@@ -8,6 +8,7 @@ import {
   LucideChevronRight,
   LucidePlus,
   LucideSearch,
+  LucideChartPie,
 } from '@lucide/angular';
 import { firstValueFrom } from 'rxjs';
 import { SplitApiService } from '../data-access/split-api.service';
@@ -30,6 +31,7 @@ import {
   type SplitActivity,
   type SplitBalances,
   type SplitExpense,
+  type SplitGroupAnalytics,
 } from '../data-access/split-expense.models';
 @Component({
   selector: 'nexus-split-group-detail',
@@ -43,6 +45,7 @@ import {
     LucideChevronRight,
     LucidePlus,
     LucideSearch,
+    LucideChartPie,
     SplitBottomSheetComponent,
     SplitDatePipe,
   ],
@@ -87,10 +90,12 @@ import {
               <svg lucideChevronRight></svg>
             </a>
           </div>
-          <nav class="tabs three" aria-label="群组内容">
+          <nav class="tabs five" aria-label="群组内容">
             <button [class.active]="tab === 'expenses'" (click)="selectTab('expenses')">费用</button
             ><button [class.active]="tab === 'balances'" (click)="selectTab('balances')">
               余额</button
+            ><button [class.active]="tab === 'totals'" (click)="selectTab('totals')">总数</button
+            ><button [class.active]="tab === 'charts'" (click)="selectTab('charts')">图表</button
             ><button [class.active]="tab === 'activity'" (click)="selectTab('activity')">
               动态
             </button>
@@ -269,6 +274,144 @@ import {
               }
             </section>
           }
+          @if (tab === 'totals') {
+            <section class="analytics-panel">
+              @if (analyticsLoading) {
+                <div class="skeleton analytics-skeleton"></div>
+              } @else if (analyticsError) {
+                <section class="error">{{ analyticsError }}</section>
+              } @else if (analytics) {
+                <section class="trend-card" aria-labelledby="trend-title">
+                  <header class="analytics-title">
+                    <div>
+                      <span>最近3个月</span>
+                      <h2 id="trend-title">花费趋势</h2>
+                    </div>
+                  </header>
+                  <div class="trend-totals">
+                    <div>
+                      <small><span class="summary-dot total"></span>总花费</small>
+                      <strong
+                        ><em>{{ analytics.currency }}</em>
+                        {{ analyticsMoney(analytics.trendTotalMinor) }}</strong
+                      >
+                    </div>
+                    <div>
+                      <small><span class="summary-dot own"></span>你分摊了</small>
+                      <strong
+                        ><em>{{ analytics.currency }}</em>
+                        {{ analyticsMoney(analytics.trendOwnMinor) }}</strong
+                      >
+                    </div>
+                  </div>
+                  <div class="trend-legend" aria-hidden="true">
+                    <span><i class="legend-line total"></i>总花费</span>
+                    <span><i class="legend-line own"></i>你分摊了</span>
+                  </div>
+                  <div class="line-chart" role="img" aria-label="最近三个月群组花费折线图">
+                    <svg viewBox="0 0 300 112" preserveAspectRatio="none">
+                      <path class="chart-grid-line" d="M18 18 H282 M18 54 H282 M18 90 H282" />
+                      <path class="trend-line total" [attr.d]="linePath('totalMinor')" />
+                      <path class="trend-line own" [attr.d]="linePath('ownMinor')" />
+                      @if (analytics.trend.at(-1); as last) {
+                        <circle
+                          class="trend-point total"
+                          cx="276"
+                          [attr.cy]="lineY(last.totalMinor)"
+                          r="4"
+                        />
+                        <circle
+                          class="trend-point own"
+                          cx="276"
+                          [attr.cy]="lineY(last.ownMinor)"
+                          r="4"
+                        />
+                      }
+                    </svg>
+                    <div class="chart-months">
+                      @for (item of analytics.trend; track item.month) {
+                        <span>{{ shortMonth(item.month) }}</span>
+                      }
+                    </div>
+                  </div>
+                </section>
+              }
+            </section>
+          }
+          @if (tab === 'charts') {
+            <section class="analytics-panel">
+              @if (analyticsLoading) {
+                <div class="skeleton analytics-skeleton"></div>
+              } @else if (analyticsError) {
+                <section class="error">{{ analyticsError }}</section>
+              } @else if (analytics) {
+                <section class="category-chart-card" aria-labelledby="category-chart-title">
+                  <header class="analytics-title">
+                    <div>
+                      <span>按类别查看</span>
+                      <h2 id="category-chart-title">花费分类</h2>
+                    </div>
+                    <span class="analytics-title-icon pie"><svg lucideChartPie></svg></span>
+                  </header>
+                  <form class="month-filter" (ngSubmit)="applyAnalyticsMonths()">
+                    <label
+                      >开始月份<input type="month" name="analyticsFrom" [(ngModel)]="analyticsFrom"
+                    /></label>
+                    <label
+                      >结束月份<input type="month" name="analyticsTo" [(ngModel)]="analyticsTo"
+                    /></label>
+                    <button class="secondary" type="submit" [disabled]="analyticsLoading">
+                      应用
+                    </button>
+                  </form>
+                  @if (analyticsFilterError) {
+                    <p class="analytics-filter-error">{{ analyticsFilterError }}</p>
+                  }
+                  @if (analytics.categories.length) {
+                    <div class="pie-layout">
+                      <div
+                        class="pie-chart"
+                        [style.background]="pieBackground()"
+                        role="img"
+                        aria-label="群组花费分类圆饼图"
+                      >
+                        <span
+                          ><small>总计</small
+                          ><strong
+                            >{{ analytics.currency }}<br />{{
+                              analyticsMoney(categoryTotal)
+                            }}</strong
+                          ></span
+                        >
+                      </div>
+                      <div class="pie-legend">
+                        @for (
+                          item of analytics.categories;
+                          track item.categoryKey;
+                          let index = $index
+                        ) {
+                          <div>
+                            <i [style.background]="chartColor(index)"></i
+                            ><span
+                              ><strong>{{ category[item.categoryKey].label }}</strong
+                              ><small
+                                >{{ analytics.currency }}
+                                {{ analyticsMoney(item.amountMinor) }}</small
+                              ></span
+                            ><b>{{ categoryPercent(item.amountMinor) }}%</b>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="analytics-empty">
+                      <strong>这个月份范围没有费用</strong><small>选择其他月份后再查看。</small>
+                    </div>
+                  }
+                </section>
+              }
+            </section>
+          }
           @if (group.status === 'active' && tab === 'expenses') {
             <a
               class="expense-fab"
@@ -356,7 +499,7 @@ import {
         </div></nexus-split-bottom-sheet
       >
     }`,
-  styleUrls: ['../ui/split-ui.scss'],
+  styleUrls: ['../ui/split-ui.scss', './split-group-detail.component.scss'],
 })
 export class SplitGroupDetailComponent implements OnInit {
   private api = inject(SplitApiService);
@@ -383,9 +526,14 @@ export class SplitGroupDetailComponent implements OnInit {
   activityLoading = false;
   balancesError = '';
   activityError = '';
+  analytics?: SplitGroupAnalytics;
+  analyticsLoading = false;
+  analyticsError = '';
+  analyticsFilterError = '';
   private balancesLoaded = false;
   private activityLoaded = false;
-  tab: 'expenses' | 'balances' | 'activity' = 'expenses';
+  private analyticsLoaded = false;
+  tab: 'expenses' | 'balances' | 'totals' | 'charts' | 'activity' = 'expenses';
   error = '';
   menu = false;
   confirmArchive = false;
@@ -394,6 +542,23 @@ export class SplitGroupDetailComponent implements OnInit {
   readonly expenseCategories = splitExpenseCategories;
   readonly currencies = [['MYR'], ['USD'], ['SGD'], ['CNY'], ['TWD'], ['JPY'], ['HKD']] as const;
   private id = '';
+  private readonly currentMonth = new Date().toISOString().slice(0, 7);
+  analyticsFrom = this.currentMonth;
+  analyticsTo = this.currentMonth;
+  readonly chartColors = [
+    '#b9553f',
+    '#e4aa2f',
+    '#315f49',
+    '#668db2',
+    '#9a6fa8',
+    '#d57e3d',
+    '#5f9b83',
+    '#bc7184',
+    '#7d7250',
+    '#5896a0',
+    '#8b6347',
+    '#756858',
+  ];
   ngOnInit() {
     this.id = this.route.snapshot.paramMap.get('groupId')!;
     const navigationState =
@@ -424,7 +589,12 @@ export class SplitGroupDetailComponent implements OnInit {
         this.cache.get(`${baseUrl}/members`),
         this.cache.get(`${baseUrl}/expenses`),
       ]);
-      if (!verifyingCreatedExpense && cachedGroup?.body && cachedMembers?.body && cachedExpenses?.body) {
+      if (
+        !verifyingCreatedExpense &&
+        cachedGroup?.body &&
+        cachedMembers?.body &&
+        cachedExpenses?.body
+      ) {
         const group = cachedGroup.body as SplitGroup;
         const members = cachedMembers.body as SplitMember[];
         const expenses = cachedExpenses.body as {
@@ -466,7 +636,7 @@ export class SplitGroupDetailComponent implements OnInit {
   private sameExpenses(current: SplitExpense[], refreshed: SplitExpense[]) {
     return JSON.stringify(current) === JSON.stringify(refreshed);
   }
-  async selectTab(tab: 'expenses' | 'balances' | 'activity') {
+  async selectTab(tab: 'expenses' | 'balances' | 'totals' | 'charts' | 'activity') {
     this.tab = tab;
     if (tab === 'balances' && !this.balancesLoaded) {
       this.balancesLoading = true;
@@ -494,6 +664,87 @@ export class SplitGroupDetailComponent implements OnInit {
         this.activityLoading = false;
       }
     }
+    if ((tab === 'totals' || tab === 'charts') && !this.analyticsLoaded) await this.loadAnalytics();
+  }
+  private async loadAnalytics() {
+    this.analyticsLoading = true;
+    this.analyticsError = '';
+    try {
+      this.analytics = await firstValueFrom(
+        this.api.analytics(this.id, this.currentMonth, this.analyticsFrom, this.analyticsTo),
+      );
+      this.analyticsLoaded = true;
+    } catch {
+      this.analyticsError = '无法加载群组统计。';
+    } finally {
+      this.analyticsLoading = false;
+    }
+  }
+  async applyAnalyticsMonths() {
+    this.analyticsFilterError = '';
+    if (
+      !/^\d{4}-(0[1-9]|1[0-2])$/.test(this.analyticsFrom) ||
+      !/^\d{4}-(0[1-9]|1[0-2])$/.test(this.analyticsTo)
+    ) {
+      this.analyticsFilterError = '请选择开始月份和结束月份。';
+      return;
+    }
+    if (this.analyticsFrom > this.analyticsTo) {
+      this.analyticsFilterError = '开始月份不能晚于结束月份。';
+      return;
+    }
+    this.analyticsLoaded = false;
+    await this.loadAnalytics();
+  }
+  analyticsMoney(amountMinor: number) {
+    return formatExpenseAmount(amountMinor, this.group!.baseCurrency);
+  }
+  get categoryTotal() {
+    return this.analytics?.categories.reduce((sum, item) => sum + item.amountMinor, 0) ?? 0;
+  }
+  chartColor(index: number) {
+    return this.chartColors[index % this.chartColors.length]!;
+  }
+  categoryPercent(amountMinor: number) {
+    return this.categoryTotal ? Math.round((amountMinor / this.categoryTotal) * 100) : 0;
+  }
+  pieBackground() {
+    if (!this.analytics?.categories.length || !this.categoryTotal) return '#eadfca';
+    let position = 0;
+    const stops = this.analytics.categories.map((item, index) => {
+      const start = position;
+      position += (item.amountMinor / this.categoryTotal) * 100;
+      return `${this.chartColor(index)} ${start}% ${position}%`;
+    });
+    return `conic-gradient(${stops.join(',')})`;
+  }
+  private get trendMax() {
+    return Math.max(
+      1,
+      ...(this.analytics?.trend.flatMap((item) => [item.totalMinor, item.ownMinor]) ?? [1]),
+    );
+  }
+  lineX(index: number) {
+    return 24 + index * 126;
+  }
+  lineY(amountMinor: number) {
+    return 90 - (amountMinor / this.trendMax) * 72;
+  }
+  linePath(key: 'totalMinor' | 'ownMinor') {
+    const points = (this.analytics?.trend ?? []).map((item, index) => ({
+      x: this.lineX(index),
+      y: this.lineY(item[key]),
+    }));
+    if (!points.length) return '';
+    if (points.length === 1) return `M ${points[0]!.x} ${points[0]!.y}`;
+    return points.slice(1).reduce((path, point, index) => {
+      const previous = points[index]!;
+      const middle = (previous.x + point.x) / 2;
+      return `${path} C ${middle} ${previous.y}, ${middle} ${point.y}, ${point.x} ${point.y}`;
+    }, `M ${points[0]!.x} ${points[0]!.y}`);
+  }
+  shortMonth(month: string) {
+    return `${Number(month.split('-')[1])}月`;
   }
   get activeFilterCount() {
     return Object.entries(this.filters).filter(([key, value]) => key !== 'search' && Boolean(value))

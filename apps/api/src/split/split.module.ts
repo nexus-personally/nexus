@@ -28,9 +28,14 @@ import { SplitSettlementsService } from './settlements/split-settlements.service
 import { SplitActivityController } from './activity/split-activity.controller.js';
 import { SplitActivityService } from './activity/split-activity.service.js';
 import { SplitExchangeRateController } from './fx/split-exchange-rate.controller.js';
-import { FrankfurterSplitExchangeRateProvider, SplitExchangeRateService } from './fx/split-exchange-rate.service.js';
+import {
+  FrankfurterSplitExchangeRateProvider,
+  SplitExchangeRateService,
+} from './fx/split-exchange-rate.service.js';
 import { SplitDashboardController } from './dashboard/split-dashboard.controller.js';
 import { SplitDashboardService } from './dashboard/split-dashboard.service.js';
+import { SplitAnalyticsController } from './analytics/split-analytics.controller.js';
+import { SplitAnalyticsService } from './analytics/split-analytics.service.js';
 
 @Module({
   controllers: [
@@ -44,6 +49,7 @@ import { SplitDashboardService } from './dashboard/split-dashboard.service.js';
     SplitActivityController,
     SplitExchangeRateController,
     SplitDashboardController,
+    SplitAnalyticsController,
   ],
   providers: [
     SplitAuthService,
@@ -60,6 +66,7 @@ import { SplitDashboardService } from './dashboard/split-dashboard.service.js';
     SplitExchangeRateService,
     FrankfurterSplitExchangeRateProvider,
     SplitDashboardService,
+    SplitAnalyticsService,
     { provide: SplitCsrfService, useFactory: () => new SplitCsrfService(splitCsrfSecret()) },
     { provide: SPLIT_AUTH_REPOSITORY, useClass: PostgresSplitAuthRepository },
     { provide: SPLIT_PASSWORD_HASHER, useClass: Argon2SplitPasswordHasher },

@@ -10,6 +10,8 @@ import {
   LucidePlus,
   LucideSettings,
   LucideTrash2,
+  LucideReceiptText,
+  LucideWalletCards,
 } from '@lucide/angular';
 import { SplitAuthService } from '../auth/data-access/split-auth.service';
 import {
@@ -21,7 +23,11 @@ import {
   type SplitDashboardSummary,
 } from '../data-access/split-dashboard.models';
 import { SplitApiService } from '../data-access/split-api.service';
-import { parseExpenseAmount } from '../data-access/split-expense.models';
+import {
+  parseExpenseAmount,
+  splitExpenseCategory,
+  type SplitExpenseCategory,
+} from '../data-access/split-expense.models';
 import { SplitOfflineCacheService } from '../data-access/split-offline-cache.service';
 import { SplitBottomNavComponent } from '../ui/split-bottom-nav.component';
 import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
@@ -59,6 +65,8 @@ const cardProviders = [
     LucideMinus,
     LucidePencil,
     LucideTrash2,
+    LucideReceiptText,
+    LucideWalletCards,
     SplitBottomNavComponent,
     SplitBottomSheetComponent,
     SplitMoneyInputDirective,
@@ -107,9 +115,12 @@ const cardProviders = [
         </section>
         <section class="card-debt-section" aria-labelledby="card-debt-title">
           <header class="card-debt-head">
-            <div>
-              <h2 id="card-debt-title">我的卡债</h2>
-              <p>{{ cards().length ? '共 ' + money(cardDebtTotal()) : '还没有添加卡片' }}</p>
+            <div class="section-heading">
+              <span class="section-heading-icon debt"><svg lucideWalletCards></svg></span>
+              <div>
+                <h2 id="card-debt-title">我的卡债</h2>
+                <p>{{ cards().length ? '共 ' + money(cardDebtTotal()) : '还没有添加卡片' }}</p>
+              </div>
             </div>
             <button class="add-card-button" type="button" (click)="openCardEditor()">
               <svg lucidePlus></svg><span>加卡</span>
@@ -144,6 +155,38 @@ const cardProviders = [
               <strong>添加第一张卡</strong>
               <small>输入卡名和目前欠款，余额会自动扣除。</small>
             </button>
+          }
+        </section>
+        <section class="monthly-spending-section" aria-labelledby="monthly-spending-title">
+          <header class="monthly-spending-head">
+            <span class="section-heading-icon spending"><svg lucideReceiptText></svg></span>
+            <div>
+              <h2 id="monthly-spending-title">我的花费</h2>
+              <p>{{ monthLabel() }} · 总计 {{ money(monthlySpendingTotal()) }}</p>
+            </div>
+          </header>
+          @if (monthlyCategoryExpenses().length) {
+            <div class="monthly-spending-list">
+              @for (item of monthlyCategoryExpenses(); track item.categoryKey; let index = $index) {
+                <article class="monthly-spending-card" [style.--category-index]="index">
+                  <span class="category-logo" aria-hidden="true">{{
+                    categoryInfo(item.categoryKey).icon
+                  }}</span>
+                  <span class="category-copy">
+                    <strong>{{ categoryInfo(item.categoryKey).label }}</strong>
+                    <b>{{ money(item.amountMinor) }}</b>
+                  </span>
+                  <span class="monthly-chip">每月</span>
+                </article>
+              }
+            </div>
+          } @else {
+            <div class="monthly-spending-empty">
+              <span class="category-logo" aria-hidden="true">○</span>
+              <div>
+                <strong>这个月还没有花费</strong><small>群组里的当月费用会显示在这里。</small>
+              </div>
+            </div>
           }
         </section>
       } @else {
@@ -376,6 +419,10 @@ export class SplitHomeComponent implements OnInit, OnDestroy {
   readonly budgetRequired = computed(() => this.auth.currentUser()?.monthlyBudgetMinor == null);
   readonly cards = computed(() => this.summary()?.creditCards ?? []);
   readonly cardDebtTotal = computed(() => this.summary()?.cardDebtMinor ?? 0);
+  readonly monthlyCategoryExpenses = computed(() => this.summary()?.monthlyCategoryExpenses ?? []);
+  readonly monthlySpendingTotal = computed(() =>
+    this.monthlyCategoryExpenses().reduce((total, item) => total + item.amountMinor, 0),
+  );
   readonly providers = cardProviders;
   readonly progress = computed(() => {
     const data = this.summary();
@@ -418,6 +465,11 @@ export class SplitHomeComponent implements OnInit, OnDestroy {
   }
   amountClass(minor: number) {
     return splitAmountSizeClass(minor);
+  }
+  categoryInfo(categoryKey: string) {
+    return (
+      splitExpenseCategory[categoryKey as SplitExpenseCategory] ?? { label: '其他', icon: '○' }
+    );
   }
   async load() {
     const key = `/api/split/dashboard?month=${encodeURIComponent(this.month)}`;
@@ -643,7 +695,7 @@ export class SplitHomeComponent implements OnInit, OnDestroy {
   }
   private parseCardAmount(value: string) {
     const amountText = value.trim();
-    if (!amountText) return null;
+    if (!amountText) return 0;
     return /^0+(?:\.0{1,2})?$/.test(amountText) ? 0 : parseExpenseAmount(amountText, 'MYR');
   }
   private applyCreditCards(cards: SplitCreditCard[]) {

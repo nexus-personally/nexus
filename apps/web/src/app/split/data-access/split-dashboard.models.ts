@@ -19,12 +19,18 @@ export interface SplitDashboardSummary {
   groupExpenseMinor: number;
   /** Group expense shares in each Group's base currency; non-MYR amounts are not FX-converted. */
   groupExpenseByCurrency: Array<{ currency: string; amountMinor: number }>;
+  monthlyCategoryExpenses: SplitMonthlyCategoryExpense[];
   cardDebtMinor: number;
   creditCards: SplitCreditCard[];
   availableMinor: number;
   spentMinor: number;
   remainingMinor: number;
   adjustments: SplitBudgetAdjustment[];
+}
+
+export interface SplitMonthlyCategoryExpense {
+  categoryKey: string;
+  amountMinor: number;
 }
 
 export interface SplitBudgetAdjustmentInput {

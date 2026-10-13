@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">NEXUS Split</title>
+  <rect width="512" height="512" fill="#244f3b"/>
+  <path d="M157 111h198a20 20 0 0 1 20 20v232l-30-19-30 19-29-19-30 19-30-19-29 19-30-19-30 19V131a20 20 0 0 1 20-20z" fill="#fffaf0" stroke="#40382f" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M199 168h114M199 207h83" fill="none" stroke="#e4aa2f" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="214" cy="265" r="11" fill="#40382f"/>
+  <circle cx="298" cy="265" r="11" fill="#40382f"/>
+  <circle cx="187" cy="291" r="15" fill="#f4a9a0" opacity=".85"/>
+  <circle cx="325" cy="291" r="15" fill="#f4a9a0" opacity=".85"/>
+  <path d="M225 297q31 35 62 0" fill="none" stroke="#40382f" stroke-width="13" stroke-linecap="round"/>
+  <circle cx="347" cy="145" r="33" fill="#e4aa2f" stroke="#40382f" stroke-width="11"/>
+  <path d="M332 145h30M347 130v30" stroke="#fffaf0" stroke-width="9" stroke-linecap="round"/>
+</svg>

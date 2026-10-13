@@ -7,7 +7,16 @@
       "installMode": "prefetch",
       "updateMode": "prefetch",
       "resources": {
-        "files": ["/index.html", "/*.css", "/manifest.webmanifest", "/favicon.svg"]
+        "files": [
+          "/index.html",
+          "/*.css",
+          "/manifest.webmanifest",
+          "/favicon.svg",
+          "/split/icon-192.png",
+          "/split/icon-512.png",
+          "/split/icon-maskable-512.png",
+          "/split/apple-touch-icon.png"
+        ]
       }
     },
     {

@@ -1,6 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#fbf1d8"/>
-  <rect x="38" y="38" width="436" height="436" rx="100" fill="#244f3b" stroke="#40382f" stroke-width="18"/>
-  <path d="M152 354V158h46l116 126V158h48v196h-44L200 223v131z" fill="#fffaf0"/>
-  <path d="m390 92 13 27 30 4-22 21 5 30-26-14-27 14 5-30-22-21 30-4z" fill="#e4aa2f"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">NEXUS Split</title>
+  <rect width="512" height="512" rx="112" fill="#244f3b"/>
+  <path d="M137 86h238a24 24 0 0 1 24 24v279l-36-23-36 23-35-23-36 23-36-23-35 23-36-23-36 23V110a24 24 0 0 1 24-24z" fill="#fffaf0" stroke="#40382f" stroke-width="17" stroke-linejoin="round"/>
+  <path d="M187 154h138M187 201h100" fill="none" stroke="#e4aa2f" stroke-width="19" stroke-linecap="round"/>
+  <circle cx="205" cy="270" r="13" fill="#40382f"/>
+  <circle cx="307" cy="270" r="13" fill="#40382f"/>
+  <circle cx="173" cy="301" r="18" fill="#f4a9a0" opacity=".85"/>
+  <circle cx="339" cy="301" r="18" fill="#f4a9a0" opacity=".85"/>
+  <path d="M218 309q38 42 76 0" fill="none" stroke="#40382f" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="365" cy="128" r="39" fill="#e4aa2f" stroke="#40382f" stroke-width="13"/>
+  <path d="M347 128h36M365 110v36" stroke="#fffaf0" stroke-width="11" stroke-linecap="round"/>
 </svg>

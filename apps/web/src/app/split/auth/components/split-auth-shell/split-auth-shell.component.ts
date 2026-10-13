@@ -1,15 +1,10 @@
 import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'nexus-split-auth-shell',
   standalone: true,
-  imports: [RouterLink],
   template: `
     <main class="auth-page">
-      <a routerLink="/" class="brand" aria-label="返回 NEXUS">
-        <span>NEXUS</span><strong>SPLIT</strong>
-      </a>
       <section class="auth-card"><ng-content /></section>
       <p class="privacy-note">你的 Split 账号独立于简历制作器和麻将系统。</p>
     </main>
@@ -32,26 +27,6 @@ import { RouterLink } from '@angular/router';
         display: flex;
         flex-direction: column;
         padding: max(1rem, env(safe-area-inset-top)) 1.25rem max(1rem, env(safe-area-inset-bottom));
-      }
-      .brand {
-        display: inline-flex;
-        align-self: flex-start;
-        align-items: baseline;
-        gap: 0.45rem;
-        color: inherit;
-        text-decoration: none;
-        letter-spacing: 0.12em;
-        transform: rotate(-1deg);
-      }
-      .brand span {
-        font-size: 0.72rem;
-        font-weight: 700;
-        color: #b9553f;
-      }
-      .brand strong {
-        font-size: 1rem;
-        color: #244f3b;
-        text-shadow: 1px 1px 0 #e4aa2f;
       }
       .auth-card {
         width: 100%;

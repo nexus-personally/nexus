@@ -178,12 +178,12 @@ interface StarLayer {
         </span>
       </a>
 
-      <a class="maintenance-node node-03" href="/split" aria-label="Open System 03 NEXUS Split">
+      <a class="maintenance-node node-03" href="/split" aria-label="Open System 03 Group Expense Sharing">
         <span class="maintenance-ring" aria-hidden="true"></span>
         <span class="maintenance-core" aria-hidden="true"></span>
         <span class="maintenance-copy">
           <small>SYSTEM 03</small>
-          <strong>NEXUS Split</strong>
+          <strong>群组分账</strong>
           <em>Enter workspace</em>
         </span>
       </a>

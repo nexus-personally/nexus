@@ -14,7 +14,6 @@ import { SplitBottomNavComponent } from '../ui/split-bottom-nav.component';
     <div class="split-wrap">
       <header class="split-top">
         <div>
-          <p class="eyebrow">NEXUS SPLIT</p>
           <h1>我的群组</h1>
         </div>
         <a class="icon-btn" routerLink="new" aria-label="创建群组"><svg lucidePlus></svg></a>

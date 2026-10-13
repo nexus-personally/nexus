@@ -15,7 +15,7 @@ type SettingKind = 'name' | 'budget' | 'password';
   standalone: true,
   imports: [CommonModule, FormsModule, LucideChevronRight, LucideKeyRound, LucideLogOut, LucidePiggyBank, LucideUserRound, SplitBottomNavComponent, SplitBottomSheetComponent],
   template: `<main class="split-page settings-page"><div class="split-wrap settings-wrap">
-    <header class="settings-head"><p class="eyebrow">NEXUS SPLIT</p><h1>我的设置</h1><p>管理你的个人资料与每月总额。</p></header>
+    <header class="settings-head"><h1>我的设置</h1><p>管理你的个人资料与每月总额。</p></header>
     <section class="settings-card">
       <button (click)="ask('name')"><svg lucideUserRound></svg><span><small>我的名字</small><strong>{{ auth.currentUser()?.displayName }}</strong></span><svg lucideChevronRight></svg></button>
       <button (click)="ask('budget')"><svg lucidePiggyBank></svg><span><small>月度总额</small><strong>{{ budgetLabel() }}</strong></span><svg lucideChevronRight></svg></button>
@@ -24,11 +24,11 @@ type SettingKind = 'name' | 'budget' | 'password';
     <button class="logout-button" (click)="logout()"><svg lucideLogOut></svg>退出登录</button>
   </div><nexus-split-bottom-nav />
 
-  @if (confirming()) { <nexus-split-bottom-sheet [label]="confirmTitle()" (closed)="cancel()"><h2>{{ confirmTitle() }}</h2><p class="confirm-copy">{{ confirmCopy() }}</p><div class="confirm-actions"><button class="secondary" (click)="cancel()">否</button><button class="primary" (click)="beginEdit()">是</button></div></nexus-split-bottom-sheet> }
-  @if (editing()) { <nexus-split-bottom-sheet [label]="editTitle()" (closed)="cancel()"><h2>{{ editTitle() }}</h2>
+  @if (confirming()) { <nexus-split-bottom-sheet [label]="confirmTitle()" [expandable]="true" (closed)="cancel()"><h2>{{ confirmTitle() }}</h2><p class="confirm-copy">{{ confirmCopy() }}</p><div class="confirm-actions"><button class="secondary" (click)="cancel()">否</button><button class="primary" (click)="beginEdit()">是</button></div></nexus-split-bottom-sheet> }
+  @if (editing()) { <nexus-split-bottom-sheet [label]="editTitle()" [expandable]="true" (closed)="cancel()"><h2>{{ editTitle() }}</h2>
     <label class="field"><span>{{ fieldLabel() }}</span>@if (kind() === 'budget') { <div class="money-input"><b>RM</b><input inputmode="decimal" autocomplete="off" [(ngModel)]="value" /></div> } @else { <input [type]="kind() === 'password' ? 'password' : 'text'" [autocomplete]="kind() === 'password' ? 'new-password' : 'name'" [(ngModel)]="value" /> }</label>
     @if (error()) { <p class="error-text">{{ error() }}</p> }
-    <button class="primary full" [disabled]="saving()" (click)="save()">储存</button>
+    <button class="primary full settings-edit-submit" [disabled]="saving()" (click)="save()">储存</button>
   </nexus-split-bottom-sheet> }
   </main>`,
   styleUrls: ['../ui/split-ui.scss', './split-home.component.scss', './split-settings.component.scss'],

@@ -13,3 +13,4 @@
 .logout-button { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:52px; margin-top:22px; border:2px solid var(--split-brick); border-radius:18px 15px 20px 14px; background:#f3b6a6; color:#7d2f24; font-weight:900; box-shadow:3px 4px 0 #735f4440; }
 .confirm-copy { margin:-5px 0 22px; color:var(--split-pencil); }
 .confirm-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.settings-edit-submit { margin-top:15px; }

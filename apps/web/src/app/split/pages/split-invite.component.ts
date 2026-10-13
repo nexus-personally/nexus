@@ -21,13 +21,11 @@ import {
         <div class="skeleton"></div>
       } @else if (state === 'invalid') {
         <section class="empty">
-          <p class="eyebrow">NEXUS SPLIT</p>
           <h1>{{ message }}</h1>
-          <a class="secondary icon-btn" routerLink="/split">返回 NEXUS Split</a>
+          <a class="secondary icon-btn" routerLink="/split">返回</a>
         </section>
       } @else if (preview) {
         <section class="empty">
-          <p class="eyebrow">NEXUS SPLIT</p>
           <span class="type-icon">{{ icons[preview.groupType] }}</span>
           <h1>你收到了群组邀请</h1>
           <h2>{{ preview.groupName }}</h2>

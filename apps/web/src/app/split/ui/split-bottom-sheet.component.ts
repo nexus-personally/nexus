@@ -14,7 +14,7 @@ import {
 @Component({
   selector: 'nexus-split-bottom-sheet',
   standalone: true,
-  template: `<div class="sheet-backdrop" (click)="backdrop()">
+  template: `<div class="sheet-backdrop" [class.ios-safari]="usesIPhoneSafariLayout" (click)="backdrop()">
     <section
       #panel
       class="sheet"
@@ -40,7 +40,16 @@ export class SplitBottomSheetComponent implements AfterViewInit, OnDestroy {
   @Output() closed = new EventEmitter<void>();
   @ViewChild('panel') panel?: ElementRef<HTMLElement>;
   private previous?: HTMLElement;
+  private bottomNav?: HTMLElement;
+  private previousBottomNavPointerEvents = '';
   private readonly document = inject(DOCUMENT);
+  get usesIPhoneSafariLayout() {
+    const userAgent = this.document.defaultView?.navigator.userAgent ?? '';
+    const isSafari = /iPhone/i.test(userAgent)
+      && /Safari/i.test(userAgent)
+      && !/(CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo|GSA)/i.test(userAgent);
+    return isSafari && !!this.document.querySelector('.split-bottom-nav');
+  }
   height: number | null = null;
   expanded = false;
   dragging = false;
@@ -51,10 +60,18 @@ export class SplitBottomSheetComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit() {
     this.previous = this.document.activeElement as HTMLElement;
     this.document.body.classList.add('split-sheet-open');
+    if (this.usesIPhoneSafariLayout) {
+      this.bottomNav = this.document.querySelector<HTMLElement>('.split-bottom-nav') ?? undefined;
+      if (this.bottomNav) {
+        this.previousBottomNavPointerEvents = this.bottomNav.style.pointerEvents;
+        this.bottomNav.style.pointerEvents = 'none';
+      }
+    }
     this.panel?.nativeElement.focus();
   }
   ngOnDestroy() {
     this.document.body.classList.remove('split-sheet-open');
+    if (this.bottomNav) this.bottomNav.style.pointerEvents = this.previousBottomNavPointerEvents;
     this.previous?.focus();
   }
   @HostListener('document:keydown.escape') escape() {
@@ -73,7 +90,8 @@ export class SplitBottomSheetComponent implements AfterViewInit, OnDestroy {
     const viewportHeight = this.document.defaultView?.visualViewport?.height
       ?? this.document.defaultView?.innerHeight
       ?? this.dragOriginHeight;
-    this.maximumHeight = Math.max(this.dragOriginHeight, viewportHeight - 8);
+    const availableHeight = panel.closest('.sheet-backdrop')?.getBoundingClientRect().height ?? viewportHeight;
+    this.maximumHeight = Math.max(this.dragOriginHeight, availableHeight - 8);
     panel.setPointerCapture(event.pointerId);
     event.preventDefault();
   }

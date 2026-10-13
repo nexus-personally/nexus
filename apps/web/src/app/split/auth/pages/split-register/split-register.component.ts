@@ -16,7 +16,7 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
       <header>
         <span>开始使用</span>
         <h1>创建 Split 账号</h1>
-        <p>此账号仅用于 NEXUS Split。</p>
+        <p>此账号仅用于本系统。</p>
       </header>
       <form (ngSubmit)="submit()" novalidate>
         <label

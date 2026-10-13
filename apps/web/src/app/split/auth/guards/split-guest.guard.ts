@@ -6,5 +6,5 @@ export const splitGuestGuard: CanActivateFn = async () => {
   const auth = inject(SplitAuthService);
   const router = inject(Router);
   await auth.restoreSession();
-  return auth.isAuthenticated() ? router.createUrlTree(['/split/groups']) : true;
+  return auth.isAuthenticated() ? router.createUrlTree(['/split/home']) : true;
 };

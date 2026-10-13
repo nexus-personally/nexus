@@ -18,7 +18,7 @@
 .progress-labels { display:flex; justify-content:space-between; margin-top:6px; color:var(--split-pencil); font-size:12px; font-weight:800; }
 .adjust-button { position:absolute; z-index:1; top:13px; right:17px; display:grid; place-items:center; width:35px; height:35px; padding:0; border:2px solid #775a20; border-radius:50% 46% 52% 44%; background:repeating-linear-gradient(7deg,#f1c75f 0 3px,var(--split-mustard) 3px 7px); color:#503d17; box-shadow:3px 4px 0 #735f4440; transform:rotate(2deg); }
 .adjust-button svg { width:15px; height:15px; }
-.balance-loading { min-height:280px; background:linear-gradient(95deg,#eadfca 25%,#fffaf0 50%,#eadfca 75%); background-size:200% 100%; animation:shimmer 1.3s infinite; }
+.balance-loading { height:176px; padding:26px 22px 20px; box-sizing:border-box; background:linear-gradient(95deg,#eadfca 25%,#fffaf0 50%,#eadfca 75%); background-size:200% 100%; animation:shimmer 1.3s infinite; }
 .dashboard-error { text-align:center; padding:40px 20px; }
 .sheet-title { display:flex; gap:12px; align-items:flex-start; margin-bottom:18px; }
 .sheet-title h2,.sheet-title p { margin:0; }

@@ -277,7 +277,7 @@ import {
     </main>
     @if (menu && group) {
       <nexus-split-bottom-sheet label="群组菜单" (closed)="menu = false"
-        ><h2>{{ group.name }}</h2>
+        ><h2 class="group-menu-title">{{ group.name }}</h2>
         @if (group.currentUserRole === 'owner') {
           @if (group.status === 'active') {
             <a class="sheet-option" [routerLink]="['settings']">群组设置</a

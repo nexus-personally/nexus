@@ -368,11 +368,16 @@
   gap: 12px;
   width: 100%;
   min-height: 54px;
+  padding: 0 12px;
   border: 0;
-  border-bottom: 1px solid #e4ebe8;
+  border-bottom: 2px dashed #9c896e;
+  border-radius: 0 0 40px 40px;
   background: #fff;
+  color: inherit;
   text-align: left;
   font: inherit;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 .share-link {
   overflow-wrap: anywhere;
@@ -1133,7 +1138,9 @@
 .sheet-check,
 .payer-row {
   background: transparent;
-  border-bottom: 2px dashed #9c896e;
+}
+.group-menu-title {
+  padding-inline: 0;
 }
 .sheet-check input,
 .payer-row > input:first-child,

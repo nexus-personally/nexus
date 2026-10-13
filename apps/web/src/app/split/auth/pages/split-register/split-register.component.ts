@@ -84,7 +84,7 @@ export class SplitRegisterComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   readonly returnUrl = safeSplitReturnUrl(
-    this.route.snapshot.queryParamMap.get('returnUrl') ?? '/split/groups',
+    this.route.snapshot.queryParamMap.get('returnUrl') ?? '/split/home',
   );
 
   async submit() {

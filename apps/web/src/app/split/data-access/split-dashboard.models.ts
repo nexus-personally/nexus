@@ -19,6 +19,8 @@ export interface SplitDashboardSummary {
   groupExpenseMinor: number;
   /** Group expense shares in each Group's base currency; non-MYR amounts are not FX-converted. */
   groupExpenseByCurrency: Array<{ currency: string; amountMinor: number }>;
+  cardDebtMinor: number;
+  creditCards: SplitCreditCard[];
   availableMinor: number;
   spentMinor: number;
   remainingMinor: number;
@@ -30,6 +32,19 @@ export interface SplitBudgetAdjustmentInput {
   amountMinor: number;
   note: string | null;
   effectiveDate: string;
+}
+
+export interface SplitCreditCard {
+  id: string;
+  name: string;
+  amountMinor: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SplitCreditCardInput {
+  name: string;
+  amountMinor: number;
 }
 
 export function splitRemainingPercent(remainingMinor: number, availableMinor: number) {

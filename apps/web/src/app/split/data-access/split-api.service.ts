@@ -18,6 +18,8 @@ import type {
 import type {
   SplitBudgetAdjustment,
   SplitBudgetAdjustmentInput,
+  SplitCreditCard,
+  SplitCreditCardInput,
   SplitDashboardSummary,
 } from './split-dashboard.models';
 import { SPLIT_CACHE_REFRESH, SplitOfflineCacheService } from './split-offline-cache.service';
@@ -189,6 +191,26 @@ export class SplitApiService {
   deleteAdjustment(id: string) {
     return this.afterMutation(
       this.http.delete<void>(`${this.base}/dashboard/adjustments/${id}`),
+      '/dashboard',
+    );
+  }
+  createCard(input: SplitCreditCardInput, idempotencyKey: string) {
+    return this.afterMutation(
+      this.http.post<SplitCreditCard>(`${this.base}/dashboard/cards`, input, {
+        headers: { 'Idempotency-Key': idempotencyKey },
+      }),
+      '/dashboard',
+    );
+  }
+  updateCard(id: string, input: SplitCreditCardInput) {
+    return this.afterMutation(
+      this.http.patch<SplitCreditCard>(`${this.base}/dashboard/cards/${id}`, input),
+      '/dashboard',
+    );
+  }
+  deleteCard(id: string) {
+    return this.afterMutation(
+      this.http.delete<void>(`${this.base}/dashboard/cards/${id}`),
       '/dashboard',
     );
   }

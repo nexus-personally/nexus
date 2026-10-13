@@ -11,10 +11,11 @@ import {
   type SplitBalances,
 } from '../data-access/split-expense.models';
 import type { SplitMember } from '../data-access/split.models';
+import { SplitMoneyInputDirective } from '../ui/split-money-input.directive';
 @Component({
   selector: 'nexus-split-settle',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LucideArrowLeft],
+  imports: [CommonModule, FormsModule, RouterLink, LucideArrowLeft, SplitMoneyInputDirective],
   template: `<main class="split-page">
     <div class="split-wrap">
       <header class="split-top">
@@ -42,6 +43,7 @@ import type { SplitMember } from '../data-access/split.models';
               name="amount"
               [(ngModel)]="amount"
               inputmode="decimal"
+              splitMoneyInput
           /></label>
           <p class="notice">付款后剩余：{{ balances.baseCurrency }} {{ remaining }}</p>
           <label class="field"

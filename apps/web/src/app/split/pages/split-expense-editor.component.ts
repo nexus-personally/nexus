@@ -35,6 +35,7 @@ import {
   type SplitMember,
 } from '../data-access/split.models';
 import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
+import { SplitMoneyInputDirective } from '../ui/split-money-input.directive';
 
 type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
 
@@ -54,6 +55,7 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
     LucideUserRound,
     LucideUsersRound,
     SplitBottomSheetComponent,
+    SplitMoneyInputDirective,
   ],
   template: `<main class="split-page expense-editor">
       <div class="split-wrap">
@@ -74,7 +76,9 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
             <section class="expense-receipt" aria-label="费用基本信息">
               <button type="button" class="category-picker" (click)="sheet = 'category'">
                 <span class="category-glyph">{{ category.icon }}</span
-                ><span><b>{{ category.label }}</b><small>更改类别</small></span
+                ><span
+                  ><b>{{ category.label }}</b
+                  ><small>更改类别</small></span
                 ><svg lucideChevronRight></svg>
               </button>
               <div class="receipt-main">
@@ -96,6 +100,7 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
                       name="amount"
                       [(ngModel)]="draft.amount"
                       inputmode="decimal"
+                      [splitMoneyInput]="draft.currency === 'JPY' ? 0 : 2"
                       placeholder="0{{ draft.currency === 'JPY' ? '' : '.00' }}"
                       (ngModelChange)="amountChanged()"
                   /></label>
@@ -115,6 +120,7 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
                     name="exchangeRate"
                     [(ngModel)]="draft.exchangeRate"
                     inputmode="decimal"
+                    [splitMoneyInput]="12"
                     placeholder="1.0000"
                     (ngModelChange)="rateSource = 'manual'"
                   /><small
@@ -147,18 +153,20 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
               <h2 id="expense-details-title">费用详情</h2>
               <div class="detail-list">
                 <label class="detail-row date-row"
-                  ><svg lucideCalendarDays></svg
-                  ><span><small>费用日期</small></span
+                  ><svg lucideCalendarDays></svg><span><small>费用日期</small></span
                   ><input type="date" name="expenseDate" [(ngModel)]="draft.expenseDate"
                 /></label>
                 <button type="button" class="detail-row" (click)="sheet = 'payers'">
                   <svg lucideUserRound></svg
-                  ><span><small>付款人</small><b>{{ payerSummary }}</b></span
+                  ><span
+                    ><small>付款人</small><b>{{ payerSummary }}</b></span
                   ><svg lucideChevronDown></svg>
                 </button>
                 <button type="button" class="detail-row" (click)="sheet = 'participants'">
                   <svg lucideUsersRound></svg
-                  ><span><small>{{ draft.method === 'single' ? '承担人' : '分摊成员' }}</small><b>{{ participantSummary }}</b></span
+                  ><span
+                    ><small>{{ draft.method === 'single' ? '承担人' : '分摊成员' }}</small
+                    ><b>{{ participantSummary }}</b></span
                   ><svg lucideChevronDown></svg>
                 </button>
               </div>
@@ -193,6 +201,15 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
                       [name]="'allocation-' + member.id"
                       [(ngModel)]="draft.allocations[member.id]"
                       [inputmode]="draft.method === 'shares' ? 'numeric' : 'decimal'"
+                      [splitMoneyInput]="
+                        draft.method === 'shares'
+                          ? 0
+                          : draft.method === 'percentage'
+                            ? 2
+                            : draft.currency === 'JPY'
+                              ? 0
+                              : 2
+                      "
                       [placeholder]="
                         draft.method === 'percentage'
                           ? '0.00'
@@ -284,10 +301,14 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
       </nexus-split-bottom-sheet>
     }
     @if (sheet === 'participants') {
-      <nexus-split-bottom-sheet [label]="draft.method === 'single' ? '选择承担人' : '选择分摊成员'" (closed)="sheet = null"
+      <nexus-split-bottom-sheet
+        [label]="draft.method === 'single' ? '选择承担人' : '选择分摊成员'"
+        (closed)="sheet = null"
         ><h2>{{ draft.method === 'single' ? '承担人（只能选一位）' : '分摊成员' }}</h2>
         @for (member of members; track member.id) {
-          <label [class.sheet-check]="draft.method !== 'single'" [class.payer-row]="draft.method === 'single'"
+          <label
+            [class.sheet-check]="draft.method !== 'single'"
+            [class.payer-row]="draft.method === 'single'"
             ><input
               [type]="draft.method === 'single' ? 'radio' : 'checkbox'"
               [name]="draft.method === 'single' ? 'single-participant' : 'participants'"
@@ -370,9 +391,7 @@ export class SplitExpenseEditorComponent implements OnInit {
     const navigationState =
       this.router.getCurrentNavigation()?.extras.state ??
       (typeof history === 'undefined' ? undefined : history.state);
-    const state = navigationState as
-      | { previousExpenses?: SplitExpense[] }
-      | undefined;
+    const state = navigationState as { previousExpenses?: SplitExpense[] } | undefined;
     this.previousExpenses = state?.previousExpenses ?? [];
     void this.load();
   }
@@ -416,10 +435,12 @@ export class SplitExpenseEditorComponent implements OnInit {
       expenseDate: expense.expenseDate,
       note: expense.note ?? '',
       payments: expense.payments.length
-        ? [{
-            memberId: expense.payments[0]!.memberId,
-            amount: this.moneyFor(expense.originalAmountMinor, expense.originalCurrency),
-          }]
+        ? [
+            {
+              memberId: expense.payments[0]!.memberId,
+              amount: this.moneyFor(expense.originalAmountMinor, expense.originalCurrency),
+            },
+          ]
         : [],
       participantIds: expense.splits.map((row) => row.memberId),
       method: expense.splitMethod === 'single' ? 'single' : 'exact',
@@ -440,16 +461,16 @@ export class SplitExpenseEditorComponent implements OnInit {
       const payload = expensePayload(this.draft);
       const requestBody = JSON.stringify(payload);
       const result = this.expenseId
-        ? await firstValueFrom(
-            this.api.updateExpense(this.groupId, this.expenseId, payload),
-          )
-        : await firstValueFrom(this.api.createExpense(
-            this.groupId,
-            payload,
-            this.pendingCreate?.body === requestBody
-              ? this.pendingCreate.key
-              : (this.pendingCreate = { body: requestBody, key: crypto.randomUUID() }).key,
-          ));
+        ? await firstValueFrom(this.api.updateExpense(this.groupId, this.expenseId, payload))
+        : await firstValueFrom(
+            this.api.createExpense(
+              this.groupId,
+              payload,
+              this.pendingCreate?.body === requestBody
+                ? this.pendingCreate.key
+                : (this.pendingCreate = { body: requestBody, key: crypto.randomUUID() }).key,
+            ),
+          );
       this.pendingCreate = null;
       if (this.expenseId) {
         await this.router.navigate(['/split/groups', this.groupId, 'expenses', result.id]);

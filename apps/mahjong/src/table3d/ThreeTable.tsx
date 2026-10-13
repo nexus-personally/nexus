@@ -8,8 +8,9 @@ import { getWallState, type WallTileState } from '../wallState'
 
 type Props = { game: Game; selectedId: number | null; onSelect: (id: number) => void }
 
-const MOBILE_MAX_PIXEL_RATIO = 1.35
+const MOBILE_MAX_PIXEL_RATIO = 2.25
 const DESKTOP_MAX_PIXEL_RATIO = 1.5
+const MOBILE_MAX_RENDER_PIXELS = 3_000_000
 const TARGET_FRAME_INTERVAL = 1000 / 30
 
 class MahjongScene {
@@ -38,12 +39,12 @@ class MahjongScene {
   private resizeObserver: ResizeObserver
   private onSelect: (id: number) => void
   private canSelect = false
+  private readonly coarsePointer: boolean
 
   constructor(private host: HTMLDivElement, onSelect: (id: number) => void) {
     this.onSelect = onSelect
-    const coarsePointer = window.matchMedia('(pointer: coarse)').matches
-    this.renderer = new THREE.WebGLRenderer({ antialias: !coarsePointer, alpha: true, powerPreference: coarsePointer ? 'low-power' : 'default' })
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarsePointer ? MOBILE_MAX_PIXEL_RATIO : DESKTOP_MAX_PIXEL_RATIO))
+    this.coarsePointer = window.matchMedia('(pointer: coarse)').matches
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'default' })
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
     this.renderer.toneMappingExposure = 1.05
@@ -94,6 +95,9 @@ class MahjongScene {
   private resize() {
     const { width, height } = this.host.getBoundingClientRect()
     if (!width || !height) return
+    const maxRatio = this.coarsePointer ? MOBILE_MAX_PIXEL_RATIO : DESKTOP_MAX_PIXEL_RATIO
+    const pixelBudgetRatio = this.coarsePointer ? Math.sqrt(MOBILE_MAX_RENDER_PIXELS / (width * height)) : maxRatio
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxRatio, pixelBudgetRatio))
     this.renderer.setSize(width, height, false)
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()

@@ -17,7 +17,7 @@ export interface SplitExpense {
   groupId: string;
   description: string;
   categoryKey: SplitExpenseCategory;
-  splitMethod: 'equal' | 'exact' | 'percentage' | 'shares';
+  splitMethod: 'equal' | 'exact' | 'single' | 'percentage' | 'shares';
   originalAmountMinor: number;
   originalCurrency: SplitCurrency;
   baseAmountMinor: number;

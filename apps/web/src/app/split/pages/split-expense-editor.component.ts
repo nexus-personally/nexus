@@ -60,7 +60,7 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
         <header class="split-top">
           <a class="back" [routerLink]="['/split/groups', groupId]"><svg lucideArrowLeft></svg></a
           ><strong>{{ expenseId ? '编辑费用' : '添加费用' }}</strong
-          ><span class="back"></span>
+          ><span class="top-spacer" aria-hidden="true"></span>
         </header>
         @if (loading) {
           <div class="skeleton"></div>
@@ -158,7 +158,7 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
                 </button>
                 <button type="button" class="detail-row" (click)="sheet = 'participants'">
                   <svg lucideUsersRound></svg
-                  ><span><small>分摊成员</small><b>{{ participantSummary }}</b></span
+                  ><span><small>{{ draft.method === 'single' ? '承担人' : '分摊成员' }}</small><b>{{ participantSummary }}</b></span
                   ><svg lucideChevronDown></svg>
                 </button>
               </div>
@@ -184,7 +184,7 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
                 </button>
               }
             </fieldset>
-            @if (draft.method !== 'equal') {
+            @if (draft.method !== 'equal' && draft.method !== 'single') {
               <section class="allocation-editor">
                 @for (member of selectedParticipants; track member.id) {
                   <label
@@ -212,9 +212,9 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
                 <p [class.invalid]="allocationRemaining !== 0">{{ allocationCaption }}</p>
               </section>
             }
-            @if (draft.method === 'equal' && preview.length) {
+            @if ((draft.method === 'equal' || draft.method === 'single') && preview.length) {
               <section class="allocation-preview">
-                <h2>平均分摊预览</h2>
+                <h2>{{ draft.method === 'single' ? '单人承担预览' : '平均分摊预览' }}</h2>
                 @for (row of preview; track row.memberId) {
                   <p>
                     <span>{{ memberName(row.memberId) }}</span
@@ -284,12 +284,13 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
       </nexus-split-bottom-sheet>
     }
     @if (sheet === 'participants') {
-      <nexus-split-bottom-sheet label="选择分摊成员" (closed)="sheet = null"
-        ><h2>分摊成员</h2>
+      <nexus-split-bottom-sheet [label]="draft.method === 'single' ? '选择承担人' : '选择分摊成员'" (closed)="sheet = null"
+        ><h2>{{ draft.method === 'single' ? '承担人（只能选一位）' : '分摊成员' }}</h2>
         @for (member of members; track member.id) {
-          <label class="sheet-check"
+          <label [class.sheet-check]="draft.method !== 'single'" [class.payer-row]="draft.method === 'single'"
             ><input
-              type="checkbox"
+              [type]="draft.method === 'single' ? 'radio' : 'checkbox'"
+              [name]="draft.method === 'single' ? 'single-participant' : 'participants'"
               [checked]="draft.participantIds.includes(member.id)"
               (change)="toggleParticipant(member.id)"
             /><span>{{ member.displayName }}</span
@@ -307,24 +308,13 @@ type Sheet = 'category' | 'currency' | 'payers' | 'participants' | null;
         @for (member of members; track member.id) {
           <label class="payer-row"
             ><input
-              type="checkbox"
+              type="radio"
+              name="payer"
               [checked]="isPayer(member.id)"
-              (change)="togglePayer(member.id)"
+              (change)="selectPayer(member.id)"
             /><span>{{ member.displayName }}</span>
-            @if (isPayer(member.id)) {
-              <input
-                [name]="'payer-' + member.id"
-                [ngModel]="payerAmount(member.id)"
-                (ngModelChange)="setPayerAmount(member.id, $event)"
-                inputmode="decimal"
-                [placeholder]="draft.amount"
-              />
-            }
           </label>
         }
-        <p [class.error-text]="paymentRemaining !== 0">
-          剩余 {{ draft.currency }} {{ moneyAbs(paymentRemaining) }}
-        </p>
         <button class="primary full sheet-done" (click)="sheet = null">
           完成
         </button></nexus-split-bottom-sheet
@@ -357,8 +347,7 @@ export class SplitExpenseEditorComponent implements OnInit {
   readonly methods: Array<{ value: SplitMethod; label: string }> = [
     { value: 'equal', label: '平均分摊' },
     { value: 'exact', label: '指定金额' },
-    { value: 'percentage', label: '%' },
-    { value: 'shares', label: '按份数' },
+    { value: 'single', label: '单人承担' },
   ];
   draft: SplitExpenseDraft = {
     description: '',
@@ -418,12 +407,14 @@ export class SplitExpenseEditorComponent implements OnInit {
       exchangeRate: expense.originalCurrency === expense.baseCurrency ? '' : expense.exchangeRate,
       expenseDate: expense.expenseDate,
       note: expense.note ?? '',
-      payments: expense.payments.map((row) => ({
-        memberId: row.memberId,
-        amount: this.moneyFor(row.amountMinor, expense.originalCurrency),
-      })),
+      payments: expense.payments.length
+        ? [{
+            memberId: expense.payments[0]!.memberId,
+            amount: this.moneyFor(expense.originalAmountMinor, expense.originalCurrency),
+          }]
+        : [],
       participantIds: expense.splits.map((row) => row.memberId),
-      method: 'exact',
+      method: expense.splitMethod === 'single' ? 'single' : 'exact',
       allocations: Object.fromEntries(
         expense.splits.map((row) => [
           row.memberId,
@@ -477,18 +468,12 @@ export class SplitExpenseEditorComponent implements OnInit {
   }
   get participantSummary() {
     return this.draft.participantIds.length
-      ? `已选择 ${this.draft.participantIds.length} 人`
-      : '选择分摊成员';
-  }
-  get paymentRemaining() {
-    const total = parseExpenseAmount(this.draft.amount, this.draft.currency) ?? 0;
-    return (
-      total -
-      this.draft.payments.reduce(
-        (sum, row) => sum + (parseExpenseAmount(row.amount, this.draft.currency) ?? 0),
-        0,
-      )
-    );
+      ? this.draft.method === 'single'
+        ? `${this.memberName(this.draft.participantIds[0]!)} 承担全部`
+        : `已选择 ${this.draft.participantIds.length} 人`
+      : this.draft.method === 'single'
+        ? '选择一位承担人'
+        : '选择分摊成员';
   }
   get allocationRemaining() {
     const total = parseExpenseAmount(this.draft.amount, this.draft.currency) ?? 0;
@@ -562,10 +547,16 @@ export class SplitExpenseEditorComponent implements OnInit {
   setMethod(method: SplitMethod) {
     this.draft.method = method;
     this.draft.allocations = {};
+    if (method === 'single' && this.draft.participantIds.length !== 1)
+      this.draft.participantIds = [];
     if (method === 'shares')
       this.draft.participantIds.forEach((id) => (this.draft.allocations[id] = '1'));
   }
   toggleParticipant(id: string) {
+    if (this.draft.method === 'single') {
+      this.draft.participantIds = this.draft.participantIds[0] === id ? [] : [id];
+      return;
+    }
     this.draft.participantIds = this.draft.participantIds.includes(id)
       ? this.draft.participantIds.filter((x) => x !== id)
       : [...this.draft.participantIds, id];
@@ -573,20 +564,7 @@ export class SplitExpenseEditorComponent implements OnInit {
   isPayer(id: string) {
     return this.draft.payments.some((row) => row.memberId === id);
   }
-  payerAmount(id: string) {
-    return this.draft.payments.find((row) => row.memberId === id)?.amount ?? '';
-  }
-  setPayerAmount(id: string, amount: string) {
-    const row = this.draft.payments.find((item) => item.memberId === id);
-    if (row) row.amount = amount;
-  }
-  togglePayer(id: string) {
-    if (this.isPayer(id))
-      this.draft.payments = this.draft.payments.filter((row) => row.memberId !== id);
-    else
-      this.draft.payments = [
-        ...this.draft.payments,
-        { memberId: id, amount: this.draft.payments.length ? '' : this.draft.amount },
-      ];
+  selectPayer(id: string) {
+    this.draft.payments = [{ memberId: id, amount: this.draft.amount }];
   }
 }

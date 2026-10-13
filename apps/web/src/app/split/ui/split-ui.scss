@@ -706,14 +706,6 @@
 .sheet-check small {
   color: #6c807d;
 }
-.payer-row input:last-child {
-  width: 110px;
-  min-height: 44px;
-  border: 1px solid #cbdad5;
-  border-radius: 10px;
-  padding: 0 10px;
-  font-size: 16px;
-}
 .sheet-done {
   margin-top: 18px;
 }
@@ -1200,6 +1192,9 @@
 .expense-editor .split-top {
   min-height: 48px;
   margin-bottom: 8px;
+}
+.expense-editor .split-top .top-spacer {
+  flex: 0 0 44px;
 }
 .expense-editor .expense-form {
   gap: 14px;

@@ -13,7 +13,7 @@ export type SplitExpenseCategory =
   | 'health'
   | 'gift'
   | 'other';
-export type SplitMethod = 'equal' | 'exact' | 'percentage' | 'shares';
+export type SplitMethod = 'equal' | 'exact' | 'single' | 'percentage' | 'shares';
 export interface SplitExpenseLine {
   memberId: string;
   amountMinor: number;
@@ -229,6 +229,10 @@ export function allocationPreview(draft: SplitExpenseDraft): SplitExpenseLine[] 
       amount,
       draft.participantIds.map((id) => [id, 1]),
     );
+  if (draft.method === 'single')
+    return draft.participantIds.length === 1
+      ? [{ memberId: draft.participantIds[0]!, amountMinor: amount }]
+      : [];
   if (draft.method === 'exact')
     return draft.participantIds.map((memberId) => ({
       memberId,
@@ -265,9 +269,12 @@ export function validateExpenseDraft(draft: SplitExpenseDraft) {
     errors['payments'] =
       `付款总额必须为 ${draft.currency} ${formatExpenseAmount(amount, draft.currency)}。`;
   if (!draft.participantIds.length) errors['split'] = '请至少选择一位分摊成员。';
+  if (draft.method === 'single' && draft.participantIds.length !== 1)
+    errors['split'] = '单人承担只能选择一位成员。';
   const preview = allocationPreview(draft);
   if (
     amount &&
+    !errors['split'] &&
     (!preview.length || preview.reduce((sum, row) => sum + row.amountMinor, 0) !== amount)
   )
     errors['split'] =
@@ -283,6 +290,8 @@ export function expensePayload(draft: SplitExpenseDraft) {
   const split =
     draft.method === 'equal'
       ? { method: 'equal' as const, participants: draft.participantIds }
+      : draft.method === 'single'
+        ? { method: 'single' as const, participants: draft.participantIds }
       : draft.method === 'exact'
         ? { method: 'exact' as const, allocations }
         : draft.method === 'percentage'

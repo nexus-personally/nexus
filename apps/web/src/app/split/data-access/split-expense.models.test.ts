@@ -51,6 +51,19 @@ test('payload preserves frontend intent while backend remains allocation authori
   assert.deepEqual(payload.payments, [{ memberId: 'samuel', amountMinor: 1000 }]);
 });
 
+test('single-person method assigns the full expense to exactly one selected member', () => {
+  const value = draft();
+  value.method = 'single';
+  value.participantIds = ['amy'];
+
+  assert.deepEqual(allocationPreview(value), [{ memberId: 'amy', amountMinor: 1000 }]);
+  assert.deepEqual(expensePayload(value).split, { method: 'single', participants: ['amy'] });
+  assert.equal(validateExpenseDraft(value).split, undefined);
+
+  value.participantIds = ['amy', 'john'];
+  assert.match(validateExpenseDraft(value).split ?? '', /只能选择一位/);
+});
+
 test('expense controls follow owner, creator and archive permissions', () => {
   assert.equal(canManageExpense('active', 'owner', 'owner', 'member'), true);
   assert.equal(canManageExpense('active', 'member', 'creator', 'creator'), true);

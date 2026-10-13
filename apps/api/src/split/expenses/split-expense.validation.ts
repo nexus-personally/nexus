@@ -33,7 +33,7 @@ type Pair = { memberId: string; amountMinor: number };
 export interface ValidExpenseInput {
   description: string;
   categoryKey: SplitExpenseCategory;
-  splitMethod: 'equal' | 'exact' | 'percentage' | 'shares';
+  splitMethod: 'equal' | 'exact' | 'single' | 'percentage' | 'shares';
   amountMinor: number;
   currency: SplitMoneyCurrency;
   exchangeRate: string;
@@ -142,6 +142,17 @@ export function validateExpenseInput(
           throw new Error();
         allocations = allocateEqual(amountMinor, s['participants'] as string[]);
         break;
+      case 'single': {
+        const participants = s['participants'];
+        if (
+          !Array.isArray(participants) ||
+          participants.length !== 1 ||
+          typeof participants[0] !== 'string'
+        )
+          throw new Error();
+        allocations = allocateExact(amountMinor, [[participants[0], amountMinor]]);
+        break;
+      }
       case 'exact': {
         const p = pairs(s['allocations'], 'split', 'amountMinor');
         allocations = allocateExact(

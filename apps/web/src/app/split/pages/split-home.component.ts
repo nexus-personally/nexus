@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -17,7 +17,7 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
   template: `<main class="split-page split-dashboard-page">
     <div class="split-wrap dashboard-wrap">
       <header class="dashboard-head">
-        <div><p class="eyebrow">NEXUS SPLIT</p><h1>首页</h1></div>
+        <div><h1>首页</h1></div>
         <a class="icon-btn crayon-icon" routerLink="/split/settings" aria-label="设置"><svg lucideSettings></svg></a>
       </header>
 
@@ -49,7 +49,7 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
     }
 
     @if (adjustmentsOpen()) {
-      <nexus-split-bottom-sheet label="调整本月余额" (closed)="closeAdjustments()">
+      <nexus-split-bottom-sheet label="调整本月余额" [expandable]="true" (closed)="closeAdjustments()">
         <div class="sheet-title"><div><h2>调整本月余额</h2><p>额外收入会增加可用总额，支出会减少余额。</p></div></div>
         <div class="kind-picker">
           <button [class.active]="adjustmentKind === 'income'" (click)="adjustmentKind='income'"><svg lucidePlus></svg>额外收入</button>
@@ -58,9 +58,9 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
         <label class="field"><span>金额</span><div class="money-input"><b>RM</b><input inputmode="decimal" autocomplete="off" [(ngModel)]="adjustmentAmount" placeholder="0.00" /></div></label>
         <label class="field"><span>备注 <small>选填</small></span><input maxlength="500" [(ngModel)]="adjustmentNote" placeholder="例如：奖金、交通费" /></label>
         @if (formError()) { <p class="error-text">{{ formError() }}</p> }
-        <button class="primary full" [disabled]="saving()" (click)="saveAdjustment()">{{ editingId ? '储存修改' : '新增记录' }}</button>
+        <button class="primary full adjustment-submit" [disabled]="saving()" (click)="saveAdjustment()">{{ editingId ? '储存修改' : '新增记录' }}</button>
         @if (summary()?.adjustments?.length) {
-          <div class="adjustment-history"><h3>本月记录</h3>
+          <div class="adjustment-history" [class.is-scrolling]="adjustmentHistoryScrolling()" (scroll)="onAdjustmentHistoryScroll()"><h3>本月记录</h3>
             @for (item of summary()!.adjustments; track item.id) {
               <div class="adjustment-row"><span class="adjustment-mark" [class.expense]="item.kind === 'expense'">{{ item.kind === 'income' ? '+' : '−' }}</span><span><strong>{{ item.note || (item.kind === 'income' ? '额外收入' : '额外支出') }}</strong><small>{{ item.effectiveDate }}</small></span><b>{{ item.kind === 'income' ? '+' : '-' }}{{ money(item.amountMinor) }}</b><button aria-label="编辑" (click)="edit(item)"><svg lucidePencil></svg></button><button aria-label="删除" (click)="remove(item.id)"><svg lucideTrash2></svg></button></div>
             }
@@ -71,7 +71,7 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
   </main>`,
   styleUrls: ['../ui/split-ui.scss', './split-home.component.scss'],
 })
-export class SplitHomeComponent implements OnInit {
+export class SplitHomeComponent implements OnInit, OnDestroy {
   private readonly api = inject(SplitApiService);
   readonly auth = inject(SplitAuthService);
   readonly summary = signal<SplitDashboardSummary | null>(null);
@@ -79,6 +79,8 @@ export class SplitHomeComponent implements OnInit {
   readonly saving = signal(false);
   readonly formError = signal('');
   readonly adjustmentsOpen = signal(false);
+  readonly adjustmentHistoryScrolling = signal(false);
+  private adjustmentHistoryScrollTimer: ReturnType<typeof setTimeout> | null = null;
   readonly budgetRequired = computed(() => this.auth.currentUser()?.monthlyBudgetMinor == null);
   readonly progress = computed(() => {
     const data = this.summary();
@@ -95,6 +97,17 @@ export class SplitHomeComponent implements OnInit {
   private readonly todayString = `${this.month}-${String(this.today.getDate()).padStart(2, '0')}`;
 
   ngOnInit() { void this.load(); }
+  ngOnDestroy() {
+    if (this.adjustmentHistoryScrollTimer) clearTimeout(this.adjustmentHistoryScrollTimer);
+  }
+  onAdjustmentHistoryScroll() {
+    this.adjustmentHistoryScrolling.set(true);
+    if (this.adjustmentHistoryScrollTimer) clearTimeout(this.adjustmentHistoryScrollTimer);
+    this.adjustmentHistoryScrollTimer = setTimeout(() => {
+      this.adjustmentHistoryScrolling.set(false);
+      this.adjustmentHistoryScrollTimer = null;
+    }, 700);
+  }
   monthLabel() { return `${this.today.getMonth() + 1}月`; }
   money(minor: number) {
     const sign = minor < 0 ? '-' : '';

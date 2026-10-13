@@ -320,7 +320,13 @@
   padding-bottom: calc(max(24px, env(safe-area-inset-bottom)) + var(--split-browser-bottom-clearance));
   scroll-padding-bottom: var(--split-browser-bottom-clearance);
   outline: 0;
+  transition: height 220ms ease, max-height 220ms ease;
 }
+.sheet-expandable { position:relative; z-index:1; }
+.sheet-expandable.sheet-dragging,
+.sheet-expandable.sheet-expanded { max-height:calc(100dvh - 8px); }
+.sheet-dragging { transition:none; }
+.sheet-expanded { border-radius:20px 20px 0 0; }
 .sheet-handle {
   display: block;
   width: 42px;
@@ -328,6 +334,23 @@
   margin: 0 auto 18px;
   border-radius: 99px;
   background: #c5d1cd;
+}
+.sheet-handle.draggable {
+  width:52px;
+  height:18px;
+  margin-bottom:10px;
+  background:transparent;
+  touch-action:none;
+  cursor:ns-resize;
+}
+.sheet-handle.draggable::after {
+  content:'';
+  display:block;
+  width:42px;
+  height:7px;
+  margin:5px auto 0;
+  border-radius:99px;
+  background:var(--split-brick);
 }
 .sheet h2 {
   margin: 0 0 16px;

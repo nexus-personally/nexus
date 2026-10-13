@@ -2,7 +2,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LucideArrowLeft, LucideEllipsis, LucideChevronRight, LucidePlus } from '@lucide/angular';
+import {
+  LucideArrowLeft,
+  LucideEllipsis,
+  LucideChevronRight,
+  LucidePlus,
+  LucideSearch,
+} from '@lucide/angular';
 import { firstValueFrom } from 'rxjs';
 import { SplitApiService } from '../data-access/split-api.service';
 import { SplitAuthService } from '../auth/data-access/split-auth.service';
@@ -35,10 +41,11 @@ import {
     LucideEllipsis,
     LucideChevronRight,
     LucidePlus,
+    LucideSearch,
     SplitBottomSheetComponent,
     SplitDatePipe,
   ],
-  template: `<main class="split-page">
+  template: `<main class="split-page group-detail-page">
       <div class="split-wrap">
         @if (error) {
           <section class="error">{{ error }}</section>
@@ -49,35 +56,36 @@ import {
             <a class="back" routerLink="/split/groups"><svg lucideArrowLeft></svg></a><span></span
             ><button class="icon-btn" (click)="menu = true"><svg lucideEllipsis></svg></button>
           </header>
-          <div class="group-title">
-            <span class="type-icon">{{ icons[group.type] }}</span>
-            <h1>{{ group.name }}</h1>
-          </div>
-          <p class="muted">
-            {{ group.baseCurrency }}
-            @if (group.startDate) {
-              · {{ group.startDate | splitDate }}
-              @if (group.endDate) {
-                — {{ group.endDate | splitDate }}
+          <div class="group-summary">
+            <div class="group-title">
+              <span class="type-icon">{{ icons[group.type] }}</span>
+              <h1>{{ group.name }}</h1>
+            </div>
+            <p class="muted group-period">
+              {{ group.baseCurrency }}
+              @if (group.startDate) {
+                · {{ group.startDate | splitDate }}
+                @if (group.endDate) {
+                  — {{ group.endDate | splitDate }}
+                }
               }
+            </p>
+            @if (group.status === 'archived') {
+              <span class="archived">已归档</span>
             }
-          </p>
-          @if (group.status === 'archived') {
-            <span class="archived">已归档</span>
-          }
-          <a class="member-link" [routerLink]="['members']"
-            ><span
-              ><b>成员</b
-              ><span class="avatar-stack">
+            <a class="member-link" [routerLink]="['members']" aria-label="查看群组成员">
+              <span class="avatar-stack">
                 @for (member of members.slice(0, 4); track member.id) {
                   <i class="avatar">{{ initial(member.displayName) }}</i>
                 }
                 @if (members.length > 4) {
                   <i class="avatar">+{{ members.length - 4 }}</i>
                 }
-              </span></span
-            ><svg lucideChevronRight></svg
-          ></a>
+              </span>
+              <span class="member-count">{{ members.length }} 位成员</span>
+              <svg lucideChevronRight></svg>
+            </a>
+          </div>
           <nav class="tabs three" aria-label="群组内容">
             <button [class.active]="tab === 'expenses'" (click)="tab = 'expenses'">费用</button
             ><button [class.active]="tab === 'balances'" (click)="tab = 'balances'">余额</button
@@ -85,7 +93,6 @@ import {
           </nav>
           @if (tab === 'expenses') {
             <section class="expense-section">
-              <h2>费用</h2>
               <form class="expense-tools" (ngSubmit)="applyExpenseFilters()">
                 <label
                   ><span class="sr-only">搜索费用</span
@@ -93,12 +100,12 @@ import {
                     name="expenseSearch"
                     [(ngModel)]="filters.search"
                     placeholder="搜索费用" /></label
-                ><button class="secondary" type="button" (click)="filtersOpen = true">
-                  筛选
+                ><button class="filter-action" type="button" (click)="filtersOpen = true" aria-label="筛选费用">
+                  <svg lucideEllipsis></svg>
                   @if (activeFilterCount) {
-                    ({{ activeFilterCount }})
+                    <span class="filter-count">{{ activeFilterCount }}</span>
                   }</button
-                ><button class="primary" type="submit">搜索</button>
+                ><button class="search-submit" type="submit" aria-label="搜索费用"><svg lucideSearch></svg></button>
               </form>
               @if (expenseLoading) {
                 <div class="skeleton"></div>

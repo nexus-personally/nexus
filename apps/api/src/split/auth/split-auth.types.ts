@@ -4,6 +4,7 @@ export interface SplitCurrentUser {
   id: string;
   email: string;
   displayName: string;
+  monthlyBudgetMinor: number | null;
   accountStatus: SplitAccountStatus;
   emailVerified: boolean;
   createdAt: string;

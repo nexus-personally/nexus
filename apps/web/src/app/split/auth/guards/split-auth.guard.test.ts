@@ -14,7 +14,7 @@ test('authenticated Split groups access is allowed', () => {
 });
 
 test('returnUrl rejects destinations outside Split', () => {
-  assert.equal(safeSplitReturnUrl('https://evil.example'), '/split/groups');
-  assert.equal(safeSplitReturnUrl('//evil.example'), '/split/groups');
-  assert.equal(safeSplitReturnUrl('/resume'), '/split/groups');
+  assert.equal(safeSplitReturnUrl('https://evil.example'), '/split/home');
+  assert.equal(safeSplitReturnUrl('//evil.example'), '/split/home');
+  assert.equal(safeSplitReturnUrl('/resume'), '/split/home');
 });

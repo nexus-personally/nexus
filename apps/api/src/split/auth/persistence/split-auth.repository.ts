@@ -7,6 +7,7 @@ export interface SplitUserRecord {
   email: string;
   normalizedEmail: string;
   displayName: string;
+  monthlyBudgetMinor: number | null;
   passwordHash: string;
   accountStatus: SplitAccountStatus;
   emailVerifiedAt: Date | null;
@@ -47,4 +48,6 @@ export interface SplitAuthRepository {
   findSessionByTokenHash(tokenHash: string): Promise<SplitSessionRecord | undefined>;
   touchSession(sessionId: string, lastSeenAt: Date, idleExpiresAt: Date): Promise<void>;
   revokeSession(sessionId: string, at: Date, reason?: string): Promise<void>;
+  updateProfile(userId: string, input: { displayName?: string; monthlyBudgetMinor?: number }, at: Date): Promise<SplitUserRecord>;
+  updatePassword(userId: string, passwordHash: string, at: Date): Promise<void>;
 }

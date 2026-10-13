@@ -14,6 +14,7 @@ import type {
   SplitExpense,
   SplitSettlement,
 } from './split-expense.models';
+import type { SplitBudgetAdjustment, SplitBudgetAdjustmentInput, SplitDashboardSummary } from './split-dashboard.models';
 @Injectable({ providedIn: 'root' })
 export class SplitApiService {
   private readonly http = inject(HttpClient);
@@ -99,5 +100,17 @@ export class SplitApiService {
       `${this.base}/groups/${groupId}/activity`,
       { params: cursor ? { cursor } : {} },
     );
+  }
+  dashboard(month: string) {
+    return this.http.get<SplitDashboardSummary>(`${this.base}/dashboard`, { params: { month } });
+  }
+  createAdjustment(input: SplitBudgetAdjustmentInput) {
+    return this.http.post<SplitBudgetAdjustment>(`${this.base}/dashboard/adjustments`, input);
+  }
+  updateAdjustment(id: string, input: SplitBudgetAdjustmentInput) {
+    return this.http.patch<SplitBudgetAdjustment>(`${this.base}/dashboard/adjustments/${id}`, input);
+  }
+  deleteAdjustment(id: string) {
+    return this.http.delete<void>(`${this.base}/dashboard/adjustments/${id}`);
   }
 }

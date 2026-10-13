@@ -2,6 +2,7 @@ export interface SplitCurrentUser {
   id: string;
   email: string;
   displayName: string;
+  monthlyBudgetMinor: number | null;
   accountStatus: 'active' | 'suspended' | 'disabled';
   emailVerified: boolean;
   createdAt: string;

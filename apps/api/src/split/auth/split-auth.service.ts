@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import type { SplitPasswordHasher } from './password/split-password-hasher.js';
 import { SPLIT_PASSWORD_HASHER } from './password/split-password-hasher.js';
@@ -39,6 +40,7 @@ function publicUser(user: SplitUserRecord): SplitCurrentUser {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
+    monthlyBudgetMinor: user.monthlyBudgetMinor,
     accountStatus: user.accountStatus,
     emailVerified: Boolean(user.emailVerifiedAt),
     createdAt: user.createdAt.toISOString(),
@@ -68,6 +70,7 @@ export class SplitAuthService {
       email: input.email,
       normalizedEmail: input.normalizedEmail,
       displayName: input.displayName,
+      monthlyBudgetMinor: null,
       passwordHash: await this.passwordHasher.hash(input.password),
       accountStatus: 'active',
     } as const;
@@ -139,6 +142,63 @@ export class SplitAuthService {
 
   async logout(sessionId: string) {
     await this.repository.revokeSession(sessionId, this.runtime.now(), 'logout');
+  }
+
+  async updateProfile(userId: string, body: unknown) {
+    const value = body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+    const keys = Object.keys(value);
+    if (keys.length !== 1 || !['displayName', 'monthlyBudgetMinor'].includes(keys[0]!)) {
+      throw new UnprocessableEntityException({
+        error: { code: 'VALIDATION_FAILED', message: 'Update one profile field at a time.' },
+      });
+    }
+    if (keys[0] === 'displayName') {
+      const displayName = typeof value.displayName === 'string' ? value.displayName.trim() : '';
+      if (displayName.length < 1 || displayName.length > 100) {
+        throw new UnprocessableEntityException({
+          error: { code: 'VALIDATION_FAILED', message: 'Name must be between 1 and 100 characters.' },
+        });
+      }
+      return publicUser(
+        await this.repository.updateProfile(userId, { displayName }, this.runtime.now()),
+      );
+    }
+    const monthlyBudgetMinor = value.monthlyBudgetMinor;
+    if (!Number.isSafeInteger(monthlyBudgetMinor) || Number(monthlyBudgetMinor) <= 0) {
+      throw new UnprocessableEntityException({
+        error: { code: 'VALIDATION_FAILED', message: 'Monthly total must be greater than zero.' },
+      });
+    }
+    return publicUser(
+      await this.repository.updateProfile(
+        userId,
+        { monthlyBudgetMinor: Number(monthlyBudgetMinor) },
+        this.runtime.now(),
+      ),
+    );
+  }
+
+  async updatePassword(userId: string, body: unknown) {
+    const value = body && typeof body === 'object' && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+    const password = typeof value.password === 'string' ? value.password : '';
+    if (
+      Object.keys(value).some((key) => key !== 'password') ||
+      password.length < 5 ||
+      password.length > 128
+    ) {
+      throw new UnprocessableEntityException({
+        error: { code: 'VALIDATION_FAILED', message: 'Password must be between 5 and 128 characters.' },
+      });
+    }
+    await this.repository.updatePassword(
+      userId,
+      await this.passwordHasher.hash(password),
+      this.runtime.now(),
+    );
   }
 
   csrfForSession(session: SplitAuthenticatedSession) {

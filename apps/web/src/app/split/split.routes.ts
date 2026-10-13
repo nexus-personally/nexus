@@ -22,6 +22,18 @@ export const splitRoutes: Routes = [
       ),
   },
   {
+    path: 'home',
+    canActivate: [splitAuthGuard],
+    loadComponent: () =>
+      import('./pages/split-home.component').then((module) => module.SplitHomeComponent),
+  },
+  {
+    path: 'settings',
+    canActivate: [splitAuthGuard],
+    loadComponent: () =>
+      import('./pages/split-settings.component').then((module) => module.SplitSettingsComponent),
+  },
+  {
     path: 'groups',
     canActivate: [splitAuthGuard],
     loadComponent: () =>

@@ -14,6 +14,7 @@ interface UserRow extends QueryResultRow {
   email: string;
   normalized_email: string;
   display_name: string;
+  monthly_budget_minor: string | number | null;
   password_hash: string;
   account_status: SplitUserRecord['accountStatus'];
   email_verified_at: Date | string | null;
@@ -43,6 +44,7 @@ function mapUser(row: UserRow): SplitUserRecord {
     email: row.email,
     normalizedEmail: row.normalized_email,
     displayName: row.display_name,
+    monthlyBudgetMinor: row.monthly_budget_minor === null ? null : Number(row.monthly_budget_minor),
     passwordHash: row.password_hash,
     accountStatus: row.account_status,
     emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at) : null,
@@ -202,5 +204,17 @@ export class PostgresSplitAuthRepository implements SplitAuthRepository, OnModul
        where id = $1`,
       [sessionId, at, reason],
     );
+  }
+
+  async updateProfile(userId: string, input: { displayName?: string; monthlyBudgetMinor?: number }, at: Date) {
+    const result = await this.pool.query<UserRow>(
+      `update split_users set display_name=coalesce($2,display_name),monthly_budget_minor=coalesce($3,monthly_budget_minor),updated_at=$4 where id=$1 returning *`,
+      [userId, input.displayName ?? null, input.monthlyBudgetMinor ?? null, at],
+    );
+    return mapUser(result.rows[0]!);
+  }
+
+  async updatePassword(userId: string, passwordHash: string, at: Date) {
+    await this.pool.query('update split_users set password_hash=$2,updated_at=$3 where id=$1', [userId, passwordHash, at]);
   }
 }

@@ -29,6 +29,8 @@ import { SplitActivityController } from './activity/split-activity.controller.js
 import { SplitActivityService } from './activity/split-activity.service.js';
 import { SplitExchangeRateController } from './fx/split-exchange-rate.controller.js';
 import { FrankfurterSplitExchangeRateProvider, SplitExchangeRateService } from './fx/split-exchange-rate.service.js';
+import { SplitDashboardController } from './dashboard/split-dashboard.controller.js';
+import { SplitDashboardService } from './dashboard/split-dashboard.service.js';
 
 @Module({
   controllers: [
@@ -41,6 +43,7 @@ import { FrankfurterSplitExchangeRateProvider, SplitExchangeRateService } from '
     SplitSettlementsController,
     SplitActivityController,
     SplitExchangeRateController,
+    SplitDashboardController,
   ],
   providers: [
     SplitAuthService,
@@ -56,6 +59,7 @@ import { FrankfurterSplitExchangeRateProvider, SplitExchangeRateService } from '
     SplitActivityService,
     SplitExchangeRateService,
     FrankfurterSplitExchangeRateProvider,
+    SplitDashboardService,
     { provide: SplitCsrfService, useFactory: () => new SplitCsrfService(splitCsrfSecret()) },
     { provide: SPLIT_AUTH_REPOSITORY, useClass: PostgresSplitAuthRepository },
     { provide: SPLIT_PASSWORD_HASHER, useClass: Argon2SplitPasswordHasher },

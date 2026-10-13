@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import type { SplitAuthResponse } from './split-auth.models';
+import type { SplitAuthResponse, SplitCurrentUser } from './split-auth.models';
 
 @Injectable({ providedIn: 'root' })
 export class SplitAuthApiService {
@@ -21,5 +21,13 @@ export class SplitAuthApiService {
 
   me() {
     return this.http.get<SplitAuthResponse>(`${this.base}/me`);
+  }
+
+  updateProfile(input: { displayName: string } | { monthlyBudgetMinor: number }) {
+    return this.http.patch<SplitCurrentUser>(`${this.base}/profile`, input);
+  }
+
+  updatePassword(password: string) {
+    return this.http.patch<{ status: 'updated' }>(`${this.base}/password`, { password });
   }
 }

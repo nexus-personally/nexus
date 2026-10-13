@@ -1,53 +1,60 @@
-# NEXUS Split Expense Editor — Design QA
+# NEXUS Split monthly home — design QA
 
-## Evidence
-
-- Source visual truth: `C:\Users\User\.codex\generated_images\01a10d4c-f8c7-7c50-9249-01f2e03f1ee8\exec-a3c3bbd1-4e85-4b64-a5ac-2755ec93db7f.png`
-- Source pixels: 853 × 1844. The generated concept is a long-density mock; comparison normalized to its intended 390px mobile content width rather than treating its extra vertical canvas as a requirement.
-- Implementation: `https://nexus-2rwr.onrender.com/split/groups/12fb4610-ecf7-4b9c-85c4-e88a54283d67/expenses/new`
-- Implementation screenshot: browser-rendered inline capture from the Codex desktop browser session.
-- CSS viewport: 390 × 844.
-- Implementation capture: 390 × 844 CSS pixels; browser-managed device density.
-- State: authenticated new-expense form, MYR, dining category, payer `hw`, two participants, equal split, optional note collapsed.
-
-## Full-view comparison
-
-The implementation preserves the selected concept's hierarchy while fitting the complete default workflow into one 390 × 844 viewport: compact header, receipt-style category/name/amount block, one grouped detail surface, 2 × 2 split-method control, collapsed optional note, and persistent save action. The implementation intentionally uses the existing app's paper texture, palette, category artwork, typography, safe-area behavior, and production data bindings.
-
-## Focused-region comparison
-
-- Receipt region: category, description, currency, and amount are aligned as one primary unit. Amount emphasis is retained without dominating the page.
-- Detail region: date, payer, and participants use consistent 56px rows, separators, and Lucide interface icons.
-- Action region: all four split methods remain at least 44px tall; the save button is 50px tall and remains visible at the bottom.
-- Optional-content region: the note begins as a compact row and expands to a real textarea on keyboard activation.
-
-## Required fidelity surfaces
-
-- Fonts and typography: existing rounded Split typography retained; hierarchy now uses 12–18px supporting text and a 32–44px responsive amount.
-- Spacing and layout rhythm: 18px page gutters, 14px form gaps, compact 56px detail rows, and consistent grouped surfaces match the selected direction.
-- Colors and visual tokens: existing cream paper, forest green, mustard, brick red, and pencil-gray tokens retained.
-- Image quality and assets: existing category artwork and installed Lucide icons are used; no new placeholder art or handcrafted SVG was introduced.
-- Copy and content: current Simplified Chinese labels, `MYR`, payer name, participant count, and existing product behavior are preserved.
+- Source visual truth: `C:\Users\User\AppData\Local\Temp\codex-clipboard-d861cc5e-886c-4351-99ab-783980abcf29.png` plus the approved monthly-home interaction brief in this task.
+- Implementation: `http://127.0.0.1:4200/split/home`.
+- Implementation screenshot: captured in the Codex in-app browser task record (the browser provider did not expose a filesystem export path).
+- Viewport: 390 × 844 CSS px, density managed by the in-app browser.
+- Source image: 761 × 1517 px. It is a style/layout-density reference, not the same screen.
+- State: authenticated local user, base monthly total RM 6,000, manual income RM 8,000, remaining balance RM 14,000.
 
 ## Findings
 
-No actionable P0, P1, or P2 visual differences remain. The production implementation is slightly more compact than the generated source vertically; this is intentional because the user requested less oversized, less scattered content and the product target is a 390 × 844 viewport.
+No actionable P0, P1 or P2 findings remain.
 
-## Interaction and runtime checks
+- Typography: the rounded handwritten fallback stack, heavy amount hierarchy and compact small labels match the established Split crayon direction. The balance amount wraps safely at 390 px.
+- Spacing and layout: the page is intentionally much calmer than the dense expense-editor reference. The balance card is the only main region, touch targets remain at least 44 px, and the persistent navigation stays visible above the safe area.
+- Colors and tokens: forest green, mustard, brick red, cream paper, pencil gray and hand-drawn shadows reuse the existing Split theme tokens. Negative balance has a distinct brick-red semantic state.
+- Image/asset quality: the existing paper texture is reused without scaling artifacts. Standard UI icons come from the installed Lucide library; no replacement raster or handcrafted inline SVG was introduced.
+- Copy: all new user-facing text is Chinese except currency and user-entered names, matching the product requirement.
+- Accessibility: the progress bar has an accessible name and numeric range; icon controls have labels; bottom sheets use dialog semantics; the mandatory budget sheet cannot be dismissed; form inputs have visible labels.
 
-- Authenticated form loaded with real production data.
-- Optional note expanded by keyboard activation and exposed the textarea.
-- Category control opened the existing bottom sheet.
-- All visible buttons in the 390px state measured at least 44px tall.
-- Page height matched the 844px viewport in the collapsed-note state.
-- Browser console warnings/errors: none.
+## Full-view comparison evidence
+
+The source and 390 × 844 implementation were inspected together. The implementation preserves the source's paper texture, uneven ink borders, mustard emphasis, green primary action, rounded hand-drawn typography and offset crayon shadows. The new screen deliberately reduces density to one dominant card, as requested.
+
+## Focused-region comparison evidence
+
+Focused checks covered the balance card, first-entry sheet, adjustment sheet, Settings rows and bottom navigation. Text, controls and monetary values remained readable without horizontal overflow. A separate crop was unnecessary because each region was legible in the 390 px browser capture.
+
+## Interaction verification
+
+- Required first-entry total: RM 6,000 saved and sheet closed.
+- Manual income: RM 8,000 produced RM 14,000 remaining.
+- Adjustment record appeared with the correct date and edit/delete controls.
+- Settings name confirmation advanced to one text field.
+- Home, Groups and My navigation worked.
+- Browser console errors checked: none.
 
 ## Comparison history
 
-- Pass 1: no P0/P1/P2 mismatch found; no corrective iteration required.
+- Initial implementation exposed the PostgreSQL `date` value as an ISO timestamp in the adjustment history (P2 copy-format mismatch).
+- Fix: normalized adjustment dates to `YYYY-MM-DD` at the API boundary.
+- Post-fix evidence: the browser showed `2026-10-13` and no console errors.
+- Follow-up screenshot found that `RM 14,000.00` could wrap after `RM` and that an untouched month displayed an empty bar (P2 hierarchy and semantic-direction issues).
+- Fix: added value-length typography tiers with no wrapping, and changed the bar to represent remaining balance rather than spent balance.
+- Post-fix evidence: at 390 px `RM 14,000.00` stays on one line, the bar reports value 100 and renders fully filled, and the console remains error-free.
 
 ## Follow-up polish
 
-- P3: a future pass could add a very small hand-drawn accent beside the `费用详情` heading, but it is not needed for clarity or fidelity.
+- P3: a future custom bundled Chinese rounded font could improve character consistency across Windows and mobile platforms; the current fallback is acceptable and matches the existing app.
+
+## Implementation checklist
+
+- [x] Mobile-first balance card
+- [x] Required monthly-total onboarding
+- [x] Manual income/expense sheet and history
+- [x] Settings confirmation/edit flows
+- [x] Persistent three-item navigation
+- [x] 390 px visual and interaction verification
 
 final result: passed

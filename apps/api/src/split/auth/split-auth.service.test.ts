@@ -73,6 +73,20 @@ class FakeRepository implements SplitAuthRepository {
     const session = this.sessions.find((candidate) => candidate.id === sessionId);
     if (session) session.revokedAt = at;
   }
+
+  async updateProfile(userId: string, input: { displayName?: string; monthlyBudgetMinor?: number }, at: Date) {
+    const user = this.users.find((candidate) => candidate.id === userId)!;
+    if (input.displayName !== undefined) user.displayName = input.displayName;
+    if (input.monthlyBudgetMinor !== undefined) user.monthlyBudgetMinor = input.monthlyBudgetMinor;
+    user.updatedAt = at;
+    return user;
+  }
+
+  async updatePassword(userId: string, passwordHash: string, at: Date) {
+    const user = this.users.find((candidate) => candidate.id === userId)!;
+    user.passwordHash = passwordHash;
+    user.updatedAt = at;
+  }
 }
 
 test('register creates a normalized Split user and authenticated session', async () => {
@@ -154,6 +168,18 @@ test('registration accepts a five-character password', async () => {
     password: '12345',
   });
   assert.equal(result.user.email, 'five@example.com');
+});
+
+test('profile and password updates use the authenticated Split account', async () => {
+  const { service, repository } = harness();
+  const registered = await service.register({
+    email: 'person@example.com', displayName: 'Old', password: '12345',
+  });
+  const profile = await service.updateProfile(registered.user.id, { monthlyBudgetMinor: 600000 });
+  assert.equal(profile.monthlyBudgetMinor, 600000);
+  assert.equal((await service.updateProfile(registered.user.id, { displayName: 'New name' })).displayName, 'New name');
+  await service.updatePassword(registered.user.id, { password: '54321' });
+  assert.equal(repository.users[0]?.passwordHash, 'argon2id:54321');
 });
 
 test('login failure is generic for unknown email and wrong password', async () => {

@@ -41,6 +41,16 @@ export class SplitAuthService {
     }
   }
 
+  updateProfile(input: { displayName: string } | { monthlyBudgetMinor: number }) {
+    return this.api.updateProfile(input).pipe(
+      tap((user) => this.stateSignal.set({ status: 'authenticated', user })),
+    );
+  }
+
+  updatePassword(password: string) {
+    return this.api.updatePassword(password);
+  }
+
   private accept(result: SplitAuthResponse) {
     this.csrf.set(result.csrfToken);
     this.stateSignal.set({ status: 'authenticated', user: result.user });

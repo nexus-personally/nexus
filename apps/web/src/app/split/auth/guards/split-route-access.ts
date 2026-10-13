@@ -1,5 +1,5 @@
 export function safeSplitReturnUrl(url: string) {
-  return url.startsWith('/split/') && !url.startsWith('//') ? url : '/split/groups';
+  return url.startsWith('/split/') && !url.startsWith('//') ? url : '/split/home';
 }
 
 export function splitRouteAccess(authenticated: boolean, url: string): true | string {
@@ -8,4 +8,4 @@ export function splitRouteAccess(authenticated: boolean, url: string): true | st
     : `/split/login?returnUrl=${encodeURIComponent(safeSplitReturnUrl(url))}`;
 }
 export const splitLandingDestination = (authenticated: boolean) =>
-  authenticated ? '/split/groups' : '/split/login';
+  authenticated ? '/split/home' : '/split/login';

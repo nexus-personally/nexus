@@ -5,11 +5,12 @@ import { LucidePlus, LucideChevronRight } from '@lucide/angular';
 import { SplitGroupsStore } from '../data-access/split-groups.store';
 import { splitTypeIcon } from '../data-access/split.models';
 import { SplitDatePipe } from '../ui/split-date.pipe';
+import { SplitBottomNavComponent } from '../ui/split-bottom-nav.component';
 @Component({
   selector: 'nexus-split-groups',
   standalone: true,
-  imports: [CommonModule, RouterLink, LucidePlus, LucideChevronRight, SplitDatePipe],
-  template: `<main class="split-page">
+  imports: [CommonModule, RouterLink, LucidePlus, LucideChevronRight, SplitDatePipe, SplitBottomNavComponent],
+  template: `<main class="split-page split-nav-page">
     <div class="split-wrap">
       <header class="split-top">
         <div>
@@ -69,7 +70,7 @@ import { SplitDatePipe } from '../ui/split-date.pipe';
           }
         </section>
       }
-    </div>
+    </div><nexus-split-bottom-nav />
   </main>`,
   styleUrls: ['../ui/split-ui.scss'],
 })

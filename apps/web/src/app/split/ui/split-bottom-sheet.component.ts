@@ -37,6 +37,7 @@ export class SplitBottomSheetComponent implements AfterViewInit, OnDestroy {
   @Input() label = 'Dialog';
   @Input() dismissible = true;
   @Input() expandable = false;
+  @Input() coversBottomNav = false;
   @Output() closed = new EventEmitter<void>();
   @ViewChild('panel') panel?: ElementRef<HTMLElement>;
   private previous?: HTMLElement;
@@ -48,7 +49,7 @@ export class SplitBottomSheetComponent implements AfterViewInit, OnDestroy {
     const isSafari = /iPhone/i.test(userAgent)
       && /Safari/i.test(userAgent)
       && !/(CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo|GSA)/i.test(userAgent);
-    return isSafari && !!this.document.querySelector('.split-bottom-nav');
+    return isSafari && !this.coversBottomNav && !!this.document.querySelector('.split-bottom-nav');
   }
   height: number | null = null;
   expanded = false;

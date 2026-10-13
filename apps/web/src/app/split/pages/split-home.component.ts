@@ -44,12 +44,12 @@ import { SplitBottomSheetComponent } from '../ui/split-bottom-sheet.component';
         <div class="sheet-title"><span class="sheet-sticker">★</span><div><h2>先设定月度总额</h2><p>设定后才能开始使用首页。</p></div></div>
         <label class="field"><span>每月可用总额</span><div class="money-input"><b>RM</b><input inputmode="decimal" autocomplete="off" [(ngModel)]="budgetInput" placeholder="0.00" /></div></label>
         @if (formError()) { <p class="error-text">{{ formError() }}</p> }
-        <button class="primary full" [disabled]="saving()" (click)="saveRequiredBudget()">储存并进入首页</button>
+        <button class="primary full required-budget-submit" [disabled]="saving()" (click)="saveRequiredBudget()">储存并进入首页</button>
       </nexus-split-bottom-sheet>
     }
 
     @if (adjustmentsOpen()) {
-      <nexus-split-bottom-sheet label="调整本月余额" [expandable]="true" (closed)="closeAdjustments()">
+      <nexus-split-bottom-sheet label="调整本月余额" [expandable]="true" [coversBottomNav]="true" (closed)="closeAdjustments()">
         <div class="sheet-title"><div><h2>调整本月余额</h2><p>额外收入会增加可用总额，支出会减少余额。</p></div></div>
         <div class="kind-picker">
           <button [class.active]="adjustmentKind === 'income'" (click)="adjustmentKind='income'"><svg lucidePlus></svg>额外收入</button>

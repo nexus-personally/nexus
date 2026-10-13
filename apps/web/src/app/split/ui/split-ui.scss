@@ -308,7 +308,7 @@
   background: #102b2b88;
 }
 .sheet-backdrop.ios-safari {
-  bottom: calc(76px + max(10px, env(safe-area-inset-bottom)));
+  bottom: calc(66px + max(10px, env(safe-area-inset-bottom)));
 }
 .sheet {
   box-sizing: border-box;
@@ -330,7 +330,7 @@
 .sheet-expandable.sheet-expanded { max-height:calc(100dvh - 8px); }
 .sheet-backdrop.ios-safari .sheet-expandable.sheet-dragging,
 .sheet-backdrop.ios-safari .sheet-expandable.sheet-expanded {
-  max-height: calc(100dvh - 76px - max(10px, env(safe-area-inset-bottom)) - 8px);
+  max-height: calc(100dvh - 66px - max(10px, env(safe-area-inset-bottom)) - 8px);
 }
 .sheet-dragging { transition:none; }
 .sheet-expanded { border-radius:20px 20px 0 0; }

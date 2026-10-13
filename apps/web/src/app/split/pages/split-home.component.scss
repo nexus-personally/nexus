@@ -51,3 +51,4 @@
 .adjustment-row button { display:grid; place-items:center; width:34px; height:34px; border:0; background:transparent; color:var(--split-ink); }
 .adjustment-row button svg { width:17px; }
 @media (max-width:370px) { .balance-card { padding-inline:17px; } .adjustment-row { grid-template-columns:25px minmax(0,1fr) 32px 32px; } .adjustment-row > b { grid-column:2; } }
+.required-budget-submit { margin-top:15px; }

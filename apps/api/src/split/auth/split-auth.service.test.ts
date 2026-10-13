@@ -30,15 +30,14 @@ class FakeRepository implements SplitAuthRepository {
   users: SplitUserRecord[] = [];
   sessions: SplitSessionRecord[] = [];
 
-  async findUserByNormalizedEmail(email: string) {
-    return this.users.find((user) => user.normalizedEmail === email);
+  async findUserByNormalizedUsername(username: string) {
+    return this.users.find((user) => user.normalizedUsername === username);
   }
 
   async createUserWithSession(input: CreateSplitUserInput, sessionInput: CreateSplitSessionInput) {
     const now = new Date();
     const user: SplitUserRecord = {
       ...input,
-      emailVerifiedAt: null,
       lastLoginAt: null,
       createdAt: now,
       updatedAt: now,
@@ -98,13 +97,14 @@ test('register creates a normalized Split user and authenticated session', async
   });
 
   const result = await service.register({
-    email: '  Person@Example.COM ',
+    username: '  Person_Name ',
     displayName: ' Person ',
     password: 'correct horse battery staple',
   });
 
-  assert.equal(result.user.email, 'Person@Example.COM');
-  assert.equal(repository.users[0]?.normalizedEmail, 'person@example.com');
+  assert.equal(result.user.username, 'Person_Name');
+  assert.equal(repository.users[0]?.normalizedUsername, 'person_name');
+  assert.equal('email' in result.user, false);
   assert.equal(result.user.displayName, 'Person');
   assert.equal(repository.sessions.length, 1);
   assert.equal(result.sessionToken, 'a'.repeat(64));
@@ -135,27 +135,49 @@ function harness(nowValue = new Date('2026-10-06T00:00:00.000Z')) {
   };
 }
 
-test('duplicate normalized email is rejected regardless of case', async () => {
+test('duplicate normalized username is rejected regardless of case', async () => {
   const { service } = harness();
   await service.register({
-    email: 'Person@example.com',
+    username: 'Person_Name',
     displayName: 'Person',
     password: 'a secure password',
   });
   await assert.rejects(
     service.register({
-      email: 'person@EXAMPLE.com',
+      username: 'person_name',
       displayName: 'Other',
       password: 'another password',
     }),
-    (error) => errorCode(error) === 'SPLIT_AUTH_EMAIL_EXISTS',
+    (error) => errorCode(error) === 'SPLIT_AUTH_USERNAME_EXISTS',
   );
+});
+
+test('email-only registration and login payloads are no longer accepted', async () => {
+  const { service } = harness();
+  await assert.rejects(
+    service.register({ email: 'person@example.com', displayName: 'Person', password: '12345' }),
+    (error) => errorCode(error) === 'VALIDATION_FAILED',
+  );
+  await assert.rejects(
+    service.login({ email: 'person@example.com', password: '12345' }),
+    (error) => errorCode(error) === 'VALIDATION_FAILED',
+  );
+});
+
+test('username rejects unsupported characters and values outside the length range', async () => {
+  const { service } = harness();
+  for (const username of ['ab', 'user-name', '用户甲', 'x'.repeat(31)]) {
+    await assert.rejects(
+      service.register({ username, displayName: 'Person', password: '12345' }),
+      (error) => errorCode(error) === 'VALIDATION_FAILED',
+    );
+  }
 });
 
 test('weak registration input is rejected', async () => {
   const { service } = harness();
   await assert.rejects(
-    service.register({ email: 'invalid', displayName: '', password: 'tiny' }),
+    service.register({ username: 'x', displayName: '', password: 'tiny' }),
     (error) => errorCode(error) === 'VALIDATION_FAILED',
   );
 });
@@ -163,17 +185,17 @@ test('weak registration input is rejected', async () => {
 test('registration accepts a five-character password', async () => {
   const { service } = harness();
   const result = await service.register({
-    email: 'five@example.com',
+    username: 'five_user',
     displayName: 'Five',
     password: '12345',
   });
-  assert.equal(result.user.email, 'five@example.com');
+  assert.equal(result.user.username, 'five_user');
 });
 
 test('profile and password updates use the authenticated Split account', async () => {
   const { service, repository } = harness();
   const registered = await service.register({
-    email: 'person@example.com', displayName: 'Old', password: '12345',
+    username: 'person_name', displayName: 'Old', password: '12345',
   });
   const profile = await service.updateProfile(registered.user.id, { monthlyBudgetMinor: 600000 });
   assert.equal(profile.monthlyBudgetMinor, 600000);
@@ -182,16 +204,16 @@ test('profile and password updates use the authenticated Split account', async (
   assert.equal(repository.users[0]?.passwordHash, 'argon2id:54321');
 });
 
-test('login failure is generic for unknown email and wrong password', async () => {
+test('login failure is generic for unknown username and wrong password', async () => {
   const { service } = harness();
   await service.register({
-    email: 'person@example.com',
+    username: 'person_name',
     displayName: 'Person',
     password: 'correct password',
   });
   for (const input of [
-    { email: 'missing@example.com', password: 'correct password' },
-    { email: 'person@example.com', password: 'wrong password!' },
+    { username: 'missing_user', password: 'correct password' },
+    { username: 'person_name', password: 'wrong password!' },
   ]) {
     await assert.rejects(
       service.login(input),
@@ -203,12 +225,12 @@ test('login failure is generic for unknown email and wrong password', async () =
 test('successful login creates an additional device session', async () => {
   const { service, repository } = harness();
   const registered = await service.register({
-    email: 'person@example.com',
+    username: 'person_name',
     displayName: 'Person',
     password: 'correct password',
   });
-  const login = await service.login({ email: 'PERSON@example.com', password: 'correct password' });
-  assert.equal(login.user.email, 'person@example.com');
+  const login = await service.login({ username: 'PERSON_NAME', password: 'correct password' });
+  assert.equal(login.user.username, 'person_name');
   assert.equal(repository.sessions.length, 2);
   assert.notEqual(login.sessionToken, registered.sessionToken);
   assert.notEqual(login.csrfToken, registered.csrfToken);
@@ -217,12 +239,12 @@ test('successful login creates an additional device session', async () => {
 test('multi-device sessions remain independent when one device logs out', async () => {
   const { service } = harness();
   const deviceA = await service.register({
-    email: 'person@example.com',
+    username: 'person_name',
     displayName: 'Person',
     password: 'correct password',
   });
   const deviceB = await service.login({
-    email: 'person@example.com',
+    username: 'person_name',
     password: 'correct password',
   });
   const sessionA = await service.authenticate(deviceA.sessionToken);
@@ -240,7 +262,7 @@ test('multi-device sessions remain independent when one device logs out', async 
 test('two tabs restoring the same session receive one stable CSRF token', async () => {
   const { service, repository } = harness();
   const registered = await service.register({
-    email: 'person@example.com',
+    username: 'person_name',
     displayName: 'Person',
     password: 'correct password',
   });
@@ -259,7 +281,7 @@ test('two tabs restoring the same session receive one stable CSRF token', async 
 test('logout revokes the current session and revoked sessions are rejected', async () => {
   const { service } = harness();
   const registered = await service.register({
-    email: 'person@example.com',
+    username: 'person_name',
     displayName: 'Person',
     password: 'correct password',
   });
@@ -275,7 +297,7 @@ test('idle and absolute expiry reject sessions', async () => {
   for (const elapsed of [8, 31]) {
     const { service, setNow } = harness();
     const registered = await service.register({
-      email: 'person@example.com',
+      username: 'person_name',
       displayName: 'Person',
       password: 'correct password',
     });
@@ -290,7 +312,7 @@ test('idle and absolute expiry reject sessions', async () => {
 test('invalid CSRF token is rejected', async () => {
   const { service } = harness();
   const registered = await service.register({
-    email: 'person@example.com',
+    username: 'person_name',
     displayName: 'Person',
     password: 'correct password',
   });
@@ -306,13 +328,13 @@ test('login rejects suspended and disabled accounts with the generic response', 
   for (const status of ['suspended', 'disabled'] as const) {
     const { service, repository } = harness();
     await service.register({
-      email: 'person@example.com',
+      username: 'person_name',
       displayName: 'Person',
       password: 'correct password',
     });
     repository.users[0]!.accountStatus = status;
     await assert.rejects(
-      service.login({ email: 'person@example.com', password: 'correct password' }),
+      service.login({ username: 'person_name', password: 'correct password' }),
       (error) => errorCode(error) === 'SPLIT_AUTH_INVALID_CREDENTIALS',
     );
   }
@@ -321,7 +343,7 @@ test('login rejects suspended and disabled accounts with the generic response', 
 test('presented session is revoked before session rotation', async () => {
   const { service, repository } = harness();
   const registered = await service.register({
-    email: 'person@example.com',
+    username: 'person_name',
     displayName: 'Person',
     password: 'correct password',
   });
@@ -362,7 +384,7 @@ test('active sessions are rejected after an account is suspended or disabled', a
   for (const status of ['suspended', 'disabled'] as const) {
     const { service, repository } = harness();
     const registered = await service.register({
-      email: 'person@example.com',
+      username: 'person_name',
       displayName: 'Person',
       password: 'correct password',
     });

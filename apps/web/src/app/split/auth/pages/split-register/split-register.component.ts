@@ -20,14 +20,18 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
       </header>
       <form (ngSubmit)="submit()" novalidate>
         <label
-          >电子邮箱<input
-            name="email"
-            type="email"
-            inputmode="email"
-            autocomplete="email"
+          >用户名<input
+            name="username"
+            type="text"
+            autocomplete="username"
             required
-            [(ngModel)]="email"
-        /></label>
+            minlength="3"
+            maxlength="30"
+            pattern="[A-Za-z0-9_]+"
+            [(ngModel)]="username"
+          />
+          <small>3–30 个英文字母、数字或下划线，登录时不区分大小写。</small>
+        </label>
         <label
           >显示名称<input
             name="displayName"
@@ -70,7 +74,7 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
   styleUrls: ['../split-auth-form.scss'],
 })
 export class SplitRegisterComponent {
-  email = '';
+  username = '';
   displayName = '';
   password = '';
   showPassword = false;
@@ -90,7 +94,7 @@ export class SplitRegisterComponent {
     try {
       await firstValueFrom(
         this.auth.register({
-          email: this.email,
+          username: this.username,
           displayName: this.displayName,
           password: this.password,
         }),

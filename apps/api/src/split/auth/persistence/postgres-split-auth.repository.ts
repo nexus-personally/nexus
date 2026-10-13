@@ -11,13 +11,12 @@ import type {
 
 interface UserRow extends QueryResultRow {
   id: string;
-  email: string;
-  normalized_email: string;
+  username: string;
+  normalized_username: string;
   display_name: string;
   monthly_budget_minor: string | number | null;
   password_hash: string;
   account_status: SplitUserRecord['accountStatus'];
-  email_verified_at: Date | string | null;
   last_login_at: Date | string | null;
   created_at: Date | string;
   updated_at: Date | string;
@@ -41,13 +40,12 @@ interface SessionRow extends QueryResultRow {
 function mapUser(row: UserRow): SplitUserRecord {
   return {
     id: row.id,
-    email: row.email,
-    normalizedEmail: row.normalized_email,
+    username: row.username,
+    normalizedUsername: row.normalized_username,
     displayName: row.display_name,
     monthlyBudgetMinor: row.monthly_budget_minor === null ? null : Number(row.monthly_budget_minor),
     passwordHash: row.password_hash,
     accountStatus: row.account_status,
-    emailVerifiedAt: row.email_verified_at ? new Date(row.email_verified_at) : null,
     lastLoginAt: row.last_login_at ? new Date(row.last_login_at) : null,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
@@ -87,10 +85,10 @@ export class PostgresSplitAuthRepository implements SplitAuthRepository, OnModul
     await this.pool.end();
   }
 
-  async findUserByNormalizedEmail(email: string) {
+  async findUserByNormalizedUsername(username: string) {
     const result = await this.pool.query<UserRow>(
-      'select * from split_users where normalized_email = $1',
-      [email],
+      'select * from split_users where normalized_username = $1',
+      [username],
     );
     return result.rows[0] ? mapUser(result.rows[0]) : undefined;
   }
@@ -101,13 +99,13 @@ export class PostgresSplitAuthRepository implements SplitAuthRepository, OnModul
     try {
       await client.query('begin');
       const userResult = await client.query<UserRow>(
-        `insert into split_users (id, email, normalized_email, display_name, password_hash, account_status)
+        `insert into split_users (id, username, normalized_username, display_name, password_hash, account_status)
          values ($1, $2, $3, $4, $5, $6)
          returning *`,
         [
           user.id,
-          user.email,
-          user.normalizedEmail,
+          user.username,
+          user.normalizedUsername,
           user.displayName,
           user.passwordHash,
           user.accountStatus,
@@ -138,8 +136,8 @@ export class PostgresSplitAuthRepository implements SplitAuthRepository, OnModul
       if ((error as { code?: string }).code === '23505') {
         throw new ConflictException({
           error: {
-            code: 'SPLIT_AUTH_EMAIL_EXISTS',
-            message: 'An account already uses this email.',
+            code: 'SPLIT_AUTH_USERNAME_EXISTS',
+            message: 'An account already uses this username.',
           },
         });
       }

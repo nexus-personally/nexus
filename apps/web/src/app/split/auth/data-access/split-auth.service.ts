@@ -53,13 +53,13 @@ export class SplitAuthService {
     return this.restoration;
   }
 
-  register(input: { email: string; displayName: string; password: string }) {
+  register(input: { username: string; displayName: string; password: string }) {
     return this.api
       .register(input)
       .pipe(concatMap((result) => from(this.accept(result)).pipe(map(() => result))));
   }
 
-  login(input: { email: string; password: string }) {
+  login(input: { username: string; password: string }) {
     return this.api
       .login(input)
       .pipe(concatMap((result) => from(this.accept(result)).pipe(map(() => result))));

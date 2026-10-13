@@ -20,13 +20,14 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
       </header>
       <form (ngSubmit)="submit()" novalidate>
         <label
-          >电子邮箱<input
-            name="email"
-            type="email"
-            inputmode="email"
-            autocomplete="email"
+          >用户名<input
+            name="username"
+            type="text"
+            autocomplete="username"
             required
-            [(ngModel)]="email"
+            minlength="3"
+            maxlength="30"
+            [(ngModel)]="username"
         /></label>
         <label
           >密码<span class="password-field"
@@ -59,7 +60,7 @@ import { safeSplitReturnUrl } from '../../guards/split-route-access';
   styleUrls: ['../split-auth-form.scss'],
 })
 export class SplitLoginComponent {
-  email = '';
+  username = '';
   password = '';
   showPassword = false;
   busy = false;
@@ -76,10 +77,10 @@ export class SplitLoginComponent {
     this.busy = true;
     this.error = '';
     try {
-      await firstValueFrom(this.auth.login({ email: this.email, password: this.password }));
+      await firstValueFrom(this.auth.login({ username: this.username, password: this.password }));
       await this.router.navigateByUrl(this.returnUrl);
     } catch {
-      this.error = '邮箱或密码不正确，或账号暂时无法使用。';
+      this.error = '用户名或密码不正确，或账号暂时无法使用。';
     } finally {
       this.busy = false;
     }

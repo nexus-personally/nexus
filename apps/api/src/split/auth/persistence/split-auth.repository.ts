@@ -4,13 +4,12 @@ export const SPLIT_AUTH_REPOSITORY = Symbol('SPLIT_AUTH_REPOSITORY');
 
 export interface SplitUserRecord {
   id: string;
-  email: string;
-  normalizedEmail: string;
+  username: string;
+  normalizedUsername: string;
   displayName: string;
   monthlyBudgetMinor: number | null;
   passwordHash: string;
   accountStatus: SplitAccountStatus;
-  emailVerifiedAt: Date | null;
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -33,12 +32,12 @@ export interface SplitSessionRecord {
 
 export type CreateSplitUserInput = Omit<
   SplitUserRecord,
-  'emailVerifiedAt' | 'lastLoginAt' | 'createdAt' | 'updatedAt'
+  'lastLoginAt' | 'createdAt' | 'updatedAt'
 >;
 export type CreateSplitSessionInput = Omit<SplitSessionRecord, 'revokedAt'>;
 
 export interface SplitAuthRepository {
-  findUserByNormalizedEmail(email: string): Promise<SplitUserRecord | undefined>;
+  findUserByNormalizedUsername(username: string): Promise<SplitUserRecord | undefined>;
   createUserWithSession(
     user: CreateSplitUserInput,
     session: CreateSplitSessionInput,

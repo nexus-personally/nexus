@@ -7,11 +7,11 @@ export class SplitAuthApiService {
   private readonly http = inject(HttpClient);
   private readonly base = '/api/split/auth';
 
-  register(input: { email: string; displayName: string; password: string }) {
+  register(input: { username: string; displayName: string; password: string }) {
     return this.http.post<SplitAuthResponse>(`${this.base}/register`, input);
   }
 
-  login(input: { email: string; password: string }) {
+  login(input: { username: string; password: string }) {
     return this.http.post<SplitAuthResponse>(`${this.base}/login`, input);
   }
 

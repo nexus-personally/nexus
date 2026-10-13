@@ -2,11 +2,10 @@ export type SplitAccountStatus = 'active' | 'suspended' | 'disabled';
 
 export interface SplitCurrentUser {
   id: string;
-  email: string;
+  username: string;
   displayName: string;
   monthlyBudgetMinor: number | null;
   accountStatus: SplitAccountStatus;
-  emailVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }

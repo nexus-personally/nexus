@@ -32,17 +32,16 @@ import { SplitCsrfService } from './session/split-csrf.service.js';
 
 const invalidCredentials = () =>
   new UnauthorizedException({
-    error: { code: 'SPLIT_AUTH_INVALID_CREDENTIALS', message: 'Invalid email or password.' },
+    error: { code: 'SPLIT_AUTH_INVALID_CREDENTIALS', message: 'Invalid username or password.' },
   });
 
 function publicUser(user: SplitUserRecord): SplitCurrentUser {
   return {
     id: user.id,
-    email: user.email,
+    username: user.username,
     displayName: user.displayName,
     monthlyBudgetMinor: user.monthlyBudgetMinor,
     accountStatus: user.accountStatus,
-    emailVerified: Boolean(user.emailVerifiedAt),
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
   };
@@ -60,15 +59,15 @@ export class SplitAuthService {
 
   async register(body: unknown): Promise<SplitAuthResult> {
     const input = validateSplitRegister(body);
-    if (await this.repository.findUserByNormalizedEmail(input.normalizedEmail)) {
+    if (await this.repository.findUserByNormalizedUsername(input.normalizedUsername)) {
       throw new ConflictException({
-        error: { code: 'SPLIT_AUTH_EMAIL_EXISTS', message: 'An account already uses this email.' },
+        error: { code: 'SPLIT_AUTH_USERNAME_EXISTS', message: 'An account already uses this username.' },
       });
     }
     const userInput = {
       id: this.runtime.randomUuid(),
-      email: input.email,
-      normalizedEmail: input.normalizedEmail,
+      username: input.username,
+      normalizedUsername: input.normalizedUsername,
       displayName: input.displayName,
       monthlyBudgetMinor: null,
       passwordHash: await this.passwordHasher.hash(input.password),
@@ -86,7 +85,7 @@ export class SplitAuthService {
 
   async login(body: unknown): Promise<SplitAuthResult> {
     const input = validateSplitLogin(body);
-    const user = await this.repository.findUserByNormalizedEmail(input.normalizedEmail);
+    const user = await this.repository.findUserByNormalizedUsername(input.normalizedUsername);
     if (!user) {
       await this.passwordHasher.hash(input.password);
       throw invalidCredentials();

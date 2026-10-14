@@ -1,6 +1,16 @@
 # NEXUS：本机运行、Render 部署与 Neon 数据库
 
-NEXUS 首页有两个可用入口：System 01 是 Resume Studio，System 02 是「港雀」麻将。当前线上网站：[NEXUS](https://nexus-2rwr.onrender.com/)；麻将也可[直接打开](https://nexus-2rwr.onrender.com/mahjong/)。代码在 [GitHub 仓库](https://github.com/nexus-personally/nexus)。
+NEXUS 目前有三个系统：System 01 Resume Studio、System 02「港雀」麻将、System 03 Split 群组分账。当前线上网站：[NEXUS](https://nexus-sg.onrender.com/)；代码在 [GitHub 仓库](https://github.com/nexus-personally/nexus)。
+
+## 三个系统分别安装为 PWA
+
+三个系统使用不同的应用名称、图标、起始页面和安装范围；在手机或电脑浏览器打开对应入口，再从浏览器菜单选择「安装应用」/「加入主画面」：
+
+1. **System 01 · Resume Studio**：[打开 Resume Studio](https://nexus-sg.onrender.com/resume/)。安装后从 `/resume/` 启动，只覆盖 Resume Studio 页面。
+2. **System 02 · 港雀麻将**：[打开港雀](https://nexus-sg.onrender.com/mahjong/)。它有独立 manifest 和 `/mahjong/` Service Worker；离线能力以麻将应用说明为准。
+3. **System 03 · Split 群组分账**：[打开 Split](https://nexus-sg.onrender.com/split/home)。安装后从 `/split/home` 启动，只覆盖 Split 页面。
+
+Resume Studio 与 Split 共用 Angular 应用壳，但浏览器会根据当前系统路由加载各自的 PWA manifest；Angular Service Worker 不接管 `/mahjong` 路由，避免麻将被错误回退到 NEXUS 首页。发布 PWA 更新后，已有用户先联网打开对应系统并刷新，让浏览器更新缓存后再重新安装或启动。
 
 以下以 **Windows + PowerShell** 为例，按顺序写给第一次接触这类项目的人。本文说的「项目根目录」，就是能看到 `package.json`、`render.yaml`、`Dockerfile` 的文件夹。在资源管理器打开该文件夹，点击上方地址栏，输入 `powershell` 后按 Enter，就能在正确位置打开终端。
 
@@ -9,7 +19,7 @@ NEXUS 首页有两个可用入口：System 01 是 Resume Studio，System 02 是�
 | 打开的地址 | 实际用到的数据 |
 | --- | --- |
 | `http://localhost:3000/` | 自己电脑的本机数据 |
-| `https://nexus-2rwr.onrender.com/` | Render Web Service + Neon 线上 PostgreSQL |
+| `https://nexus-sg.onrender.com/` | Render Web Service + Neon 线上 PostgreSQL |
 
 `localhost` 就是你正在用的电脑。本机注册的麻将帐号不会自动出现在网上，网上的帐号也不会自动出现在本机。线上 NEXUS 和麻将共用 Neon 项目 `nexus-mahjong` 的 `neondb` 数据库；Render 只负责运行网站服务。麻将帐号存于 `mahjong_accounts`，登录会话存于 `mahjong_sessions`，妈币流水存于 `mahjong_wallet_events`；房间、未完成牌局、人机计时器目前保存在服务器记忆体中，**不在数据库里**。Render 重新部署或服务器重启后，正在进行的房间会结束。
 
@@ -172,7 +182,7 @@ SELECT COUNT(*) FROM mahjong_sessions;
    改了其他文件时，把 `README.md` 换成明确要上传的路径。GitHub 要求登录时，使用对该仓库有写入权限的帐号。
 
 5. 打开 [Render Dashboard](https://dashboard.render.com/) → 现有的 **nexus** Web Service → **Deploys**。若自动部署已开启，推送到关联的 `main` 后会自动构建；等状态显示 **Live**。如果没自动开始，用 **Manual Deploy → Deploy latest commit**。部署失败则打开该次部署的 **Logs** 看错误。
-6. 打开[线上 NEXUS](https://nexus-2rwr.onrender.com/)，刷新后点 System 02；或打开[线上麻将](https://nexus-2rwr.onrender.com/mahjong/)。[健康检查](https://nexus-2rwr.onrender.com/api/health) 返回 `"status":"ok"` 表示 API 已回应。
+6. 打开[线上 NEXUS](https://nexus-sg.onrender.com/)，刷新后进入需要检查的 System；[健康检查](https://nexus-sg.onrender.com/api/health) 返回 `"status":"ok"` 表示 API 已回应。
 
 **只有要在全新的 Render 帐号里部署另一个独立副本**，才按 [Render Blueprint 官方说明](https://render.com/docs/infrastructure-as-code) 选择 **New → Blueprint**，连接仓库并确认根目录的 `render.yaml` 与费用。现有服务不要重复这样做：Render 可能为重复的 Blueprint 新建另一组资源。
 

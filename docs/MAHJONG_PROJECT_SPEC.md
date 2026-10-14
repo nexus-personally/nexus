@@ -3,7 +3,7 @@
 > 基线日期：2026-10-05<br>
 > 规格性质：以当前仓库代码为准的产品、规则、接口与验收基线<br>
 > 项目路径：`apps/mahjong`<br>
-> 线上入口：<https://nexus-2rwr.onrender.com/mahjong/>
+> 线上入口：<https://nexus-sg.onrender.com/mahjong/>
 
 本文记录港雀麻将截至基线日期已经实现的功能、数据边界、已知限制及验收要求。尚未落地的想法只列在“后续建议”，不视为当前功能承诺。历史审计见 [MAHJONG_FUNCTION_AUDIT.md](MAHJONG_FUNCTION_AUDIT.md)。
 
@@ -312,7 +312,7 @@ ORDER BY name;
 
 ### 18.4 生产部署与数据库基线
 
-- Web Service：Render `nexus`，线上入口为 <https://nexus-2rwr.onrender.com/mahjong/>。
+- Web Service：Render `nexus`，线上入口为 <https://nexus-sg.onrender.com/mahjong/>。
 - PostgreSQL：Neon 项目 `nexus-mahjong`、branch `production`、database `neondb`，AWS Singapore 区域。
 - Render 通过 secret `DATABASE_URL` 连接 Neon；`POSTGRES_SSL=true`，凭证不得写入仓库或文档。
 - 2026-10-05 已从 Render `nexus-db` 迁移到 Neon。切换时核对了 8 个帐号、40 个 session、71 条钱包流水，并核对妈币总余额一致；迁移时所有 `is_online` 重置为 `false`。

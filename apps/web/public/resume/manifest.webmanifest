@@ -1,0 +1,22 @@
+{
+  "id": "/resume/",
+  "name": "NEXUS Resume Studio",
+  "short_name": "Resume Studio",
+  "description": "Create and manage professional resumes with NEXUS Resume Studio.",
+  "lang": "en",
+  "start_url": "/resume/",
+  "scope": "/resume",
+  "display": "standalone",
+  "background_color": "#f5f4f0",
+  "theme_color": "#263349",
+  "icons": [
+    { "src": "/resume/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/resume/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    { "src": "/resume/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

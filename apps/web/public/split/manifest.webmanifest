@@ -1,0 +1,23 @@
+{
+  "id": "/split/home",
+  "name": "NEXUS Split",
+  "short_name": "NEXUS Split",
+  "description": "轻松记录共同费用和每月余额。",
+  "lang": "zh-CN",
+  "start_url": "/split/home",
+  "scope": "/split",
+  "display": "standalone",
+  "background_color": "#fbf1d8",
+  "theme_color": "#fbf1d8",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/split/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/split/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    {
+      "src": "/split/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

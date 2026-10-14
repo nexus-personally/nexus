@@ -3,13 +3,30 @@
   "short_name": "港雀",
   "lang": "zh-Hant",
   "start_url": "/mahjong/",
+  "scope": "/mahjong/",
+  "id": "/mahjong/",
   "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#122b29",
   "theme_color": "#122b29",
   "icons": [
-    { "src": "/mahjong/ghost-glass-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/mahjong/ghost-glass-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/mahjong/ghost-glass-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/mahjong/ghost-glass-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/mahjong/ghost-glass-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/mahjong/ghost-glass-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

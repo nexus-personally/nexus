@@ -5,7 +5,7 @@
   "description": "轻松记录共同费用和每月余额。",
   "lang": "zh-CN",
   "start_url": "/split/home",
-  "scope": "/",
+  "scope": "/split",
   "display": "standalone",
   "background_color": "#fbf1d8",
   "theme_color": "#fbf1d8",
